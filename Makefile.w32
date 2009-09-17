@@ -12,7 +12,7 @@
 # "c:\windows\command.com /e:4096" as the program command line and set the
 # working directory to this directory.  Then double-click to open the new
 # DOS-prompt window with a bigger environment and retry the commands above.
-#
+# 
 # This makefile assumes zlib has already been built or downloaded and is in
 # a subdirectory at the same level as the current subdirectory (as indicated
 # by the ZPATH macro below).  Edit as appropriate.

@@ -1,3 +1,10 @@
+version 1.1
+------------
+ - alpha-sensitive color reduction and dithering
+ - support -- and - arguments in command line
+ - number of colors optional (defaults to 256)
+ - increased maximum number of colors in histogram
+
 version 1.0
 ------------
  - cleaned up Makefile.unx (better gcc optimizations, "clean" target)

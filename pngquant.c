@@ -3,6 +3,7 @@
 ** Copyright (C) 1989, 1991 by Jef Poskanzer.
 ** Copyright (C) 1997, 2000, 2002 by Greg Roelofs; based on an idea by
 **                                Stefan Schneider.
+** Copyright (C) 2009 by Kornel Lesinski.
 **
 ** Permission to use, copy, modify, and distribute this software and its
 ** documentation for any purpose and without fee is hereby granted, provided
@@ -25,21 +26,25 @@
 /* GRR TO DO:  if all samples are 0 or maxval, eliminate gAMA chunk (rwpng.c) */
 
 
-#define VERSION "1.0 of 5 April 2002"
+#define PNGQUANT_VERSION "1.1.3 of February 2009"
 
 #define PNGQUANT_USAGE "\
-   usage:  pngquant [options] <ncolors> [pngfile [pngfile ...]]\n\
+   usage:  pngquant [options] [ncolors] [pngfile [pngfile ...]]\n\
                     [options] -map mapfile [pngfile [pngfile ...]]\n\
    options:\n\
       -force         overwrite existing output files\n\
-      -ordered       use ordered dithering (synonyms:  -nofloyd, -nofs)\n\
-      -verbose       print status messages (synonyms:  -noquiet)\n\n\
+      -ext new.png   set custom extension for output filename\n\
+      -nofs          disable dithering (synonyms: -nofloyd, -ordered)\n\
+      -verbose       print status messages (synonyms: -noquiet)\n\
+      -iebug         increase opacity to work around Internet Explorer 6 bug\n\
+\n\
    Quantizes one or more 32-bit RGBA PNGs to 8-bit (or smaller) RGBA-palette\n\
-   PNGs using either ordered dithering or Floyd-Steinberg diffusion dithering\n\
-   (default).  The output filename is the same as the input name except that\n\
-   it ends in \"-fs8.png\" or \"-or8.png\" (unless the input is stdin, in which\n\
-   case the quantized image will go to stdout).  The default behavior if the\n\
-   output file exists is to skip the conversion; use -force to overwrite.\n\n\
+   PNGs using Floyd-Steinberg diffusion dithering (unless disabled).\n\
+   The output filename is the same as the input name except that\n\
+   it ends in \"-fs8.png\", \"-or8.png\" or your custom extension (unless the\n\
+   input is stdin, in which case the quantized image will go to stdout).\n\
+   The default behavior if the output file exists is to skip the conversion;\n\
+   use -force to overwrite.\n\
    NOTE:  the -map option is NOT YET SUPPORTED.\n"
 
 
@@ -64,7 +69,8 @@
 #  endif
 #endif
 
-#include "zlib.h"	/* libpng header; includes zlib.h */
+#include <math.h>
+
 #include "png.h"	/* libpng header; includes zlib.h */
 #include "rwpng.h"	/* typedefs, common macros, public prototypes */
 
@@ -88,6 +94,7 @@ typedef struct {
 #define PAM_GETG(p) ((p).g)
 #define PAM_GETB(p) ((p).b)
 #define PAM_GETA(p) ((p).a)
+#define PAM_SETA(p,v) ((p).a = (v))
 #define PAM_ASSIGN(p,red,grn,blu,alf) \
    do { (p).r = (red); (p).g = (grn); (p).b = (blu); (p).a = (alf); } while (0)
 #define PAM_EQUAL(p,q) \
@@ -106,6 +113,7 @@ typedef struct acolorhist_item *acolorhist_vector;
 struct acolorhist_item {
     apixel acolor;
     int value;
+    int contrast;
 };
 
 typedef struct acolorhist_list_item *acolorhist_list;
@@ -123,8 +131,8 @@ static mainprog_info rwpng_info;
 
 
 #define FNMAX      1024     /* max filename length */
-#define MAXCOLORS  32767
-#define FS_SCALE   1024     /* Floyd-Steinberg scaling factor */
+#define MAXCOLORS  (32767*8)
+#define FS_SCALE   4096     /* Floyd-Steinberg scaling factor */
 
 #define LARGE_NORM
 /* #define LARGE_LUM */   /* GRR 19970727:  this isn't well-defined for RGBA */
@@ -146,20 +154,22 @@ struct box {
    static int pngquant
      (char *filename, char *newext, int floyd, int force, int verbose,
       int using_stdin, int reqcolors, apixel **mapapixels, ulg maprows,
-      ulg mapcols, pixval mapmaxval);
+      ulg mapcols, pixval mapmaxval, int ie_bug);
 #else
    static int pngquant
      (char *filename, char *newext, int floyd, int force, int verbose,
-      int using_stdin, int reqcolors, apixel **mapapixels);
+      int using_stdin, int reqcolors, apixel **mapapixels, int ie_bug);
 #endif
 
 static acolorhist_vector mediancut
-  (acolorhist_vector achv, int colors, int sum, pixval maxval, int newcolors);
+  (acolorhist_vector achv, int colors, int sum, pixval maxval, pixval min_opaque_val, int newcolors);
 static int redcompare (const void *ch1, const void *ch2);
 static int greencompare (const void *ch1, const void *ch2);
 static int bluecompare (const void *ch1, const void *ch2);
 static int alphacompare (const void *ch1, const void *ch2);
 static int sumcompare (const void *b1, const void *b2);
+
+static int colorimportance(int alpha);
 
 static acolorhist_vector pam_acolorhashtoacolorhist
   (acolorhash_table acht, int maxacolors);
@@ -175,10 +185,10 @@ static void pam_freeacolorhist (acolorhist_vector achv);
 static void pam_freeacolorhash (acolorhash_table acht);
 
 static char *pm_allocrow (int cols, int size);
-static void pm_freerow (char* itrow);
-static char **pm_allocarray (int cols, int rows, int size);
+#ifdef SUPPORT_MAPFILE
 static void pm_freearray (char **its, int rows);
-
+#endif
+static void averagepixels(int indx, int clrs, apixel *pixel, acolorhist_vector achv, pixval maxval, pixval min_opaque_val);
 
 
 int
@@ -196,10 +206,11 @@ main( argc, argv )
     int reqcolors;
     int floyd = TRUE;
     int force = FALSE;
+    int ie_bug = FALSE;
     int verbose = FALSE;
     int using_stdin = FALSE;
     int latest_error=0, error_count=0, file_count=0;
-    char *filename, *newext;
+    char *filename, *newext = NULL;
     char *pq_usage = PNGQUANT_USAGE;
 
 
@@ -211,6 +222,8 @@ main( argc, argv )
     mapapixels = (apixel **)0;
 
     while ( argn < argc && argv[argn][0] == '-' && argv[argn][1] != '\0' ) {
+        if ( 0 == strcmp( argv[argn], "--" ) ) { ++argn;break; }
+        
         if ( 0 == strncmp( argv[argn], "-fs", 3 ) ||
              0 == strncmp( argv[argn], "-floyd", 3 ) )
             floyd = TRUE;
@@ -218,6 +231,8 @@ main( argc, argv )
                   0 == strncmp( argv[argn], "-nofloyd", 5 ) ||
                   0 == strncmp( argv[argn], "-ordered", 3 ) )
             floyd = FALSE;
+        else if ( 0 == strcmp( argv[argn], "-iebug" ) )
+            ie_bug = TRUE;        
         else if ( 0 == strncmp( argv[argn], "-force", 2 ) )
             force = TRUE;
         else if ( 0 == strncmp( argv[argn], "-noforce", 4 ) )
@@ -228,8 +243,18 @@ main( argc, argv )
         else if ( 0 == strncmp( argv[argn], "-noverbose", 4 ) ||
                   0 == strncmp( argv[argn], "-quiet", 2 ) )
             verbose = FALSE;
+
+        else if ( 0 == strcmp( argv[argn], "-ext" ) ) {
+            ++argn;
+            if ( argn == argc ) {
+                fprintf( stderr, pq_usage );
+                fflush( stderr );
+                return 1;
+            } 
+            newext = argv[argn];
+        }
 #ifdef SUPPORT_MAPFILE
-        else if ( 0 == strncmp( argv[argn], "-map", 2 ) ) {
+        else if ( 0 == strcmp( argv[argn], "-map" ) ) {
             ++argn;
             if ( argn == argc ) {
                 fprintf( stderr, pq_usage );
@@ -245,7 +270,7 @@ main( argc, argv )
             mapapixels = pam_readpam( infile, &mapcols, &maprows, &mapmaxval );
             fclose(infile);
             if ( mapcols == 0 || maprows == 0 ) {
-                fprintf( stderr, "null colormap??\n" );
+                fputs( "null colormap??\n", stderr );
                 fflush( stderr );
                 return 3;
             }
@@ -255,12 +280,12 @@ main( argc, argv )
  */
 #endif /* SUPPORT_MAPFILE */
         else {
-            fprintf(stderr, "pngquant, version %s, by Greg Roelofs.\n",
-              VERSION);
+            fprintf(stderr, "pngquant, version %s, by Greg Roelofs, Kornel Lesinski.\n",
+              PNGQUANT_VERSION);
             rwpng_version_info();
-            fprintf(stderr, "\n");
-            fprintf(stderr, pq_usage);
-            fflush(stderr);
+            fputs( "\n", stderr );
+            fputs( pq_usage, stderr );
+            fflush( stderr );
             return 1;
         }
         ++argn;
@@ -268,36 +293,37 @@ main( argc, argv )
 
     if ( mapapixels == (apixel**) 0 ) {
         if ( argn == argc ) {
-            /* GRR TO DO:  default to 256 colors if number not specified */
-            fprintf( stderr, "pngquant, version %s, by Greg Roelofs.\n",
-              VERSION );
+            fprintf( stderr, "pngquant, version %s, by Greg Roelofs, Kornel Lesinski.\n",
+              PNGQUANT_VERSION );
             rwpng_version_info();
-            fprintf( stderr, "\n" );
-            fprintf( stderr, pq_usage );
+            fputs( "\n", stderr );
+            fputs( pq_usage, stderr );
             fflush( stderr );
             return 1;
         }
         if ( sscanf( argv[argn], "%d", &reqcolors ) != 1 ) {
-            fprintf( stderr, pq_usage );
-            fflush( stderr );
-            return 1;
+            reqcolors = 256; argn--;            
         }
         if ( reqcolors <= 1 ) {
-            fprintf( stderr, "number of colors must be greater than 1\n" );
+            fputs( "number of colors must be greater than 1\n", stderr );
             fflush( stderr );
             return 4;
         }
         if ( reqcolors > 256 ) {
-            fprintf( stderr, "number of colors cannot be more than 256\n" );
+            fputs( "number of colors cannot be more than 256\n", stderr );
             fflush( stderr );
             return 4;
         }
         ++argn;
     }
 
-    newext = floyd? "-fs8.png" : "-or8.png";
+    if (newext == NULL)
+    {
+        newext = floyd? "-ie-fs8.png" : "-ie-or8.png";
+        if (!ie_bug) newext += 3; /* skip "-ie" */        
+    }
 
-    if ( argn == argc ) {
+    if ( argn == argc || 0==strcmp(argv[argn],"-")) {
         using_stdin = TRUE;
         filename = "stdin";
     } else {
@@ -318,10 +344,10 @@ main( argc, argv )
 
 #ifdef SUPPORT_MAPFILE
         retval = pngquant(filename, newext, floyd, force, verbose, using_stdin,
-          reqcolors, mapapixels, maprows, mapcols, mapmaxval);
+          reqcolors, mapapixels, maprows, mapcols, mapmaxval, ie_bug);
 #else
         retval = pngquant(filename, newext, floyd, force, verbose, using_stdin,
-          reqcolors, mapapixels);
+          reqcolors, mapapixels, ie_bug);
 #endif
         if (retval) {
             latest_error = retval;
@@ -361,29 +387,29 @@ main( argc, argv )
 #ifdef SUPPORT_MAPFILE
 int
 pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
-         mapapixels, maprows, mapcols, mapmaxval)
+         mapapixels, maprows, mapcols, mapmaxval, ie_bug)
     char *filename, *newext;
-    int floyd, force, verbose, using_stdin, reqcolors;
+    int floyd, force, verbose, using_stdin, reqcolors, ie_bug;
     apixel **mapapixels;
     ulg maprows, mapcols;
     pixval mapmaxval;
 #else
 int
 pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
-         mapapixels)
+         mapapixels, ie_bug)
     char *filename, *newext;
-    int floyd, force, verbose, using_stdin, reqcolors;
+    int floyd, force, verbose, using_stdin, reqcolors, ie_bug;
     apixel **mapapixels;
 #endif
 {
     FILE *infile, *outfile;
     apixel **apixels;
-    register apixel *pP;
-    register int col, limitcol;
-    register int ind;
+    apixel *pP;
+    int col, limitcol;
+    int ind;
     uch *pQ, *outrow, **row_pointers=NULL;
     ulg rows, cols;
-    pixval maxval, newmaxval;
+    pixval maxval, newmaxval, min_opaque_val, almost_opaque_val;
     acolorhist_vector achv, acolormap=NULL;
     acolorhash_table acht;
     long *thisrerr = NULL;
@@ -395,7 +421,7 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
     long *thisaerr = NULL;
     long *nextaerr = NULL;
     long *temperr;
-    register long sr=0, sg=0, sb=0, sa=0, err;
+    long sr=0, sg=0, sb=0, sa=0, err;
     int row;
     int colors;
     int newcolors = 0;
@@ -450,14 +476,14 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
 
     } else {
         x = strlen(filename);
-        if (x > FNMAX-9) {
+        if (x > FNMAX-strlen(newext)-1) {
             fprintf(stderr,
               "  warning:  base filename [%s] will be truncated\n", filename);
             fflush(stderr);
-            x = FNMAX-9;
+            x = FNMAX-strlen(newext)-1;
         }
         strncpy(outname, filename, x);
-        if (strncmp(outname+x-4, ".png", 4) == 0)
+        if (strncmp(outname+x-4, ".png", 4) == 0) 
             strcpy(outname+x-4, newext);
         else
             strcpy(outname+x, newext);
@@ -502,8 +528,51 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
     cols = rwpng_info.width;
     rows = rwpng_info.height;
     /* channels = rwpng_info.channels; */
+    
     maxval = 255;	/* GRR TO DO:  allow either 8 or 16 bps */
-
+    
+    /* IE6 makes colors with even slightest transparency completely transparent,
+       thus to improve situation in IE, make colors that are less than ~10% transparent 
+       completely opaque */
+    if (ie_bug)
+    {
+        min_opaque_val = maxval * 15 / 16; /* rest of the code uses min_opaque_val rather than checking for ie_bug */
+        almost_opaque_val = min_opaque_val * 2 / 3;
+        
+        if (verbose) {
+            fprintf(stderr, "  Working around IE6 bug by making image less transparent...\n");
+            fflush(stderr);
+        }        
+    }
+    else
+    {
+        min_opaque_val = almost_opaque_val = maxval;
+    }
+    
+    
+    for ( row = 0; (ulg)row < rows; ++row )
+        for ( col = 0, pP = apixels[row]; (ulg)col < cols; ++col, ++pP )
+        {
+            /* set all completely transparent colors to black */
+            if (!PAM_GETA(*pP))
+            {
+                PAM_ASSIGN(*pP,0,0,0,PAM_GETA(*pP));
+            }
+            /* ie bug: to avoid visible step caused by forced opaqueness, linearily raise opaqueness of almost-opaque colors */
+            else if (PAM_GETA(*pP) < maxval && PAM_GETA(*pP) > almost_opaque_val)
+            {
+                int al = almost_opaque_val + (PAM_GETA(*pP)-almost_opaque_val) * (maxval-almost_opaque_val) / (min_opaque_val-almost_opaque_val); 
+                if (al > maxval) al = maxval;
+                PAM_SETA(*pP,al);
+            }
+        }
+    
+    /* ie bug: despite increased opaqueness in the picture, color reduction could still produce 
+        non-opaque colors. to prevent that, set a treshold (it'll be used when remapping too) */
+    if (min_opaque_val != maxval)
+    {
+        min_opaque_val = maxval*15/16;        
+    }
 
     if ( mapapixels == (apixel**) 0 ) {
         /*
@@ -523,6 +592,8 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
             if ( achv != (acolorhist_vector) 0 )
                 break;
             newmaxval = maxval / 2;
+            min_opaque_val /= 2;
+            
             if (verbose) {
                 fprintf(stderr, "too many colors!\n");
                 fprintf(stderr, "  scaling colors from maxval=%d to maxval=%d"
@@ -532,7 +603,7 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
             for ( row = 0; (ulg)row < rows; ++row )
                 for ( col = 0, pP = apixels[row]; (ulg)col < cols; ++col, ++pP )
                     PAM_DEPTH( *pP, *pP, maxval, newmaxval );
-            maxval = newmaxval;
+            maxval = newmaxval;            
         }
         if (verbose) {
             fprintf(stderr, "%d colors found\n", colors);
@@ -547,7 +618,7 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
             fprintf(stderr, "  choosing %d colors...\n", newcolors);
             fflush(stderr);
         }
-        acolormap = mediancut(achv, colors, rows * cols, maxval, newcolors);
+        acolormap = mediancut(achv, colors, rows * cols, maxval, min_opaque_val, newcolors);
         pam_freeacolorhist(achv);
     }
 #ifdef SUPPORT_MAPFILE
@@ -587,7 +658,7 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
     }
 #endif /* SUPPORT_MAPFILE */
 
-
+    
     /*
     ** Step 3.4 [GRR]: set the bit-depth appropriately, given the actual
     ** number of colors that will be used in the output image.
@@ -768,7 +839,7 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
         nextberr = (long*) pm_allocrow( cols + 2, sizeof(long) );
         thisaerr = (long*) pm_allocrow( cols + 2, sizeof(long) );
         nextaerr = (long*) pm_allocrow( cols + 2, sizeof(long) );
-        srandom( (int) ( time( 0 ) ^ getpid( ) ) );
+        srandom( 12345 ); /** deterministic dithering is better for comparing results */
         for ( col = 0; (ulg)col < cols + 2; ++col ) {
             thisrerr[col] = random( ) % ( FS_SCALE * 2 ) - FS_SCALE;
             thisgerr[col] = random( ) % ( FS_SCALE * 2 ) - FS_SCALE;
@@ -796,6 +867,9 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
             pP = &(apixels[row][col]);
             pQ = &(outrow[col]);
         }
+        
+        
+        
         do {
             if ( floyd ) {
                 /* Use Floyd-Steinberg errors to adjust actual color. */
@@ -803,6 +877,7 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
                 sg = PAM_GETG(*pP) + thisgerr[col + 1] / FS_SCALE;
                 sb = PAM_GETB(*pP) + thisberr[col + 1] / FS_SCALE;
                 sa = PAM_GETA(*pP) + thisaerr[col + 1] / FS_SCALE;
+                
                 if ( sr < 0 ) sr = 0;
                 else if ( sr > maxval ) sr = maxval;
                 if ( sg < 0 ) sg = 0;
@@ -810,33 +885,45 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
                 if ( sb < 0 ) sb = 0;
                 else if ( sb > maxval ) sb = maxval;
                 if ( sa < 0 ) sa = 0;
-                else if ( sa > maxval ) sa = maxval;
+                /* when fighting IE bug, dithering must not make opaque areas transparent */
+                else if ( sa > maxval || (ie_bug && PAM_GETA(*pP) == maxval)) sa = maxval;                            
+                
                 /* GRR 20001228:  added casts to quiet warnings; 255 DEPENDENCY */
                 PAM_ASSIGN( *pP, (uch)sr, (uch)sg, (uch)sb, (uch)sa );
             }
 
             /* Check hash table to see if we have already matched this color. */
             ind = pam_lookupacolor( acht, pP );
+                        
+            int a1 = PAM_GETA( *pP );
+            int colorimp = colorimportance(a1);            
+            
             if ( ind == -1 ) {
                 /* No; search acolormap for closest match. */
-                register int i, r1, g1, b1, a1, r2, g2, b2, a2;
-                register long dist, newdist;
+                int i, r1, g1, b1, r2, g2, b2, a2;
+                long dist = 1<<30, newdist;
 
                 r1 = PAM_GETR( *pP );
                 g1 = PAM_GETG( *pP );
                 b1 = PAM_GETB( *pP );
-                a1 = PAM_GETA( *pP );
-                dist = 2000000000;
+                /* a1 read few lines earlier */       
+                
                 for ( i = 0; i < newcolors; ++i ) {
                     r2 = PAM_GETR( acolormap[i].acolor );
                     g2 = PAM_GETG( acolormap[i].acolor );
                     b2 = PAM_GETB( acolormap[i].acolor );
                     a2 = PAM_GETA( acolormap[i].acolor );
 /* GRR POSSIBLE BUG */
-                    newdist = ( r1 - r2 ) * ( r1 - r2 ) +  /* may overflow? */
-                              ( g1 - g2 ) * ( g1 - g2 ) +
-                              ( b1 - b2 ) * ( b1 - b2 ) +
-                              ( a1 - a2 ) * ( a1 - a2 );
+                                        
+                    /* 8+1 shift is /256 for colorimportance and approx /3 for 3 channels vs 1 */
+                    newdist = (( a1 - a2 ) * ( a1 - a2 ) << 8+1) +
+                              (( r1 - r2 ) * ( r1 - r2 ) * colorimp + 
+                               ( g1 - g2 ) * ( g1 - g2 ) * colorimp +
+                               ( b1 - b2 ) * ( b1 - b2 ) * colorimp);
+
+                    /* penalty for making holes in IE */
+                    if (a1 >= min_opaque_val && a2 < maxval) newdist += maxval*maxval/64;
+                    
                     if ( newdist < dist ) {
                         ind = i;
                         dist = newdist;
@@ -857,17 +944,17 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
             if ( floyd ) {
                 /* Propagate Floyd-Steinberg error terms. */
                 if ( fs_direction ) {
-                    err = (sr - (long)PAM_GETR(acolormap[ind].acolor))*FS_SCALE;
+                    err = (sr - (long)PAM_GETR(acolormap[ind].acolor))*FS_SCALE * colorimp/256;
                     thisrerr[col + 2] += ( err * 7 ) / 16;
                     nextrerr[col    ] += ( err * 3 ) / 16;
                     nextrerr[col + 1] += ( err * 5 ) / 16;
                     nextrerr[col + 2] += ( err     ) / 16;
-                    err = (sg - (long)PAM_GETG(acolormap[ind].acolor))*FS_SCALE;
+                    err = (sg - (long)PAM_GETG(acolormap[ind].acolor))*FS_SCALE * colorimp/256;
                     thisgerr[col + 2] += ( err * 7 ) / 16;
                     nextgerr[col    ] += ( err * 3 ) / 16;
                     nextgerr[col + 1] += ( err * 5 ) / 16;
                     nextgerr[col + 2] += ( err     ) / 16;
-                    err = (sb - (long)PAM_GETB(acolormap[ind].acolor))*FS_SCALE;
+                    err = (sb - (long)PAM_GETB(acolormap[ind].acolor))*FS_SCALE * colorimp/256;
                     thisberr[col + 2] += ( err * 7 ) / 16;
                     nextberr[col    ] += ( err * 3 ) / 16;
                     nextberr[col + 1] += ( err * 5 ) / 16;
@@ -878,17 +965,17 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
                     nextaerr[col + 1] += ( err * 5 ) / 16;
                     nextaerr[col + 2] += ( err     ) / 16;
                 } else {
-                    err = (sr - (long)PAM_GETR(acolormap[ind].acolor))*FS_SCALE;
+                    err = (sr - (long)PAM_GETR(acolormap[ind].acolor))*FS_SCALE * colorimp/256;
                     thisrerr[col    ] += ( err * 7 ) / 16;
                     nextrerr[col + 2] += ( err * 3 ) / 16;
                     nextrerr[col + 1] += ( err * 5 ) / 16;
                     nextrerr[col    ] += ( err     ) / 16;
-                    err = (sg - (long)PAM_GETG(acolormap[ind].acolor))*FS_SCALE;
+                    err = (sg - (long)PAM_GETG(acolormap[ind].acolor))*FS_SCALE * colorimp/256;
                     thisgerr[col    ] += ( err * 7 ) / 16;
                     nextgerr[col + 2] += ( err * 3 ) / 16;
                     nextgerr[col + 1] += ( err * 5 ) / 16;
                     nextgerr[col    ] += ( err     ) / 16;
-                    err = (sb - (long)PAM_GETB(acolormap[ind].acolor))*FS_SCALE;
+                    err = (sb - (long)PAM_GETB(acolormap[ind].acolor))*FS_SCALE * colorimp/256;
                     thisberr[col    ] += ( err * 7 ) / 16;
                     nextberr[col + 2] += ( err * 3 ) / 16;
                     nextberr[col + 1] += ( err * 5 ) / 16;
@@ -985,15 +1072,17 @@ pngquant(filename, newext, floyd, force, verbose, using_stdin, reqcolors,
 ** Display," SIGGRAPH 1982 Proceedings, page 297.
 */
 
+static apixel background;
+
 static acolorhist_vector
-mediancut( achv, colors, sum, maxval, newcolors )
+mediancut( achv, colors, sum, maxval, min_opaque_val, newcolors )
     acolorhist_vector achv;
     int colors, sum, newcolors;
-    pixval maxval;
+    pixval maxval, min_opaque_val;
 {
     acolorhist_vector acolormap;
     box_vector bv;
-    register int bi, i;
+    int bi, i;
     int boxes;
 
     bv = (box_vector) malloc( sizeof(struct box) * newcolors );
@@ -1019,9 +1108,9 @@ mediancut( achv, colors, sum, maxval, newcolors )
     ** Main loop: split boxes until we have enough.
     */
     while ( boxes < newcolors ) {
-        register int indx, clrs;
+        int indx, clrs;
         int sm;
-        register int minr, maxr, ming, mina, maxg, minb, maxb, maxa, v;
+        int minr, maxr, ming, mina, maxg, minb, maxb, maxa, v;
         int halfsum, lowersum;
 
         /*
@@ -1040,26 +1129,36 @@ mediancut( achv, colors, sum, maxval, newcolors )
         ** Go through the box finding the minimum and maximum of each
         ** component - the boundaries of the box.
         */
+              
+        /* colors are blended with background color, to prevent transparent colors from widening range unneccesarily */
+        /* background is global - used when sorting too */        
+        averagepixels(bv[bi].ind, bv[bi].colors, &background, achv, maxval, min_opaque_val);
+
         minr = maxr = PAM_GETR( achv[indx].acolor );
         ming = maxg = PAM_GETG( achv[indx].acolor );
         minb = maxb = PAM_GETB( achv[indx].acolor );
         mina = maxa = PAM_GETA( achv[indx].acolor );
-        for ( i = 1; i < clrs; ++i )
-            {
-            v = PAM_GETR( achv[indx + i].acolor );
-            if ( v < minr ) minr = v;
-            if ( v > maxr ) maxr = v;
-            v = PAM_GETG( achv[indx + i].acolor );
-            if ( v < ming ) ming = v;
-            if ( v > maxg ) maxg = v;
-            v = PAM_GETB( achv[indx + i].acolor );
-            if ( v < minb ) minb = v;
-            if ( v > maxb ) maxb = v;
+
+        for ( i = 0; i < clrs; ++i )
+        {            
             v = PAM_GETA( achv[indx + i].acolor );
             if ( v < mina ) mina = v;
-            if ( v > maxa ) maxa = v;
-            }
-
+            if ( v > maxa ) maxa = v;  
+            
+            /* linear blending makes it too obsessed with accurate alpha, but the optimum unfortunately seems to depend on image */
+            int al = colorimportance(255-v); 
+            v = (PAM_GETR( achv[indx + i].acolor ) * (256-al) + al*PAM_GETR( background ))/256; /* 256 is deliberate */
+            if ( v < minr ) minr = v;
+            if ( v > maxr ) maxr = v;
+            v = (PAM_GETG( achv[indx + i].acolor ) * (256-al) + al*PAM_GETG( background ))/256;
+            if ( v < ming ) ming = v;
+            if ( v > maxg ) maxg = v;
+            v = (PAM_GETB( achv[indx + i].acolor ) * (256-al) + al*PAM_GETB( background ))/256;
+            if ( v < minb ) minb = v;
+            if ( v > maxb ) maxb = v;
+ 
+        }
+        
         /*
         ** Find the largest dimension, and sort by that component.  I have
         ** included two methods for determining the "largest" dimension;
@@ -1162,9 +1261,9 @@ GRR: treat alpha as grayscale and assign (maxa - mina) to each of R, G, B?
     */
     for ( bi = 0; bi < boxes; ++bi ) {
 #ifdef REP_CENTER_BOX
-        register int indx = bv[bi].ind;
-        register int clrs = bv[bi].colors;
-        register int minr, maxr, ming, maxg, minb, maxb, mina, maxa, v;
+        int indx = bv[bi].ind;
+        int clrs = bv[bi].colors;
+        int minr, maxr, ming, maxg, minb, maxb, mina, maxa, v;
 
         minr = maxr = PAM_GETR( achv[indx].acolor );
         ming = maxg = PAM_GETG( achv[indx].acolor );
@@ -1190,9 +1289,9 @@ GRR: treat alpha as grayscale and assign (maxa - mina) to each of R, G, B?
             ( minb + maxb ) / 2, ( mina + maxa ) / 2 );
 #endif /*REP_CENTER_BOX*/
 #ifdef REP_AVERAGE_COLORS
-        register int indx = bv[bi].ind;
-        register int clrs = bv[bi].colors;
-        register long r = 0, g = 0, b = 0, a = 0;
+        int indx = bv[bi].ind;
+        int clrs = bv[bi].colors;
+        long r = 0, g = 0, b = 0, a = 0;
 
         for ( i = 0; i < clrs; ++i )
             {
@@ -1208,28 +1307,7 @@ GRR: treat alpha as grayscale and assign (maxa - mina) to each of R, G, B?
         PAM_ASSIGN( acolormap[bi].acolor, r, g, b, a );
 #endif /*REP_AVERAGE_COLORS*/
 #ifdef REP_AVERAGE_PIXELS
-        register int indx = bv[bi].ind;
-        register int clrs = bv[bi].colors;
-        register long r = 0, g = 0, b = 0, a = 0, sum = 0;
-
-        for ( i = 0; i < clrs; ++i )
-            {
-            r += PAM_GETR( achv[indx + i].acolor ) * achv[indx + i].value;
-            g += PAM_GETG( achv[indx + i].acolor ) * achv[indx + i].value;
-            b += PAM_GETB( achv[indx + i].acolor ) * achv[indx + i].value;
-            a += PAM_GETA( achv[indx + i].acolor ) * achv[indx + i].value;
-            sum += achv[indx + i].value;
-            }
-        r = r / sum;
-        if ( r > maxval ) r = maxval;        /* avoid math errors */
-        g = g / sum;
-        if ( g > maxval ) g = maxval;
-        b = b / sum;
-        if ( b > maxval ) b = maxval;
-        a = a / sum;
-        if ( a > maxval ) a = maxval;
-        /* GRR 20001228:  added casts to quiet warnings; 255 DEPENDENCY */
-        PAM_ASSIGN( acolormap[bi].acolor, (uch)r, (uch)g, (uch)b, (uch)a );
+        averagepixels(bv[bi].ind, bv[bi].colors, &acolormap[bi].acolor, achv, maxval, min_opaque_val);
 #endif /*REP_AVERAGE_PIXELS*/
     }
 
@@ -1239,25 +1317,78 @@ GRR: treat alpha as grayscale and assign (maxa - mina) to each of R, G, B?
     return acolormap;
 }
 
+static void averagepixels(int indx, int clrs, apixel *pixel, acolorhist_vector achv, pixval maxval, pixval min_opaque_val)
+{
+    /* use floating-point to avoid overflow. unsigned long will suffice for small images. */
+    double r = 0, g = 0, b = 0, a = 0, sum = 0, colorsum = 0; 
+    unsigned int maxa = 0;
+    int i;
+    
+    for ( i = 0; i < clrs; ++i )
+    {
+        unsigned long weight = 1;
+        int tmp;
+
+        /* give more weight to colors that are further away from average (128,128,128) 
+            this is intended to prevent desaturation of images and fading of whites
+         */
+        tmp = 128 - PAM_GETR( achv[indx + i].acolor);
+        weight += tmp*tmp;
+        tmp = 128 - PAM_GETG( achv[indx + i].acolor);
+        weight += tmp*tmp;
+        tmp = 128 - PAM_GETB( achv[indx + i].acolor);
+        weight += tmp*tmp;
+        
+        /* find if there are opaque colors, in case we're supposed to preserve opacity exactly (ie_bug) */
+        if (PAM_GETA( achv[indx + i].acolor ) > maxa) maxa = PAM_GETA( achv[indx + i].acolor );
+        
+        a += PAM_GETA( achv[indx + i].acolor ) * achv[indx + i].value * weight;
+        sum += achv[indx + i].value * weight;
+        
+        /* blend colors proportionally to their alpha. It has minor effect and doesn't need colorimportance() */
+        weight *= colorimportance( PAM_GETA(achv[indx + i].acolor) );            
+        
+        r += PAM_GETR( achv[indx + i].acolor ) * achv[indx + i].value * weight;
+        g += PAM_GETG( achv[indx + i].acolor ) * achv[indx + i].value * weight;
+        b += PAM_GETB( achv[indx + i].acolor ) * achv[indx + i].value * weight;
+        colorsum += achv[indx + i].value * weight;      
+    }
+    
+    if (!colorsum) colorsum=1;    
+    r = round(r / colorsum);
+    if ( r > maxval ) r = maxval;        /* avoid math/rounding errors */
+    g = round(g / colorsum);
+    if ( g > maxval ) g = maxval;
+    b = round(b / colorsum);
+    if ( b > maxval ) b = maxval;
+    a = round(a / sum);
+    if ( a >= maxval ) a = maxval;
+
+    /** if there was at least one completely opaque color, "round" final color to opaque */
+    if (a >= min_opaque_val && maxa == maxval) a = maxval;
+
+    PAM_ASSIGN( *pixel, (uch)r, (uch)g, (uch)b, (uch)a );
+}
+
 static int
 redcompare( const void *ch1, const void *ch2 )
-{
-    return (int) PAM_GETR( ((acolorhist_vector)ch1)->acolor ) -
-           (int) PAM_GETR( ((acolorhist_vector)ch2)->acolor );
+{    
+    return ((int) PAM_GETR( ((acolorhist_vector)ch1)->acolor )) -
+           ((int) PAM_GETR( ((acolorhist_vector)ch2)->acolor ));
 }
 
 static int
 greencompare( const void *ch1, const void *ch2 )
 {
-    return (int) PAM_GETG( ((acolorhist_vector)ch1)->acolor ) -
-           (int) PAM_GETG( ((acolorhist_vector)ch2)->acolor );
+    return ((int) PAM_GETG( ((acolorhist_vector)ch1)->acolor )) -
+           ((int) PAM_GETG( ((acolorhist_vector)ch2)->acolor ));
 }
 
 static int
 bluecompare( const void *ch1, const void *ch2 )
 {
-    return (int) PAM_GETB( ((acolorhist_vector)ch1)->acolor ) -
-           (int) PAM_GETB( ((acolorhist_vector)ch2)->acolor );
+    return ((int) PAM_GETB( ((acolorhist_vector)ch1)->acolor )) -
+           ((int) PAM_GETB( ((acolorhist_vector)ch2)->acolor ));
 }
 
 static int
@@ -1274,7 +1405,12 @@ sumcompare( const void *b1, const void *b2 )
            ((box_vector)b1)->sum;
 }
 
-
+/** expects alpha in range 0-255. 
+ Returns importance of color in range 1-256 (off-by-one error is deliberate to allow >>8 optimisation) */
+static int colorimportance(int alpha)
+{
+    return 256-(255-alpha)*(255-alpha)/256;
+}
 
 /*
 
@@ -1291,7 +1427,6 @@ NOTUSED	pam_acolorhisttoacolorhash( )
 	pam_freeacolorhash( )
 
 libpbm1.c:
-	pm_allocarray( )
 	pm_freearray( )
 	pm_allocrow( )
 
@@ -1349,15 +1484,51 @@ pam_computeacolorhist( apixels, cols, rows, maxacolors, acolorsP )
 }
 
 
+inline static unsigned long colordiff(apixel a, apixel b)
+{
+    unsigned long diff; long t;
+    t = a.r - b.r;
+    diff = t*t;
+    t = a.g - b.g;
+    diff += t*t;
+    t = a.b - b.b;
+    diff += t*t;
+    
+    unsigned long colorimp = 256-(255-a.a)*(255-b.a)/256;
+    diff = diff * colorimp;
+    
+    t = a.a - b.a;
+    diff += (t*t)<<9;
+    
+    return diff;
+}
+
+
+static int contrast(apixel *p, apixel *prevp, apixel *nextp,int col,int cols)
+{
+    unsigned int maxcontrast = colordiff(*p,*prevp);
+
+    unsigned int c = colordiff(*p,*nextp);
+    if (maxcontrast < c) maxcontrast = c;
+
+    if (col > 0)
+    {
+        c = colordiff(*p,*(p-1));
+        if (maxcontrast < c) maxcontrast = c;
+    }
+    if (col < cols-1)
+    {
+        c = colordiff(*p,*(p+1));
+        if (maxcontrast < c) maxcontrast = c;     
+    }
+    
+    return sqrt(maxcontrast);
+}
 
 static acolorhash_table
-pam_computeacolorhash( apixels, cols, rows, maxacolors, acolorsP )
-    apixel** apixels;
-    int cols, rows, maxacolors;
-    int* acolorsP;
+pam_computeacolorhash(apixel** apixels,int cols,int rows,int maxacolors, int* acolorsP )
 {
     acolorhash_table acht;
-    register apixel* pP;
     acolorhist_list achl;
     int col, row, hash;
 
@@ -1366,33 +1537,45 @@ pam_computeacolorhash( apixels, cols, rows, maxacolors, acolorsP )
 
     /* Go through the entire image, building a hash table of colors. */
     for ( row = 0; row < rows; ++row )
-	for ( col = 0, pP = apixels[row]; col < cols; ++col, ++pP )
+    {
+        apixel* pP = apixels[row];
+        apixel* nextpP = apixels[row < rows-1?row+1:row];
+        apixel* prevpP = apixels[row > 0?row-1:0];
+        
+        for ( col = 0; col < cols; ++col, ++pP, ++nextpP )
 	    {
-	    hash = pam_hashapixel( *pP );
-	    for ( achl = acht[hash]; achl != (acolorhist_list) 0; achl = achl->next )
-		if ( PAM_EQUAL( achl->ch.acolor, *pP ) )
-		    break;
-	    if ( achl != (acolorhist_list) 0 )
-		++(achl->ch.value);
-	    else
-		{
-		if ( ++(*acolorsP) > maxacolors )
-		    {
-		    pam_freeacolorhash( acht );
-		    return (acolorhash_table) 0;
-		    }
-		achl = (acolorhist_list) malloc( sizeof(struct acolorhist_list_item) );
-		if ( achl == 0 ) {
+            int contr = contrast(pP,prevpP,nextpP,col,cols);
+            
+            hash = pam_hashapixel( *pP );
+            for ( achl = acht[hash]; achl != (acolorhist_list) 0; achl = achl->next )
+            if ( PAM_EQUAL( achl->ch.acolor, *pP ) )
+                break;
+            if ( achl != (acolorhist_list) 0 )
+            {
+                ++(achl->ch.value);
+                achl->ch.contrast += contr;
+            }
+            else
+            {
+                if ( ++(*acolorsP) > maxacolors )
+                {
+                    pam_freeacolorhash( acht );
+                    return (acolorhash_table) 0;
+                }
+                achl = (acolorhist_list) malloc( sizeof(struct acolorhist_list_item) );
+                if ( achl == 0 ) {
                     fprintf( stderr, "  out of memory computing hash table\n" );
                     exit(7);
                 }
-		achl->ch.acolor = *pP;
-		achl->ch.value = 1;
-		achl->next = acht[hash];
-		acht[hash] = achl;
-		}
-	    }
-    
+                achl->ch.acolor = *pP;
+                achl->ch.value = 1;
+                achl->ch.contrast = contr;
+                achl->next = acht[hash];
+                acht[hash] = achl;
+            }
+        }
+        
+    }
     return acht;
 }
 
@@ -1424,8 +1607,8 @@ pam_addtoacolorhash( acht, acolorP, value )
     apixel* acolorP;
     int value;
 {
-    register int hash;
-    register acolorhist_list achl;
+    int hash;
+    acolorhist_list achl;
 
     achl = (acolorhist_list) malloc( sizeof(struct acolorhist_list_item) );
     if ( achl == 0 )
@@ -1526,7 +1709,7 @@ pm_allocrow( cols, size )
     int cols;
     int size;
 {
-    register char* itrow;
+    char* itrow;
 
     itrow = (char*) malloc( cols * size );
     if ( itrow == (char*) 0 ) {
@@ -1537,44 +1720,7 @@ pm_allocrow( cols, size )
     return itrow;
 }
 
-
-
-static void
-pm_freerow( itrow )
-    char* itrow;
-{
-    free( itrow );
-}
-
-
-
-static char**
-pm_allocarray( cols, rows, size )
-    int cols, rows;
-    int size;
-{
-    char** its;
-    int i;
-
-    its = (char**) malloc( rows * sizeof(char*) );
-    if ( its == (char**) 0 ) {
-        fprintf( stderr, "  out of memory allocating an array\n" );
-        fflush( stderr );
-        exit(13);
-    }
-    its[0] = (char*) malloc( rows * cols * size );
-    if ( its[0] == (char*) 0 ) {
-        fprintf( stderr, "  out of memory allocating an array\n" );
-        fflush( stderr );
-        exit(14);
-    }
-    for ( i = 1; i < rows; ++i )
-        its[i] = &(its[0][i * cols * size]);
-    return its;
-}
-
-
-
+#ifdef SUPPORT_MAPFILE
 static void
 pm_freearray( its, rows )
     char** its;
@@ -1583,3 +1729,4 @@ pm_freearray( its, rows )
     free( its[0] );
     free( its );
 }
+#endif

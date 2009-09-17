@@ -24,3 +24,6 @@ pngquant: $(OBJS)
 
 clean:
 	rm -f pngquant $(OBJS)
+# DO NOT DELETE
+
+# DO NOT DELETE THIS LINE -- make depend depends on it.
