@@ -62,7 +62,7 @@ use --force to overwrite.\n"
 #include "blur.h"
 #include "viter.h"
 
-#include "pngquant.h"
+#include "lib/libimagequant.h"
 
 struct liq_attr {
     void* (*malloc)(size_t);
