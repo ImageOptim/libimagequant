@@ -17,7 +17,7 @@ The [library](https://pngquant.org/lib) is currently a part of the [pngquant2 pr
 
 ## Compiling and Linking
 
-The library can be linked with ANSI C, C++ and [Rust](https://github.com/pornel/libimagequant-rust) programs. It has no external dependencies.
+The library can be linked with ANSI C, C++, [Rust](https://github.com/pornel/libimagequant-rust) and [Java](https://github.com/ImageOptim/libimagequant/tree/master/org/pngquant) programs. It has no external dependencies.
 
 To build on Unix-like systems run:
 
@@ -35,6 +35,13 @@ Alternatively you can compile the library with your program simply by including 
 
 In [Rust](https://github.com/pornel/libimagequant-rust),
 if using Cargo, add [`imagequant`](https://crates.io/crates/imagequant/) to dependencies.
+
+To build Java JNI interface run:
+
+    # export JAVA_HOME=$(locate include/jni.h) # you may need to set JAVA_HOME first
+    make java
+
+It will create `libimagequant.jnilib` and classes in `org/pngquant/`.
 
 ### Compiling on Windows/Visual Studio
 
