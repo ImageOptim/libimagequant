@@ -87,6 +87,11 @@ JNIEXPORT jlong JNICALL Java_org_pngquant_Image_liq_1image_1create(JNIEnv *env, 
     return (jlong)jniimg;
 }
 
+JNIEXPORT jboolean JNICALL Java_org_pngquant_Image_addFixedColor(JNIEnv *env, jobject obj, jint r, jint g, jint b, jint a) {
+    liq_color c = {r,g,b,a};
+    return LIQ_OK == liq_image_add_fixed_color(((liq_jni_image*)handle(env,obj))->image, c);
+}
+
 JNIEXPORT jint JNICALL Java_org_pngquant_Image_getWidth(JNIEnv *env, jobject obj) {
     return liq_image_get_width(((liq_jni_image*)handle(env,obj))->image);
 }
@@ -107,7 +112,7 @@ JNIEXPORT jlong JNICALL Java_org_pngquant_Result_liq_1quantize_1image(JNIEnv *en
 }
 
 JNIEXPORT jboolean JNICALL Java_org_pngquant_Result_setDitheringLevel(JNIEnv *env, jobject obj, jfloat l) {
-    return LIQ_OK ==liq_set_dithering_level(handle(env, obj), l);
+    return LIQ_OK == liq_set_dithering_level(handle(env, obj), l);
 }
 
 JNIEXPORT jboolean JNICALL Java_org_pngquant_Result_setGamma(JNIEnv *env, jobject obj, jdouble gamma) {

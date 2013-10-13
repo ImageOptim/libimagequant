@@ -4,7 +4,7 @@
   <groupId>org.pngquant</groupId>
   <artifactId>libimagequant</artifactId>
   <packaging>jar</packaging>
-  <version>2.1.0</version>
+  <version>2.1.1</version>
   <name>pngquant</name>
   <url>http://pngquant.org</url>
   <build>

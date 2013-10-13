@@ -31,6 +31,14 @@ public class Image extends LiqObject {
         }
     }
 
+    /**
+     * Guarantees presence of the given color in the palette (subject to setMaxColors())
+     * if this image is used for quantization.
+     */
+    public native boolean addFixedColor(int r, int g, int b, int a);
+    public boolean addFixedColor(int r, int g, int b) {
+        return addFixedColor(r, g, b, 255);
+    }
     public native int getWidth();
     public native int getHeight();
 
