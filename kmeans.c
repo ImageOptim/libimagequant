@@ -66,7 +66,7 @@ LIQ_PRIVATE void kmeans_finalize(colormap *map, const unsigned int max_threads, 
 LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kmeans_callback callback)
 {
     const unsigned int max_threads = omp_get_max_threads();
-    kmeans_state average_color[(KMEANS_CACHE_LINE_GAP+map->colors) * max_threads];
+    kmeans_state *average_color = malloc((KMEANS_CACHE_LINE_GAP+map->colors) * max_threads * sizeof(kmeans_state));
     kmeans_init(map, max_threads, average_color);
     struct nearest_map *const n = nearest_init(map);
     hist_item *const achv = hist->achv;
@@ -89,5 +89,6 @@ LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kme
     nearest_free(n);
     kmeans_finalize(map, max_threads, average_color);
 
+    free(average_color);
     return total_diff / hist->total_perceptual_weight;
 }
