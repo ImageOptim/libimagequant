@@ -192,8 +192,13 @@ LIQ_NONNULL static bool liq_remap_progress(const liq_remapping_result *quant, co
 #if USE_SSE
 inline static bool is_sse_available()
 {
-#if (defined(__x86_64__) || defined(__amd64))
+#if (defined(__x86_64__) || defined(__amd64) || defined(_WIN64))
     return true;
+#elif _MSC_VER
+    int info[4];
+    __cpuid(info, 1);
+    /* bool is implemented as a built-in type of size 1 in MSVC */
+    return info[3] & (1<<26) ? true : false;
 #else
     int a,b,c,d;
         cpuid(1, a, b, c, d);
