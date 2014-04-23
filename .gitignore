@@ -1,0 +1,4 @@
+*.o
+*.rlib
+/pngquant*/
+example
