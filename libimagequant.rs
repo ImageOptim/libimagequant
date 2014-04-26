@@ -107,7 +107,7 @@ pub mod ffi {
         pub fn liq_set_output_gamma(res: &liq_result, gamma: f64) -> liq_error;
         pub fn liq_get_output_gamma(result: &liq_result) -> f64;
 
-        pub fn liq_get_palette(result: &liq_result) -> *liq_palette;
+        pub fn liq_get_palette(result: &liq_result) -> &liq_palette;
 
         pub fn liq_write_remapped_image(result: &liq_result, input_image: &liq_image, buffer: *mut u8, buffer_size: size_t) -> liq_error;
         pub fn liq_write_remapped_image_rows(result: &liq_result, input_image: &liq_image, row_pointers: **mut u8) -> liq_error;
@@ -123,9 +123,10 @@ pub struct Attributes {
     handle: *mut ffi::liq_attr,
 }
 
-pub struct Image {
+
+pub struct Image<'a> {
     handle: *mut ffi::liq_image,
-    memory_reference: ~[u8],
+    memory_reference: &'a [u8],
 }
 
 pub struct QuantizationResult {
@@ -140,7 +141,9 @@ impl Drop for Attributes {
     }
 }
 
-impl Drop for Image {
+// The destructor is safe: https://github.com/mozilla/rust/issues/13778
+#[unsafe_destructor]
+impl<'a> Drop for Image<'a> {
     fn drop(&mut self) {
         unsafe {
             ffi::liq_image_destroy(&mut *self.handle);
@@ -213,7 +216,7 @@ impl Attributes {
         }
     }
 
-    pub fn new_image(&self, bitmap: ~[u8], width: uint, height: uint, gamma: f64) -> Option<~Image> {
+    pub fn new_image<'a>(&self, bitmap: &'a [u8], width: uint, height: uint, gamma: f64) -> Option<~Image<'a>> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
@@ -231,8 +234,8 @@ pub fn new() -> ~Attributes {
     Attributes::new()
 }
 
-impl Image {
-    pub fn new(attr: &Attributes, bitmap: ~[u8], width: uint, height: uint, gamma: f64) -> Option<~Image> {
+impl<'a> Image<'a> {
+    pub fn new(attr: &Attributes, bitmap: &'a [u8], width: uint, height: uint, gamma: f64) -> Option<~Image<'a>> {
         if bitmap.len() < width*height*4 {
             return None;
         }
