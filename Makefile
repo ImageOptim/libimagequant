@@ -9,7 +9,7 @@ all: crate example
 crate: $(RUSTLIB)
 
 $(RUSTLIB): $(RUSTLIBSRC) $(LIQDIR)/libimagequant.a
-	$(RUSTC) -L $(LIQDIR) $<
+	$(RUSTC) -O -L $(LIQDIR) $<
 
 $(LIQDIR)/libimagequant.a:: $(LIQDIR)
 	make -C $(LIQDIR) static
