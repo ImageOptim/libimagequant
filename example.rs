@@ -19,8 +19,8 @@ fn main() {
 
     // The magic happens in quantize()
     let mut res = match liq.quantize(img) {
-        Some(res) => res,
-        _ => fail!("Quantization failed — quality too low"),
+        Ok(res) => res,
+        Err(err) => fail!("Quantization failed, because: {}", err),
     };
 
     // Enable dithering for subsequent remappings

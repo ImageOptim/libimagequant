@@ -39,6 +39,7 @@ pub mod ffi {
     #[repr(C)]
     pub enum liq_error {
         LIQ_OK = 0,
+        LIQ_QUALITY_TOO_LOW = 99,
         LIQ_VALUE_OUT_OF_RANGE = 100,
         LIQ_OUT_OF_MEMORY,
         LIQ_NOT_READY,
@@ -66,6 +67,7 @@ pub mod ffi {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             f.buf.write_str(match *self {
                 LIQ_OK => "OK",
+                LIQ_QUALITY_TOO_LOW => "LIQ_QUALITY_TOO_LOW",
                 LIQ_VALUE_OUT_OF_RANGE => "VALUE_OUT_OF_RANGE",
                 LIQ_OUT_OF_MEMORY => "OUT_OF_MEMORY",
                 LIQ_NOT_READY => "NOT_READY",
@@ -220,11 +222,11 @@ impl Attributes {
         Image::new(self, bitmap, width, height, gamma)
     }
 
-    pub fn quantize(&mut self, image: &Image) -> Option<QuantizationResult> {
+    pub fn quantize(&mut self, image: &Image) -> Result<QuantizationResult,liq_error> {
         unsafe {
             match ffi::liq_quantize_image(&mut *self.handle, &mut *image.handle) {
-                h if h.is_not_null() => Some(QuantizationResult { handle: h }),
-                _ => None,
+                h if h.is_not_null() => Ok(QuantizationResult { handle: h }),
+                _ => Err(ffi::LIQ_QUALITY_TOO_LOW),
             }
         }
     }
