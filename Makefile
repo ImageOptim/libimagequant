@@ -18,10 +18,10 @@ $(LIQDIR):
 	curl -L http://pngquant.org/pngquant-2.2.0-src.tar.bz2 | tar xj
 
 example: $(RUSTLIB) example.rs
-	$(RUSTC) -L . example.rs
-	./example
+	$(RUSTC) -o $@ -L . example.rs
+	@echo Run ./example
 
 clean:
-	rm -rf $(RUSTLIB) *.o
+	rm -rf $(RUSTLIB) *.o example
 
-.PHONY: all crate example clean
+.PHONY: all crate clean
