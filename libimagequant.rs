@@ -168,9 +168,9 @@ impl Clone for Attributes {
 }
 
 impl Attributes {
-    pub fn new() -> ~Attributes {
+    pub fn new() -> Attributes {
         unsafe {
-            ~Attributes { handle: ffi::liq_attr_create() }
+            Attributes { handle: ffi::liq_attr_create() }
         }
     }
 
@@ -230,7 +230,7 @@ impl Attributes {
     }
 }
 
-pub fn new() -> ~Attributes {
+pub fn new() -> Attributes {
     Attributes::new()
 }
 
