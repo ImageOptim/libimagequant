@@ -14,4 +14,4 @@ For more details see [libimagequant documentation](http://pngquant.org/lib/).
 
 ----
 
-Written for Rust 0.11 (should work with 0.10 with a tweak).
+Written for Rust 0.11.

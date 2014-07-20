@@ -21,8 +21,8 @@ pub struct Color {
 impl fmt::Show for Color {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.a {
-            255 => write!(f.buf, "\\#{:02x}{:02x}{:02x}", self.r, self.g, self.b),
-            _ => write!(f.buf, "rgba({},{},{},{})", self.r, self.g, self.b, self.a),
+            255 => write!(f, "#{:02x}{:02x}{:02x}", self.r, self.g, self.b),
+            _ => write!(f, "rgba({},{},{},{})", self.r, self.g, self.b, self.a),
         }
     }
 }
@@ -35,9 +35,9 @@ pub mod ffi {
     use std::fmt;
 
 
-    pub struct liq_attr();
-    pub struct liq_image();
-    pub struct liq_result();
+    pub struct liq_attr;
+    pub struct liq_image;
+    pub struct liq_result;
 
     #[repr(C)]
     pub enum liq_error {
@@ -68,7 +68,7 @@ pub mod ffi {
 
     impl fmt::Show for liq_error {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            f.buf.write_str(match *self {
+            write!(f, "{}", match *self {
                 LIQ_OK => "OK",
                 LIQ_QUALITY_TOO_LOW => "LIQ_QUALITY_TOO_LOW",
                 LIQ_VALUE_OUT_OF_RANGE => "VALUE_OUT_OF_RANGE",
@@ -131,7 +131,6 @@ pub struct Attributes {
 
 pub struct Image<'a> {
     handle: *mut ffi::liq_image,
-    memory_reference: &'a [u8],
 }
 
 pub struct QuantizationResult {
@@ -146,8 +145,6 @@ impl Drop for Attributes {
     }
 }
 
-// The destructor is safe: https://github.com/mozilla/rust/issues/13778
-#[unsafe_destructor]
 impl<'a> Drop for Image<'a> {
     fn drop(&mut self) {
         unsafe {
@@ -221,7 +218,7 @@ impl Attributes {
         }
     }
 
-    pub fn new_image<'a>(&self, bitmap: &'a [u8], width: uint, height: uint, gamma: f64) -> Option<~Image<'a>> {
+    pub fn new_image<'a>(&self, bitmap: &'a [u8], width: uint, height: uint, gamma: f64) -> Option<Image<'a>> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
@@ -240,15 +237,14 @@ pub fn new() -> Attributes {
 }
 
 impl<'a> Image<'a> {
-    pub fn new(attr: &Attributes, bitmap: &'a [u8], width: uint, height: uint, gamma: f64) -> Option<~Image<'a>> {
+    pub fn new(attr: &Attributes, bitmap: &'a [u8], width: uint, height: uint, gamma: f64) -> Option<Image<'a>> {
         if bitmap.len() < width*height*4 {
             return None;
         }
         unsafe {
             match ffi::liq_image_create_rgba(&*attr.handle, bitmap.as_ptr(), width as c_int, height as c_int, gamma) {
-                h if h.is_not_null() => Some(~Image {
+                h if h.is_not_null() => Some(Image {
                     handle: h,
-                    memory_reference: bitmap,
                 }),
                 _ => None,
             }

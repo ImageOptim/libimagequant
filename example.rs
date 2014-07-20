@@ -5,7 +5,7 @@ fn main() {
     // Image loading/saving is outside scope of this library
     static width:uint = 10;
     static height:uint = 10;
-    let fakebitmap = ~[255, ..4*width*height];
+    let fakebitmap = Vec::from_elem(4*width*height, 255u8);
 
     // http://pngquant.org/lib/
 
@@ -15,7 +15,7 @@ fn main() {
     liq.set_quality(70, 99);
 
     // Describe the bitmap
-    let mut img = liq.new_image(fakebitmap, width, height, 0.0).unwrap();
+    let ref mut img = liq.new_image(fakebitmap.as_slice(), width, height, 0.0).unwrap();
 
     // The magic happens in quantize()
     let mut res = match liq.quantize(img) {
