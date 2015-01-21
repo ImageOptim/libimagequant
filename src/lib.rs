@@ -1,16 +1,20 @@
 // http://pngquant.org/lib/
-
-#![crate_id = "imagequant#2.2"]
+#![feature(unsafe_destructor)]
+#![allow(unstable)]
 #![crate_type = "lib"]
 
 extern crate libc;
 
 pub use ffi::liq_error;
+pub use ffi::liq_error::*;
+
 use libc::{c_int, size_t};
 use std::option::Option;
 use std::vec::Vec;
 use std::fmt;
 
+#[derive(Copy,Clone)]
+#[repr(C)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -34,12 +38,20 @@ pub mod ffi {
     use libc::{c_int, size_t};
     use std::fmt;
 
-
+    #[repr(C)]
+    #[allow(missing_copy_implementations)]
     pub struct liq_attr;
+
+    #[repr(C)]
+    #[allow(missing_copy_implementations)]
     pub struct liq_image;
+
+    #[repr(C)]
+    #[allow(missing_copy_implementations)]
     pub struct liq_result;
 
     #[repr(C)]
+    #[derive(Copy)]
     pub enum liq_error {
         LIQ_OK = 0,
         LIQ_QUALITY_TOO_LOW = 99,
@@ -53,6 +65,7 @@ pub mod ffi {
 
     #[allow(non_camel_case_types)]
     #[repr(C)]
+    #[derive(Copy,Clone)]
     pub enum liq_ownership {
         LIQ_OWN_ROWS=4,
         LIQ_OWN_PIXELS=8,
@@ -61,22 +74,24 @@ pub mod ffi {
 
 
     #[allow(non_camel_case_types)]
+    #[repr(C)]
+    #[derive(Copy)]
     pub struct liq_palette {
         pub count: c_int,
-        pub entries: [super::Color, ..256],
+        pub entries: [super::Color; 256],
     }
 
     impl fmt::Show for liq_error {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(f, "{}", match *self {
-                LIQ_OK => "OK",
-                LIQ_QUALITY_TOO_LOW => "LIQ_QUALITY_TOO_LOW",
-                LIQ_VALUE_OUT_OF_RANGE => "VALUE_OUT_OF_RANGE",
-                LIQ_OUT_OF_MEMORY => "OUT_OF_MEMORY",
-                LIQ_NOT_READY => "NOT_READY",
-                LIQ_BITMAP_NOT_AVAILABLE => "BITMAP_NOT_AVAILABLE",
-                LIQ_BUFFER_TOO_SMALL => "BUFFER_TOO_SMALL",
-                LIQ_INVALID_POINTER => "INVALID_POINTER",
+                liq_error::LIQ_OK => "OK",
+                liq_error::LIQ_QUALITY_TOO_LOW => "LIQ_QUALITY_TOO_LOW",
+                liq_error::LIQ_VALUE_OUT_OF_RANGE => "VALUE_OUT_OF_RANGE",
+                liq_error::LIQ_OUT_OF_MEMORY => "OUT_OF_MEMORY",
+                liq_error::LIQ_NOT_READY => "NOT_READY",
+                liq_error::LIQ_BITMAP_NOT_AVAILABLE => "BITMAP_NOT_AVAILABLE",
+                liq_error::LIQ_BUFFER_TOO_SMALL => "BUFFER_TOO_SMALL",
+                liq_error::LIQ_INVALID_POINTER => "INVALID_POINTER",
             })
         }
     }
@@ -99,8 +114,8 @@ pub mod ffi {
         pub fn liq_get_max_quality(attr: &liq_attr) -> c_int;
         pub fn liq_set_last_index_transparent(attr: &mut liq_attr, is_last: c_int);
 
-        pub fn liq_image_create_rgba_rows(attr: &liq_attr, rows: **u8, width: c_int, height: c_int, gamma: f64) -> *mut liq_image;
-        pub fn liq_image_create_rgba(attr: &liq_attr, bitmap: *u8, width: c_int, height: c_int, gamma: f64) -> *mut liq_image;
+        pub fn liq_image_create_rgba_rows(attr: &liq_attr, rows: *const *const u8, width: c_int, height: c_int, gamma: f64) -> *mut liq_image;
+        pub fn liq_image_create_rgba(attr: &liq_attr, bitmap: *const u8, width: c_int, height: c_int, gamma: f64) -> *mut liq_image;
 
         pub fn liq_image_get_width(img: &liq_image) -> c_int;
         pub fn liq_image_get_height(img: &liq_image) -> c_int;
@@ -112,10 +127,10 @@ pub mod ffi {
         pub fn liq_set_output_gamma(res: &liq_result, gamma: f64) -> liq_error;
         pub fn liq_get_output_gamma(result: &liq_result) -> f64;
 
-        pub fn liq_get_palette(result: &liq_result) -> &liq_palette;
+        pub fn liq_get_palette(result: &liq_result) -> *const liq_palette;
 
         pub fn liq_write_remapped_image(result: &liq_result, input_image: &liq_image, buffer: *mut u8, buffer_size: size_t) -> liq_error;
-        pub fn liq_write_remapped_image_rows(result: &liq_result, input_image: &liq_image, row_pointers: **mut u8) -> liq_error;
+        pub fn liq_write_remapped_image_rows(result: &liq_result, input_image: &liq_image, row_pointers: *const *mut u8) -> liq_error;
 
         pub fn liq_get_quantization_error(result: &liq_result) -> f64;
         pub fn liq_get_quantization_quality(result: &liq_result) -> c_int;
@@ -145,6 +160,7 @@ impl Drop for Attributes {
     }
 }
 
+#[unsafe_destructor]
 impl<'a> Drop for Image<'a> {
     fn drop(&mut self) {
         unsafe {
@@ -218,15 +234,15 @@ impl Attributes {
         }
     }
 
-    pub fn new_image<'a>(&self, bitmap: &'a [u8], width: uint, height: uint, gamma: f64) -> Option<Image<'a>> {
+    pub fn new_image<'a>(&self, bitmap: &'a [u8], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
     pub fn quantize(&mut self, image: &Image) -> Result<QuantizationResult,liq_error> {
         unsafe {
             match ffi::liq_quantize_image(&mut *self.handle, &mut *image.handle) {
-                h if h.is_not_null() => Ok(QuantizationResult { handle: h }),
-                _ => Err(ffi::LIQ_QUALITY_TOO_LOW),
+                h if !h.is_null() => Ok(QuantizationResult { handle: h }),
+                _ => Err(LIQ_QUALITY_TOO_LOW),
             }
         }
     }
@@ -237,13 +253,13 @@ pub fn new() -> Attributes {
 }
 
 impl<'a> Image<'a> {
-    pub fn new(attr: &Attributes, bitmap: &'a [u8], width: uint, height: uint, gamma: f64) -> Option<Image<'a>> {
+    pub fn new(attr: &Attributes, bitmap: &'a [u8], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
         if bitmap.len() < width*height*4 {
             return None;
         }
         unsafe {
             match ffi::liq_image_create_rgba(&*attr.handle, bitmap.as_ptr(), width as c_int, height as c_int, gamma) {
-                h if h.is_not_null() => Some(Image {
+                h if !h.is_null() => Some(Image {
                     handle: h,
                 }),
                 _ => None,
@@ -251,15 +267,15 @@ impl<'a> Image<'a> {
         }
     }
 
-    pub fn width(&mut self) -> uint {
+    pub fn width(&mut self) -> usize {
         unsafe {
-            ffi::liq_image_get_width(&*self.handle) as uint
+            ffi::liq_image_get_width(&*self.handle) as usize
         }
     }
 
-    pub fn height(&mut self) -> uint {
+    pub fn height(&mut self) -> usize {
         unsafe {
-            ffi::liq_image_get_height(&*self.handle) as uint
+            ffi::liq_image_get_height(&*self.handle) as usize
         }
     }
 }
@@ -284,24 +300,26 @@ impl QuantizationResult {
         }
     }
 
-    pub fn quantization_quality(&mut self) -> int {
+    pub fn quantization_quality(&mut self) -> isize {
         unsafe {
-            ffi::liq_get_quantization_quality(&*self.handle) as int
+            ffi::liq_get_quantization_quality(&*self.handle) as isize
         }
     }
 
     pub fn palette(&mut self) -> Vec<Color> {
         unsafe {
             let pal = ffi::liq_get_palette(&mut *self.handle);
-            Vec::from_fn((*pal).count as uint, |i| (*pal).entries[i])
+            (*pal).entries.to_vec()
         }
     }
 
     pub fn remapped(&mut self, image: &mut Image) -> Option<(Vec<Color>, Vec<u8>)> {
         unsafe {
-            let mut buf = Vec::from_elem(image.width() * image.height(), 0 as u8);
+            let len = image.width() * image.height();
+            let mut buf = Vec::with_capacity(len);
+            buf.set_len(len); // Creates uninitialized buffer
             match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, buf.as_mut_ptr(), buf.len() as size_t) {
-                ffi::LIQ_OK => Some((self.palette(), buf)),
+                LIQ_OK => Some((self.palette(), buf)),
                 _ => None,
             }
         }
