@@ -2,7 +2,7 @@ RUSTC ?= rustc
 
 RUSTLIBSRC=src/lib.rs
 LIQDIR=pngquant-2.2.0/lib
-RUSTLIB=$(shell $(RUSTC) --crate-file-name $(RUSTLIBSRC))
+RUSTLIB=$(shell $(RUSTC) --print file-names $(RUSTLIBSRC))
 
 all: crate example
 

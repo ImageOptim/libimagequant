@@ -1,7 +1,8 @@
 // http://pngquant.org/lib/
 #![feature(unsafe_destructor)]
-#![allow(unstable)]
+#![feature(libc)]
 #![crate_type = "lib"]
+#![crate_name = "imagequant"]
 
 extern crate libc;
 
@@ -22,7 +23,7 @@ pub struct Color {
     pub a: u8,
 }
 
-impl fmt::Show for Color {
+impl fmt::Debug for Color {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.a {
             255 => write!(f, "#{:02x}{:02x}{:02x}", self.r, self.g, self.b),
@@ -81,7 +82,7 @@ pub mod ffi {
         pub entries: [super::Color; 256],
     }
 
-    impl fmt::Show for liq_error {
+    impl fmt::Debug for liq_error {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(f, "{}", match *self {
                 liq_error::LIQ_OK => "OK",
@@ -146,6 +147,7 @@ pub struct Attributes {
 
 pub struct Image<'a> {
     handle: *mut ffi::liq_image,
+    _marker: std::marker::PhantomData<&'a [u8]>,
 }
 
 pub struct QuantizationResult {
@@ -261,6 +263,7 @@ impl<'a> Image<'a> {
             match ffi::liq_image_create_rgba(&*attr.handle, bitmap.as_ptr(), width as c_int, height as c_int, gamma) {
                 h if !h.is_null() => Some(Image {
                     handle: h,
+                    _marker: std::marker::PhantomData::<&'a [u8]>,
                 }),
                 _ => None,
             }
