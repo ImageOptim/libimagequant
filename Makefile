@@ -1,27 +1,14 @@
-RUSTC ?= rustc
+LIQDIR=pngquant-2.3.3/lib
 
-RUSTLIBSRC=src/lib.rs
-LIQDIR=pngquant-2.2.0/lib
-RUSTLIB=$(shell $(RUSTC) --print file-names $(RUSTLIBSRC))
-
-all: crate example
-
-crate: $(RUSTLIB)
-
-$(RUSTLIB): $(RUSTLIBSRC) $(LIQDIR)/libimagequant.a
-	$(RUSTC) -O -L $(LIQDIR) $<
+all: $(LIQDIR)/libimagequant.a
 
 $(LIQDIR)/libimagequant.a:: $(LIQDIR)
 	make -C $(LIQDIR) static
 
 $(LIQDIR):
-	curl -L http://pngquant.org/pngquant-2.2.0-src.tar.bz2 | tar xj
-
-example: $(RUSTLIB) examples/basic.rs
-	$(RUSTC) -o $@ -L . examples/basic.rs
-	@echo Run ./example
+	curl -L http://pngquant.org/pngquant-2.3.3-src.tar.bz2 | tar xj
 
 clean:
-	rm -rf $(RUSTLIB) *.o example
+	make -C $(LIQDIR) clean
 
-.PHONY: all crate clean
+.PHONY: all clean

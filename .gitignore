@@ -2,3 +2,5 @@
 *.rlib
 /pngquant*/
 example
+target/
+Cargo.lock

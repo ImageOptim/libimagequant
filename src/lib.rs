@@ -2,7 +2,6 @@
 #![feature(unsafe_destructor)]
 #![feature(libc)]
 #![crate_type = "lib"]
-#![crate_name = "imagequant"]
 
 extern crate libc;
 
