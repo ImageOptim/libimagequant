@@ -1,4 +1,3 @@
-#![feature(process)]
 fn main() {
     if !std::process::Command::new("make").status().unwrap().success() {
         panic!("Script failed");

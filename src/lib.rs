@@ -1,5 +1,4 @@
 // http://pngquant.org/lib/
-#![feature(unsafe_destructor)]
 #![feature(libc)]
 #![crate_type = "lib"]
 
@@ -13,8 +12,8 @@ use std::option::Option;
 use std::vec::Vec;
 use std::fmt;
 
-#[derive(Copy,Clone)]
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -51,7 +50,7 @@ pub mod ffi {
     pub struct liq_result;
 
     #[repr(C)]
-    #[derive(Copy)]
+    #[derive(Copy, Clone)]
     pub enum liq_error {
         LIQ_OK = 0,
         LIQ_QUALITY_TOO_LOW = 99,
@@ -65,7 +64,7 @@ pub mod ffi {
 
     #[allow(non_camel_case_types)]
     #[repr(C)]
-    #[derive(Copy,Clone)]
+    #[derive(Copy, Clone)]
     pub enum liq_ownership {
         LIQ_OWN_ROWS=4,
         LIQ_OWN_PIXELS=8,
@@ -75,7 +74,6 @@ pub mod ffi {
 
     #[allow(non_camel_case_types)]
     #[repr(C)]
-    #[derive(Copy)]
     pub struct liq_palette {
         pub count: c_int,
         pub entries: [super::Color; 256],
@@ -161,7 +159,6 @@ impl Drop for Attributes {
     }
 }
 
-#[unsafe_destructor]
 impl<'a> Drop for Image<'a> {
     fn drop(&mut self) {
         unsafe {
