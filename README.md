@@ -12,6 +12,3 @@ It will produce `libimagequant-….rlib`.
 See [`example.rs`](https://github.com/pornel/libimagequant-rust/blob/master/example.rs) for usage.
 For more details see [libimagequant documentation](http://pngquant.org/lib/).
 
-----
-
-Written for Rust 0.11.

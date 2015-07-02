@@ -1,6 +1,6 @@
-// http://pngquant.org/lib/
-#![feature(libc)]
 #![crate_type = "lib"]
+
+/// http://pngquant.org/lib/
 
 extern crate libc;
 
