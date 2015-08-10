@@ -1,4 +1,5 @@
 #![crate_type = "lib"]
+#![allow(improper_ctypes)]
 
 /// http://pngquant.org/lib/
 
