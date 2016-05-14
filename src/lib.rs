@@ -14,7 +14,7 @@ use std::vec::Vec;
 use std::fmt;
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -30,7 +30,6 @@ impl fmt::Debug for Color {
         }
     }
 }
-
 
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
@@ -327,3 +326,38 @@ impl QuantizationResult {
 }
 
 
+#[test]
+fn poke_it() {
+    let width = 10usize;
+    let height = 10usize;
+    let mut fakebitmap = vec![255u8; 4*width*height];
+
+    fakebitmap[0] = 0x55;
+    fakebitmap[1] = 0x66;
+    fakebitmap[2] = 0x77;
+
+    // Configure the library
+    let mut liq = Attributes::new();
+    liq.set_speed(5);
+    liq.set_quality(70, 99);
+
+    // Describe the bitmap
+    let ref mut img = liq.new_image(&fakebitmap[..], width, height, 0.0).unwrap();
+
+    // The magic happens in quantize()
+    let mut res = match liq.quantize(img) {
+        Ok(res) => res,
+        Err(err) => panic!("Quantization failed, because: {:?}", err),
+    };
+
+    // Enable dithering for subsequent remappings
+    res.set_dithering_level(1.0);
+
+    // You can reuse the result to generate several images with the same palette
+    let (palette, pixels) = res.remapped(img).unwrap();
+
+    assert_eq!(width*height, pixels.len());
+    assert_eq!(100, res.quantization_quality());
+    assert_eq!(Color{r:255,g:255,b:255,a:255}, palette[0]);
+    assert_eq!(Color{r:0x55,g:0x66,b:0x77,a:255}, palette[1]);
+}
