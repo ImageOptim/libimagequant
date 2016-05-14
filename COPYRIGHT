@@ -1,6 +1,11 @@
-© 2014 by Kornel Lesiński.
+libimagequant:
 
-All rights reserved.
+https://raw.githubusercontent.com/pornel/pngquant/master/lib/COPYRIGHT
+
+
+This rust wrapper:
+
+© 2016 by Kornel Lesiński.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
