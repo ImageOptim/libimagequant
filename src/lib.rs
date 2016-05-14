@@ -12,6 +12,7 @@ use libc::{c_int, size_t};
 use std::option::Option;
 use std::vec::Vec;
 use std::fmt;
+use std::mem;
 
 #[repr(C)]
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -232,7 +233,7 @@ impl Attributes {
         }
     }
 
-    pub fn new_image<'a>(&self, bitmap: &'a [u8], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
+    pub fn new_image<'a, T: Copy + Clone>(&self, bitmap: &'a [T], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
@@ -251,12 +252,17 @@ pub fn new() -> Attributes {
 }
 
 impl<'a> Image<'a> {
-    pub fn new(attr: &Attributes, bitmap: &'a [u8], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
-        if bitmap.len() < width*height*4 {
+    pub fn new<T: Copy + Clone>(attr: &Attributes, bitmap: &'a [T], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
+        match mem::size_of::<T>() {
+            1 | 4 => {},
+            _ => return None,
+        }
+        if bitmap.len() * mem::size_of::<T>() < width*height*4 {
+            println!("Buffer length is {}x{} bytes, which is not enough for {}x{}x4 RGBA bytes", bitmap.len(), mem::size_of::<T>(), width, height);
             return None;
         }
         unsafe {
-            match ffi::liq_image_create_rgba(&*attr.handle, bitmap.as_ptr(), width as c_int, height as c_int, gamma) {
+            match ffi::liq_image_create_rgba(&*attr.handle, mem::transmute(bitmap.as_ptr()), width as c_int, height as c_int, gamma) {
                 h if !h.is_null() => Some(Image {
                     handle: h,
                     _marker: std::marker::PhantomData::<&'a [u8]>,
@@ -325,6 +331,27 @@ impl QuantizationResult {
     }
 }
 
+#[test]
+fn takes_rgba() {
+    let liq = Attributes::new();
+
+    #[derive(Copy, Clone)]
+    struct RGBA {r:u8, g:u8, b:u8, a:u8};
+    let img = vec![RGBA {r:0, g:0, b:0, a:0}; 8];
+
+
+    liq.new_image(&img, 1,1, 0.0).unwrap();
+    liq.new_image(&img, 4,2, 0.0).unwrap();
+    liq.new_image(&img, 8,1, 0.0).unwrap();
+    assert!(liq.new_image(&img, 9,1, 0.0).is_none());
+    assert!(liq.new_image(&img, 4,3, 0.0).is_none());
+
+    #[derive(Copy, Clone)]
+    struct RGB {r:u8, g:u8, b:u8};
+    let badimg = vec![RGB {r:0, g:0, b:0}; 8];
+    assert!(liq.new_image(&badimg, 1,1, 0.0).is_none());
+    assert!(liq.new_image(&badimg, 100,100, 0.0).is_none());
+}
 
 #[test]
 fn poke_it() {
