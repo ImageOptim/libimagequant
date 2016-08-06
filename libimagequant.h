@@ -37,6 +37,7 @@ extern "C" {
 typedef struct liq_attr liq_attr;
 typedef struct liq_image liq_image;
 typedef struct liq_result liq_result;
+typedef struct liq_histogram liq_histogram;
 
 typedef struct liq_color {
     unsigned char r, g, b, a;
@@ -64,6 +65,10 @@ LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_create(void);
 LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_create_with_allocator(void* (*malloc)(size_t), void (*free)(void*));
 LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_copy(liq_attr *orig) LIQ_NONNULL;
 LIQ_EXPORT void liq_attr_destroy(liq_attr *attr) LIQ_NONNULL;
+
+LIQ_EXPORT LIQ_USERESULT liq_histogram* liq_histogram_create(liq_attr* attr);
+LIQ_EXPORT LIQ_USERESULT liq_error liq_histogram_add_image(liq_histogram *hist, liq_attr *attr, liq_image* image);
+LIQ_EXPORT void liq_histogram_destroy(liq_histogram *hist) LIQ_NONNULL;
 
 LIQ_EXPORT liq_error liq_set_max_colors(liq_attr* attr, int colors) LIQ_NONNULL;
 LIQ_EXPORT LIQ_USERESULT int liq_get_max_colors(const liq_attr* attr) LIQ_NONNULL;
@@ -101,6 +106,7 @@ LIQ_EXPORT LIQ_USERESULT int liq_image_get_height(const liq_image *img) LIQ_NONN
 LIQ_EXPORT void liq_image_destroy(liq_image *img) LIQ_NONNULL;
 
 LIQ_EXPORT LIQ_USERESULT liq_result *liq_quantize_image(liq_attr *options, liq_image *input_image) LIQ_NONNULL;
+LIQ_EXPORT LIQ_USERESULT liq_result *liq_quantize_histogram(liq_attr *options, liq_histogram *input_hist) LIQ_NONNULL;
 
 LIQ_EXPORT liq_error liq_set_dithering_level(liq_result *res, float dither_level) LIQ_NONNULL;
 LIQ_EXPORT liq_error liq_set_output_gamma(liq_result* res, double gamma) LIQ_NONNULL;
