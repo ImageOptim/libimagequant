@@ -163,7 +163,8 @@ static liq_error finalize_histogram(liq_histogram *input_hist, liq_attr *options
 static const rgba_pixel *liq_image_get_row_rgba(liq_image *input_image, unsigned int row) LIQ_NONNULL;
 static const f_pixel *liq_image_get_row_f(liq_image *input_image, unsigned int row) LIQ_NONNULL;
 static void liq_remapping_result_destroy(liq_remapping_result *result) LIQ_NONNULL;
-static liq_error pngquant_quantize(histogram *hist, const liq_attr *options, const int fixed_colors_count, const f_pixel fixed_colors[], const double gamma, liq_result **) LIQ_NONNULL;
+static liq_error pngquant_quantize(histogram *hist, const liq_attr *options, const int fixed_colors_count, const f_pixel fixed_colors[], const double gamma, bool fixed_result_colors, liq_result **) LIQ_NONNULL;
+static liq_error liq_histogram_quantize_internal(liq_histogram *input_hist, liq_attr *attr, bool fixed_result_colors, liq_result **result_output) LIQ_NONNULL;
 
 LIQ_NONNULL static void liq_verbose_printf(const liq_attr *context, const char *fmt, ...)
 {
@@ -904,13 +905,17 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_quantize(liq_image *const img, liq_at
         return err;
     }
 
-    err = liq_histogram_quantize(hist, attr, result_output);
+    err = liq_histogram_quantize_internal(hist, attr, false, result_output);
     liq_histogram_destroy(hist);
 
     return err;
 }
 
-LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_quantize(liq_histogram *input_hist, liq_attr *attr, liq_result **result_output)
+LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_quantize(liq_histogram *input_hist, liq_attr *attr, liq_result **result_output) {
+    return liq_histogram_quantize_internal(input_hist, attr, true, result_output);
+}
+
+LIQ_NONNULL static liq_error liq_histogram_quantize_internal(liq_histogram *input_hist, liq_attr *attr, bool fixed_result_colors, liq_result **result_output)
 {
     if (!CHECK_USER_POINTER(result_output)) return LIQ_INVALID_POINTER;
     *result_output = NULL;
@@ -926,7 +931,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_quantize(liq_histogram *input_his
         return err;
     }
 
-    err = pngquant_quantize(hist, attr, input_hist->fixed_colors_count, input_hist->fixed_colors, input_hist->gamma, result_output);
+    err = pngquant_quantize(hist, attr, input_hist->fixed_colors_count, input_hist->fixed_colors, input_hist->gamma, fixed_result_colors, result_output);
     pam_freeacolorhist(hist);
 
     return err;
@@ -1782,7 +1787,7 @@ static colormap *histogram_to_palette(const histogram *hist, const liq_attr *opt
     return acolormap;
 }
 
-LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *options, const int fixed_colors_count, const f_pixel fixed_colors[], const double gamma, liq_result **result_output)
+LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *options, const int fixed_colors_count, const f_pixel fixed_colors[], const double gamma, bool fixed_result_colors, liq_result **result_output)
 {
     colormap *acolormap;
     double palette_error = -1;
@@ -1860,6 +1865,14 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
     }
 
     sort_palette(acolormap, options);
+
+    // If palette was created from a multi-image histogram,
+    // then it shouldn't be optimized for one image during remapping
+    if (fixed_result_colors) {
+        for(unsigned int i=0; i < acolormap->colors; i++) {
+            acolormap->palette[i].fixed = true;
+        }
+    }
 
     liq_result *result = options->malloc(sizeof(liq_result));
     if (!result) return LIQ_OUT_OF_MEMORY;

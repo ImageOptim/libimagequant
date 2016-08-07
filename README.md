@@ -226,7 +226,7 @@ Remaps the image to palette and writes its pixels to the given buffer, 1 pixel p
 
 The buffer must be large enough to fit the entire image, i.e. width×height bytes large. For safety, pass the size of the buffer as `buffer_size`.
 
-For best performance call `liq_get_palette()` *after* this function, as palette is improved during remapping.
+For best performance call `liq_get_palette()` *after* this function, as palette is improved during remapping (except when `liq_histogram_quantize()` is used).
 
 Returns `LIQ_BUFFER_TOO_SMALL` if given size of the buffer is not enough to fit the entire image.
 
@@ -385,7 +385,7 @@ Returns `LIQ_VALUE_OUT_OF_RANGE` if invalid flags are specified or the image obj
 
 Similar to `liq_write_remapped_image()`. Writes remapped image, at 1 byte per pixel, to each row pointed by `row_pointers` array. The array must have at least as many elements as height of the image, and each row must have at least as many bytes as width of the image. Rows must not overlap.
 
-For best performance call `liq_get_palette()` *after* this function, as remapping may change the palette.
+For best performance call `liq_get_palette()` *after* this function, as remapping may change the palette (except when `liq_histogram_quantize()` is used).
 
 Returns `LIQ_INVALID_POINTER` if `result` or `input_image` is `NULL`.
 
@@ -581,6 +581,8 @@ Generates palette from the histogram. On success returns `LIQ_OK` and writes `li
     }
 
 Returns `LIQ_QUALITY_TOO_LOW` if the palette is worse than limit set in `liq_set_quality()`. One histogram object can be quantized only once.
+
+Palette generated using this function won't be improved during remapping. If you're generating palette for only one image, it's better to use `liq_image_quantize()`.
 
 ## Multithreading
 
