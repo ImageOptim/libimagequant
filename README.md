@@ -535,8 +535,11 @@ It's possible to efficiently generate a single palette that is optimal for multi
     liq_image *image2 = liq_image_create_rgba(attr, example_bitmap_rgba2, width, height, 0);
     liq_histogram_add_image(hist, attr, image2);
 
-    liq_result *result = liq_quantize_histogram(attr, hist);
-    // result will contain shared palette best for both image1 and image2
+    liq_result *result;
+    liq_error err = liq_histogram_quantize(attr, hist, &result);
+    if (LIQ_OK == err) {
+        // result will contain shared palette best for both image1 and image2
+    }
 
 ---
 
@@ -556,6 +559,19 @@ After the image is added to the histogram it may be freed to save memory (but it
 
 Fixed colors added to the image are also added to the histogram. If total number of fixed colors exceeds 256, this function will fail with `LIQ_BUFFER_TOO_SMALL`.
 
+---
+
+    liq_error liq_histogram_quantize(liq_histogram *const hist, liq_attr *const attr, liq_result **out_result);
+
+Generates palette from the histogram. On success returns `LIQ_OK` and writes `liq_result*` pointer to `out_result`. Use it as follows:
+
+    liq_result *result;
+    liq_error err = liq_histogram_quantize(attr, hist, &result);
+    if (LIQ_OK == err) {
+        // Use result here to remap and get palette
+    }
+
+Returns `LIQ_QUALITY_TOO_LOW` if the palette is worse than limit set in `liq_set_quality()`. One histogram object can be quantized only once.
 
 ## Multithreading
 
