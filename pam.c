@@ -188,7 +188,7 @@ LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table 
     histogram *hist = malloc(sizeof(hist[0]));
     if (!hist || !acht) return NULL;
     *hist = (histogram){
-        .achv = malloc(acht->colors * sizeof(hist->achv[0])),
+        .achv = malloc(MAX(1,acht->colors) * sizeof(hist->achv[0])),
         .size = acht->colors,
         .free = free,
         .ignorebits = acht->ignorebits,
@@ -225,7 +225,9 @@ LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table 
 
 LIQ_PRIVATE void pam_freeacolorhash(struct acolorhash_table *acht)
 {
-    mempool_destroy(acht->mempool);
+    if (acht) {
+        mempool_destroy(acht->mempool);
+    }
 }
 
 LIQ_PRIVATE void pam_freeacolorhist(histogram *hist)

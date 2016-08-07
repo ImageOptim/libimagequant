@@ -254,6 +254,7 @@ Returns `NULL` on error.
     void liq_attr_destroy(liq_attr *);
     void liq_image_destroy(liq_image *);
     void liq_result_destroy(liq_result *);
+    void liq_histogram_destroy(liq_histogram *);
 
 Releases memory owned by the given object. Object must not be used any more after it has been freed.
 
@@ -520,6 +521,41 @@ Returns error if more than 256 colors are added. If image is quantized to fewer 
     int liq_version();
 
 Returns version of the library as an integer. Same as `LIQ_VERSION`. Human-readable version is defined as `LIQ_VERSION_STRING`.
+
+## Multiple images with the same palette
+
+It's possible to efficiently generate a single palette that is optimal for multiple images, e.g. for an APNG animation. This is done by collecting statistics of images in a `liq_histogram` object.
+
+    liq_attr *attr = liq_attr_create();
+    liq_histogram *hist = liq_histogram_create(attr);
+
+    liq_image *image1 = liq_image_create_rgba(attr, example_bitmap_rgba1, width, height, 0);
+    liq_histogram_add_image(hist, attr, image1);
+
+    liq_image *image2 = liq_image_create_rgba(attr, example_bitmap_rgba2, width, height, 0);
+    liq_histogram_add_image(hist, attr, image2);
+
+    liq_result *result = liq_quantize_histogram(attr, hist);
+    // result will contain shared palette best for both image1 and image2
+
+---
+
+    liq_histogram *liq_histogram_create(liq_attr *attr);
+
+Creates histogram object that will be used to collect color statistics from multiple images. It must be freed using `liq_histogram_destroy()`.
+
+All options should be set on `attr` before the histogram object is created. Options changed later may not have effect.
+
+---
+
+    liq_error liq_histogram_add_image(liq_histogram *hist, liq_attr *attr, liq_image* image);
+
+"Learns" colors from the image, which will be later used to generate the palette.
+
+After the image is added to the histogram it may be freed to save memory (but it's more efficient to keep the image object if it's going to be used for remapping).
+
+Fixed colors added to the image are also added to the histogram. If total number of fixed colors exceeds 256, this function will fail with `LIQ_BUFFER_TOO_SMALL`.
+
 
 ## Multithreading
 

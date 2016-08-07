@@ -2,6 +2,7 @@ version 2.8
 -----------
  - standalone version
  - added Java interface (JNI)
+ - new API for remapping multiple images to a single shared palette
 
 version 2.7
 -----------
