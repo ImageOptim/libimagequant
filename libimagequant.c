@@ -879,31 +879,35 @@ LIQ_EXPORT LIQ_NONNULL void liq_histogram_destroy(liq_histogram *hist)
     hist->free(hist);
 }
 
-
 LIQ_EXPORT LIQ_NONNULL liq_result *liq_quantize_image(liq_attr *attr, liq_image *img)
 {
-    if (!CHECK_STRUCT_TYPE(attr, liq_attr)) return NULL;
-    if (!liq_image_has_rgba_pixels(img)) {
-        liq_log_error(attr, "invalid image pointer");
+    liq_result *res;
+    if (LIQ_OK != liq_image_quantize(img, attr, &res)) {
         return NULL;
+    }
+    return res;
+}
+
+LIQ_EXPORT LIQ_NONNULL liq_error liq_image_quantize(liq_image *const img, liq_attr *const attr, liq_result **result_output)
+{
+    if (!CHECK_STRUCT_TYPE(attr, liq_attr)) return LIQ_INVALID_POINTER;
+    if (!liq_image_has_rgba_pixels(img)) {
+        return LIQ_INVALID_POINTER;
     }
 
     liq_histogram *hist = liq_histogram_create(attr);
     if (!hist) {
-        return NULL;
+        return LIQ_OUT_OF_MEMORY;
     }
-    if (LIQ_OK != liq_histogram_add_image(hist, attr, img)) {
-        return NULL;
+    liq_error err = liq_histogram_add_image(hist, attr, img);
+    if (LIQ_OK != err) {
+        return err;
     }
 
-    liq_result *res = NULL;
-    liq_error err = liq_histogram_quantize(hist, attr, &res);
+    err = liq_histogram_quantize(hist, attr, result_output);
     liq_histogram_destroy(hist);
 
-    if (err) {
-        return NULL;
-    }
-    return res;
+    return err;
 }
 
 LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_quantize(liq_histogram *input_hist, liq_attr *attr, liq_result **result_output)

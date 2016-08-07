@@ -68,7 +68,8 @@ Please note that libimagequant only handles raw uncompressed arrays of pixels in
 
     liq_attr *attr = liq_attr_create();
     liq_image *image = liq_image_create_rgba(attr, example_bitmap_rgba, width, height, 0);
-    liq_result *res = liq_quantize_image(attr, image);
+    liq_result *res;
+    liq_image_quantize(image, attr, &res);
 
     liq_write_remapped_image(res, image, example_bitmap_8bpp, example_bitmap_size);
     const liq_palette *pal = liq_get_palette(res);
@@ -128,9 +129,9 @@ Quality is in range `0` (worst) to `100` (best) and values are analoguous to JPE
 
 Quantization will attempt to use the lowest number of colors needed to achieve `maximum` quality. `maximum` value of `100` is the default and means conversion as good as possible.
 
-If it's not possible to convert the image with at least `minimum` quality (i.e. 256 colors is not enough to meet the minimum quality), then `liq_quantize_image()` will fail. The default minumum is `0` (proceeds regardless of quality).
+If it's not possible to convert the image with at least `minimum` quality (i.e. 256 colors is not enough to meet the minimum quality), then `liq_image_quantize()` will fail. The default minumum is `0` (proceeds regardless of quality).
 
-Quality measures how well the generated palette fits image given to `liq_quantize_image()`. If a different image is remapped with `liq_write_remapped_image()` then actual quality may be different.
+Quality measures how well the generated palette fits image given to `liq_image_quantize()`. If a different image is remapped with `liq_write_remapped_image()` then actual quality may be different.
 
 Regardless of the quality settings the number of colors won't exceed the maximum (see `liq_set_max_colors()`).
 
@@ -192,11 +193,18 @@ See also `liq_image_create_rgba()` and `liq_image_create_custom()`.
 
 ----
 
-    liq_result *liq_quantize_image(liq_attr *attr, liq_image *input_image);
+    liq_error liq_image_quantize(liq_image *const input_image, liq_attr *const attr, liq_result **out_result);
 
 Performs quantization (palette generation) based on settings in `attr` and pixels of the image.
 
-Returns `NULL` if quantization fails, e.g. due to limit set in `liq_set_quality()`.
+Returns `LIQ_OK` if quantization succeeds and sets `liq_result` pointer in `out_result`. The last argument is used for receiving the `result` object:
+
+    liq_result *result;
+    if (LIQ_OK == liq_image_quantize(img, attr, &result)) { // Note &result
+        // result pointer is valid here
+    }
+
+Returns `LIQ_QUALITY_TOO_LOW` if quantization fails due to limit set in `liq_set_quality()`.
 
 See `liq_write_remapped_image()`.
 
@@ -389,7 +397,7 @@ Returns mean square error of quantization (square of difference between pixel va
 
 For most images MSE 1-5 is excellent. 7-10 is OK. 20-30 will have noticeable errors. 100 is awful.
 
-This function may return `-1` if the value is not available (this happens when a high speed has been requested, the image hasn't been remapped yet, and quality limit hasn't been set, see `liq_set_speed()` and `liq_set_quality()`). The value is not updated when multiple images are remapped, it applies only to the image used in `liq_quantize_image()` or the first image that has been remapped. See `liq_get_remapping_error()`.
+This function may return `-1` if the value is not available (this happens when a high speed has been requested, the image hasn't been remapped yet, and quality limit hasn't been set, see `liq_set_speed()` and `liq_set_quality()`). The value is not updated when multiple images are remapped, it applies only to the image used in `liq_image_quantize()` or the first image that has been remapped. See `liq_get_remapping_error()`.
 
 ----
 
@@ -411,14 +419,15 @@ This function can be used to add upper limit to quality options presented to the
 
     liq_attr *attr = liq_attr_create();
     liq_image *img = liq_image_create_rgba(…);
-    liq_result *res = liq_quantize_image(attr, img);
+    liq_result *res;
+    liq_image_quantize(img, attr, &res);
     int max_attainable_quality = liq_get_quantization_quality(res);
     printf("Please select quality between 0 and %d: ", max_attainable_quality);
     int user_selected_quality = prompt();
     if (user_selected_quality < max_attainable_quality) {
         liq_set_quality(user_selected_quality, 0);
         liq_result_destroy(res);
-        res = liq_quantize_image(attr, img);
+        liq_image_quantize(img, attr, &res);
     }
     liq_write_remapped_image(…);
 
