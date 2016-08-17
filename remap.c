@@ -42,7 +42,7 @@ LIQ_PRIVATE LIQ_NONNULL float remap_to_palette(liq_image *const input_image, uns
 #endif
     for(int row = 0; row < rows; ++row) {
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
-        const f_pixel *const bg_pixels = background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(background, row) : NULL;
+        const f_pixel *const bg_pixels = background && acolormap[transparent_index].acolor.a < MIN_OPAQUE_A ? liq_image_get_row_f(background, row) : NULL;
 
         unsigned int last_match=0;
         for(unsigned int col = 0; col < cols; ++col) {
@@ -170,7 +170,7 @@ LIQ_PRIVATE LIQ_NONNULL bool remap_to_palette_floyd(liq_image *input_image, unsi
 
         int col = (fs_direction > 0) ? 0 : (cols - 1);
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
-        const f_pixel *const bg_pixels = background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(background, row) : NULL;
+        const f_pixel *const bg_pixels = background && acolormap[transparent_index].acolor.a < MIN_OPAQUE_A ? liq_image_get_row_f(background, row) : NULL;
         int undithered_bg_used = 0;
 
         do {

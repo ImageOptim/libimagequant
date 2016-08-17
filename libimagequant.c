@@ -1111,7 +1111,7 @@ LIQ_NONNULL static void sort_palette(colormap *map, const liq_attr *options)
     */
     if (options->last_index_transparent) {
         for(unsigned int i=0; i < map->colors; i++) {
-            if (map->palette[i].acolor.a < 1.f/256.f) {
+            if (map->palette[i].acolor.a < MIN_OPAQUE_A) {
                 const unsigned int old = i, transparent_dest = map->colors-1;
 
                 SWAP_PALETTE(map, transparent_dest, old);
@@ -1134,7 +1134,7 @@ LIQ_NONNULL static void sort_palette(colormap *map, const liq_attr *options)
     /* move transparent colors to the beginning to shrink trns chunk */
     unsigned int num_transparent = 0;
     for(unsigned int i = 0; i < non_fixed_colors; i++) {
-        if (map->palette[i].acolor.a < 255.f/256.f) {
+        if (map->palette[i].acolor.a < 255.f/256.f * LIQ_WEIGHT_A) {
             // current transparent color is swapped with earlier opaque one
             if (i != num_transparent) {
                 SWAP_PALETTE(map, num_transparent, i);
@@ -1462,7 +1462,7 @@ LIQ_NONNULL static void update_dither_map(liq_image *input_image, unsigned char 
 
         for(unsigned int col=1; col < width; col++) {
             const unsigned char px = row_pointers[row][col];
-            if (input_image->background && map->palette[px].acolor.a < 1.f/256.f) {
+            if (input_image->background && map->palette[px].acolor.a < MIN_OPAQUE_A) {
                 // Transparency may or may not create an edge. When there's an explicit background set, assume no edge.
                 continue;
             }

@@ -41,10 +41,10 @@ static f_pixel box_variance(const hist_item achv[], const struct box *box)
     }
 
     return (f_pixel){
-        .a = variancea*(4.0/16.0),
-        .r = variancer*(7.0/16.0),
-        .g = varianceg*(9.0/16.0),
-        .b = varianceb*(5.0/16.0),
+        .a = variancea,
+        .r = variancer,
+        .g = varianceg,
+        .b = varianceb,
     };
 }
 

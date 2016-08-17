@@ -97,6 +97,13 @@ static const float internal_gamma = 0.57f;
 
 LIQ_PRIVATE void to_f_set_gamma(float gamma_lut[], const double gamma);
 
+#define MIN_OPAQUE_A (1.f / 256.f * LIQ_WEIGHT_A)
+
+#define LIQ_WEIGHT_A 0.625f
+#define LIQ_WEIGHT_R 0.5f
+#define LIQ_WEIGHT_G 1.0f
+#define LIQ_WEIGHT_B 0.45f
+
 /**
  Converts 8-bit color to internal gamma and premultiplied alpha.
  (premultiplied color space is much better for blending of semitransparent colors)
@@ -107,23 +114,22 @@ inline static f_pixel rgba_to_f(const float gamma_lut[], const liq_color px)
     float a = px.a/255.f;
 
     return (f_pixel) {
-        .a = a,
-        .r = gamma_lut[px.r]*a,
-        .g = gamma_lut[px.g]*a,
-        .b = gamma_lut[px.b]*a,
+        .a = a * LIQ_WEIGHT_A,
+        .r = gamma_lut[px.r] * LIQ_WEIGHT_R * a,
+        .g = gamma_lut[px.g] * LIQ_WEIGHT_G * a,
+        .b = gamma_lut[px.b] * LIQ_WEIGHT_B * a,
     };
 }
 
 inline static liq_color f_to_rgb(const float gamma, const f_pixel px)
 {
-    if (px.a < 1.f/256.f) {
+    if (px.a < MIN_OPAQUE_A) {
         return (liq_color){0,0,0,0};
     }
 
-    float r = px.r / px.a,
-          g = px.g / px.a,
-          b = px.b / px.a,
-          a = px.a;
+    float r = (LIQ_WEIGHT_A / LIQ_WEIGHT_R) * px.r / px.a,
+          g = (LIQ_WEIGHT_A / LIQ_WEIGHT_G) * px.g / px.a,
+          b = (LIQ_WEIGHT_A / LIQ_WEIGHT_B) * px.b / px.a;
 
     r = powf(r, gamma/internal_gamma);
     g = powf(g, gamma/internal_gamma);
@@ -133,7 +139,7 @@ inline static liq_color f_to_rgb(const float gamma, const f_pixel px)
     r *= 256.f;
     g *= 256.f;
     b *= 256.f;
-    a *= 256.f;
+    float a = (256.f / LIQ_WEIGHT_A) * px.a;
 
     return (liq_color){
         .r = r>=255.f ? 255 : r,
