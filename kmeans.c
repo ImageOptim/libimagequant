@@ -86,9 +86,9 @@ LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kme
         achv[j].tmp.likely_colormap_index = match;
         total_diff += diff * achv[j].perceptual_weight;
 
-        kmeans_update_color(achv[j].acolor, achv[j].perceptual_weight, map, match, omp_get_thread_num(), average_color);
-
         if (callback) callback(&achv[j], diff);
+
+        kmeans_update_color(achv[j].acolor, achv[j].perceptual_weight, map, match, omp_get_thread_num(), average_color);
     }
 
     nearest_free(n);
