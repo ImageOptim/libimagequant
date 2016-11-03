@@ -1,7 +1,7 @@
 -include config.mk
 
 STATICLIB=libimagequant.a
-SHAREDLIB=libimagequant.so
+SHAREDLIB=libimagequant.$(SOLIBSUFFIX)
 SOVER=0
 
 DLL=libimagequant.dll
@@ -11,11 +11,11 @@ DLLDEF=libimagequant_dll.def
 OBJS = pam.o mediancut.o blur.o mempool.o viter.o nearest.o libimagequant.o
 SHAREDOBJS = $(subst .o,.lo,$(OBJS))
 
-DISTFILES = $(OBJS:.o=.c) *.h MANUAL.md COPYRIGHT Makefile configure
+DISTFILES = $(OBJS:.o=.c) *.h README.md CHANGELOG COPYRIGHT Makefile configure
 TARNAME = libimagequant-$(VERSION)
 TARFILE = $(TARNAME)-src.tar.bz2
 
-all: static shared
+all: static
 
 static: $(STATICLIB)
 

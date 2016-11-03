@@ -1,0 +1,7 @@
+config.mk
+*.lo
+*.o
+*.a
+*.so.0
+*.bz2
+*.dylib

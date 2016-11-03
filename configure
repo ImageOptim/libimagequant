@@ -72,8 +72,7 @@ for i in "$@"; do
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS ${i#*=}"
         ;;
     *)
-        echo "error: unknown switch ${i%%=*} (see $0 --help for the list)"
-        exit 1
+        echo "warning: unknown switch ${i%%=*} (see $0 --help for the list)"
         ;;
     esac
 done
@@ -177,6 +176,25 @@ else
     status "OpenMP" "no"
 fi
 
+# Cocoa
+if [[ "$OSTYPE" =~ "darwin" ]]; then
+    cflags "-mmacosx-version-min=10.6"
+    lflags "-mmacosx-version-min=10.6"
+
+if [[ "$OSTYPE" =~ "darwin" ]]; then
+    SOLIBSUFFIX=dylib
+
+    # Search Developer SDK paths, since Apple seems to have dropped the standard Unixy ones
+    XCODE_CMD="xcode-select"
+    XCODE_PATH=$($XCODE_CMD -p)
+    DIRS+=("$XCODE_PATH/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include $XCODE_PATH/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/lib")
+    DIRS+=("$XCODE_PATH/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/usr/include $XCODE_PATH/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/usr/lib")
+else
+    SOLIBSUFFIX=so
+fi
+
+fi
+
 echo
 
 # As of GCC 4.5, 387 fp math is significantly slower in C99 mode without this.
@@ -213,4 +231,5 @@ VERSION = $VERSION
 CC = $CC
 CFLAGS = $CFLAGS
 LDFLAGS = $LDFLAGS
+SOLIBSUFFIX = $SOLIBSUFFIX
 " > "$CONFIG"

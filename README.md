@@ -7,42 +7,40 @@ It's powering [pngquant2](https://pngquant.org).
 
 Libimagequant is dual-licensed:
 
-* For Free/Libre Open Source Software it's available under [GPL v3 or later](https://raw.github.com/pornel/pngquant/master/lib/COPYRIGHT) with additional copyright notices for older parts of the code.
+* For Free/Libre Open Source Software it's available under [GPL v3 or later](https://raw.github.com/ImageOptim/libimagequant/master/COPYRIGHT) with additional copyright notices for older parts of the code.
 
 * For use in non-GPL software (e.g. closed-source or App Store distribution) please ask kornel@pngquant.org for a commercial license.
 
 ## Download
 
-The [library](https://pngquant.org/lib) is currently a part of the [pngquant2 project](https://github.com/pornel/pngquant/tree/master/lib).
-
-Files needed for the library are only in the `lib/` directory inside the repository (and you can ignore the rest).
+The [library](https://pngquant.org/lib) is currently a part of the [pngquant2 project](https://pngquant.org). [Repository](https://github.com/ImageOptim/libimagequant).
 
 ## Compiling and Linking
 
-The library can be linked with ANSI C, C++ and [Rust](https://crates.io/crates/imagequant/) programs. It has no external dependencies.
+The library can be linked with ANSI C, C++ and [Rust](https://github.com/pornel/libimagequant-rust) programs. It has no external dependencies.
 
 To build on Unix-like systems run:
 
-    make -C lib
+    make static
 
-it will create `lib/libimagequant.a` which you can link with your program.
+it will create `libimagequant.a` which you can link with your program.
 
-    gcc yourprogram.c /path/to/lib/libimagequant.a
+    gcc yourprogram.c /path/to/libimagequant.a
 
 On BSD, use `gmake` (GNU make) rather than the native `make`.
 
 Alternatively you can compile the library with your program simply by including all `.c` files (and define `NDEBUG` to get a fast version):
 
-    gcc -std=c99 -O3 -DNDEBUG lib/*.c yourprogram.c
+    gcc -std=c99 -O3 -DNDEBUG libimagequant/*.c yourprogram.c
 
 In [Rust](https://github.com/pornel/libimagequant-rust),
-if using Cargo, add `imagequant` to dependencies.
+if using Cargo, add [`imagequant`](https://crates.io/crates/imagequant/) to dependencies.
 
 ### Compiling on Windows/Visual Studio
 
 The library can be compiled with any C compiler that has at least basic support for C99 (GCC, clang, ICC, C++ Builder, even Tiny C Compiler), but Visual Studio 2012 and older are not up to date with the 1999 C standard. There are 2 options for using `libimagequant` on Windows:
 
- * Use Visual Studio **2013** (MSVC 18) and an [MSVC-compatible branch of the library](https://github.com/pornel/pngquant/tree/msvc/lib)
+ * Use Visual Studio **2013** (MSVC 18) and an [MSVC-compatible branch of the library](https://github.com/ImageOptim/libimagequant/tree/msvc)
  * Or use GCC from [MinGW](http://www.mingw.org). Use GCC to build `libimagequant.a` (using the instructions above for Unix) and add it along with `libgcc.a` (shipped with the MinGW compiler) to your VC project.
 
 ## Overview
@@ -59,7 +57,7 @@ Please note that libimagequant only handles raw uncompressed arrays of pixels in
 
 <p>
 
-    #include "lib/libimagequant.h"
+    #include "libimagequant.h"
 
     liq_attr *attr = liq_attr_create();
     liq_image *image = liq_image_create_rgba(attr, example_bitmap_rgba, width, height, 0);
