@@ -1,5 +1,5 @@
 /*
-© 2011-2015 by Kornel Lesiński.
+© 2011-2016 by Kornel Lesiński.
 
 This file is part of libimagequant.
 
