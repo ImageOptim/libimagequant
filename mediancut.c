@@ -450,61 +450,15 @@ static void adjust_histogram(hist_item *achv, const colormap *map, const struct 
     }
 }
 
-inline static f_pixel setalpha(f_pixel px, float new_a) {
-    if (px.a) {
-        px.r /= px.a;
-        px.g /= px.a;
-        px.b /= px.a;
-    }
-
-    px.r *= new_a;
-    px.g *= new_a;
-    px.b *= new_a;
-    px.a = new_a;
-
-    return px;
-}
-
 static f_pixel averagepixels(unsigned int clrs, const hist_item achv[], f_pixel center)
 {
-    double r = 0, g = 0, b = 0, a = 0, new_a=0, sum = 0;
-    float maxa = 0;
+    double r = 0, g = 0, b = 0, a = 0, sum = 0;
 
-    // first find final opacity in order to blend colors at that opacity
-    for(unsigned int i = 0; i < clrs; ++i) {
+    for(unsigned int i = 0; i < clrs; i++) {
         const f_pixel px = achv[i].acolor;
-        new_a += px.a * achv[i].adjusted_weight;
-        sum += achv[i].adjusted_weight;
+        const double weight = achv[i].adjusted_weight;
 
-        /* find if there are opaque colors, in case we're supposed to preserve opacity exactly (ie_bug) */
-        if (px.a > maxa) maxa = px.a;
-    }
-
-    if (sum) new_a /= sum;
-
-    center = setalpha(center, new_a);
-
-    sum=0;
-    // reverse iteration for cache locality with previous loop
-    for(int i = clrs-1; i >= 0; i--) {
-        double tmp, weight = 1.0f;
-        f_pixel px = setalpha(achv[i].acolor, new_a);
-
-        /* give more weight to colors that are further away from average
-         this is intended to prevent desaturation of images and fading of whites
-         */
-        tmp = (center.r - px.r);
-        weight += tmp*tmp;
-        tmp = (center.g - px.g);
-        weight += tmp*tmp;
-        tmp = (center.b - px.b);
-        weight += tmp*tmp;
-        tmp = (center.a - px.a);
-        weight += tmp*tmp;
-
-        weight *= achv[i].adjusted_weight;
         sum += weight;
-
         r += px.r * weight;
         g += px.g * weight;
         b += px.b * weight;

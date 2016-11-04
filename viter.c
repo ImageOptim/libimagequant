@@ -1,5 +1,5 @@
 /*
-© 2011-2015 by Kornel Lesiński.
+© 2011-2016 by Kornel Lesiński.
 
 This file is part of libimagequant.
 
@@ -72,10 +72,8 @@ LIQ_PRIVATE void viter_finalize(colormap *map, const unsigned int max_threads, c
                 .g = g / total,
                 .b = b / total,
             };
-        } else {
-            total = i/1024.0;
+            map->palette[i].popularity = total;
         }
-        map->palette[i].popularity = total;
     }
 }
 

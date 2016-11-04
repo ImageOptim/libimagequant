@@ -13,8 +13,8 @@
 #define LIQ_EXPORT extern
 #endif
 
-#define LIQ_VERSION 20702
-#define LIQ_VERSION_STRING "2.7.2"
+#define LIQ_VERSION 20800
+#define LIQ_VERSION_STRING "2.8.0"
 
 #ifndef LIQ_PRIVATE
 #if defined(__GNUC__) || defined (__llvm__)
@@ -37,6 +37,7 @@ extern "C" {
 typedef struct liq_attr liq_attr;
 typedef struct liq_image liq_image;
 typedef struct liq_result liq_result;
+typedef struct liq_histogram liq_histogram;
 
 typedef struct liq_color {
     unsigned char r, g, b, a;
@@ -65,6 +66,10 @@ LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_create_with_allocator(void* (*malloc
 LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_copy(liq_attr *orig) LIQ_NONNULL;
 LIQ_EXPORT void liq_attr_destroy(liq_attr *attr) LIQ_NONNULL;
 
+LIQ_EXPORT LIQ_USERESULT liq_histogram* liq_histogram_create(liq_attr* attr);
+LIQ_EXPORT LIQ_USERESULT liq_error liq_histogram_add_image(liq_histogram *hist, liq_attr *attr, liq_image* image);
+LIQ_EXPORT void liq_histogram_destroy(liq_histogram *hist) LIQ_NONNULL;
+
 LIQ_EXPORT liq_error liq_set_max_colors(liq_attr* attr, int colors) LIQ_NONNULL;
 LIQ_EXPORT LIQ_USERESULT int liq_get_max_colors(const liq_attr* attr) LIQ_NONNULL;
 LIQ_EXPORT liq_error liq_set_speed(liq_attr* attr, int speed) LIQ_NONNULL;
@@ -87,8 +92,9 @@ typedef int liq_progress_callback_function(float progress_percent, void* user_in
 LIQ_EXPORT void liq_attr_set_progress_callback(liq_attr*, liq_progress_callback_function*, void* user_info);
 LIQ_EXPORT void liq_result_set_progress_callback(liq_result*, liq_progress_callback_function*, void* user_info);
 
-LIQ_EXPORT LIQ_USERESULT liq_image *liq_image_create_rgba_rows(const liq_attr *attr, void* rows[], int width, int height, double gamma) LIQ_NONNULL;
-LIQ_EXPORT LIQ_USERESULT liq_image *liq_image_create_rgba(const liq_attr *attr, void* bitmap, int width, int height, double gamma) LIQ_NONNULL;
+// The rows and their data are not modified. The type of `rows` is non-const only due to a bug in C's typesystem design.
+LIQ_EXPORT LIQ_USERESULT liq_image *liq_image_create_rgba_rows(const liq_attr *attr, void *const rows[], int width, int height, double gamma) LIQ_NONNULL;
+LIQ_EXPORT LIQ_USERESULT liq_image *liq_image_create_rgba(const liq_attr *attr, const void *bitmap, int width, int height, double gamma) LIQ_NONNULL;
 
 typedef void liq_image_get_rgba_row_callback(liq_color row_out[], int row, int width, void* user_info);
 LIQ_EXPORT LIQ_USERESULT liq_image *liq_image_create_custom(const liq_attr *attr, liq_image_get_rgba_row_callback *row_callback, void* user_info, int width, int height, double gamma);
@@ -99,7 +105,8 @@ LIQ_EXPORT LIQ_USERESULT int liq_image_get_width(const liq_image *img) LIQ_NONNU
 LIQ_EXPORT LIQ_USERESULT int liq_image_get_height(const liq_image *img) LIQ_NONNULL;
 LIQ_EXPORT void liq_image_destroy(liq_image *img) LIQ_NONNULL;
 
-LIQ_EXPORT LIQ_USERESULT liq_result *liq_quantize_image(liq_attr *options, liq_image *input_image) LIQ_NONNULL;
+LIQ_EXPORT LIQ_USERESULT liq_error liq_histogram_quantize(liq_histogram *const input_hist, liq_attr *const options, liq_result **result_output) LIQ_NONNULL;
+LIQ_EXPORT LIQ_USERESULT liq_error liq_image_quantize(liq_image *const input_image, liq_attr *const options, liq_result **result_output) LIQ_NONNULL;
 
 LIQ_EXPORT liq_error liq_set_dithering_level(liq_result *res, float dither_level) LIQ_NONNULL;
 LIQ_EXPORT liq_error liq_set_output_gamma(liq_result* res, double gamma) LIQ_NONNULL;
@@ -118,6 +125,10 @@ LIQ_EXPORT int liq_get_remapping_quality(liq_result *result) LIQ_NONNULL;
 LIQ_EXPORT void liq_result_destroy(liq_result *) LIQ_NONNULL;
 
 LIQ_EXPORT int liq_version(void);
+
+
+// Deprecated
+LIQ_EXPORT LIQ_USERESULT liq_result *liq_quantize_image(liq_attr *options, liq_image *input_image) LIQ_NONNULL;
 
 #ifdef __cplusplus
 }

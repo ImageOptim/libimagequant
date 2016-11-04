@@ -3,7 +3,7 @@
 ** Copyright (C) 1989, 1991 by Jef Poskanzer.
 ** Copyright (C) 1997, 2000, 2002 by Greg Roelofs; based on an idea by
 **                                Stefan Schneider.
-** © 2009-2015 by Kornel Lesinski.
+** © 2009-2016 by Kornel Lesinski.
 **
 ** Permission to use, copy, modify, and distribute this software and its
 ** documentation for any purpose and without fee is hereby granted, provided
@@ -189,7 +189,7 @@ LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table 
     histogram *hist = malloc(sizeof(hist[0]));
     if (!hist || !acht) return NULL;
     *hist = (histogram){
-        .achv = malloc(acht->colors * sizeof(hist->achv[0])),
+        .achv = malloc(MAX(1,acht->colors) * sizeof(hist->achv[0])),
         .size = acht->colors,
         .free = free,
         .ignorebits = acht->ignorebits,
@@ -226,7 +226,9 @@ LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table 
 
 LIQ_PRIVATE void pam_freeacolorhash(struct acolorhash_table *acht)
 {
-    mempool_destroy(acht->mempool);
+    if (acht) {
+        mempool_destroy(acht->mempool);
+    }
 }
 
 LIQ_PRIVATE void pam_freeacolorhist(histogram *hist)
