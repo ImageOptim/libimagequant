@@ -38,17 +38,9 @@ pub mod ffi {
     use libc::{c_int, size_t};
     use std::fmt;
 
-    #[repr(C)]
-    #[allow(missing_copy_implementations)]
-    pub struct liq_attr;
-
-    #[repr(C)]
-    #[allow(missing_copy_implementations)]
-    pub struct liq_image;
-
-    #[repr(C)]
-    #[allow(missing_copy_implementations)]
-    pub struct liq_result;
+    pub enum liq_attr {}
+    pub enum liq_image {}
+    pub enum liq_result {}
 
     #[repr(C)]
     #[derive(Copy, Clone)]
