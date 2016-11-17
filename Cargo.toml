@@ -1,7 +1,6 @@
 [package]
 
 name = "imagequant"
-version = "2.7.1"
 description = "Convert 24/32-bit images to 8-bit palette with alpha channel. Bindings for libimagequant that powers pngquant lossy PNG compressor."
 documentation = "https://pngquant.org/lib/"
 repository = "https://github.com/pornel/libimagequant-rust.git"
@@ -10,6 +9,7 @@ license = "GPL-3.0"
 authors = [ "Kornel <kornel@pngquant.org>" ]
 
 build = "build.rs"
+version = "2.8.0"
 
 [lib]
 name = "imagequant"
