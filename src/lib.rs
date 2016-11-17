@@ -179,9 +179,9 @@ impl Clone for Attributes {
 
 impl Attributes {
     pub fn new() -> Attributes {
-        unsafe {
-            Attributes { handle: ffi::liq_attr_create() }
-        }
+        let handle = unsafe { ffi::liq_attr_create() };
+        assert!(!handle.is_null());
+        Attributes { handle: handle }
     }
 
     pub fn set_max_colors(&mut self, value: i32) -> liq_error {
