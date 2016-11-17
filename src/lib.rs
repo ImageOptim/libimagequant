@@ -307,8 +307,8 @@ impl QuantizationResult {
 
     pub fn palette(&mut self) -> Vec<Color> {
         unsafe {
-            let pal = ffi::liq_get_palette(&mut *self.handle);
-            (*pal).entries.to_vec()
+            let ref pal = *ffi::liq_get_palette(&mut *self.handle);
+            pal.entries.iter().cloned().take(pal.count as usize).collect()
         }
     }
 
