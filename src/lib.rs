@@ -329,6 +329,7 @@ impl QuantizationResult {
 fn takes_rgba() {
     let liq = Attributes::new();
 
+    #[allow(dead_code)]
     #[derive(Copy, Clone)]
     struct RGBA {r:u8, g:u8, b:u8, a:u8};
     let img = vec![RGBA {r:0, g:0, b:0, a:0}; 8];
@@ -340,6 +341,7 @@ fn takes_rgba() {
     assert!(liq.new_image(&img, 9,1, 0.0).is_none());
     assert!(liq.new_image(&img, 4,3, 0.0).is_none());
 
+    #[allow(dead_code)]
     #[derive(Copy, Clone)]
     struct RGB {r:u8, g:u8, b:u8};
     let badimg = vec![RGB {r:0, g:0, b:0}; 8];
