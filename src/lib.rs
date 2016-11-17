@@ -42,6 +42,7 @@ pub mod ffi {
     pub enum liq_attr {}
     pub enum liq_image {}
     pub enum liq_result {}
+    pub enum liq_histogram {}
 
     #[repr(C)]
     #[derive(Copy, Clone)]
@@ -113,7 +114,13 @@ pub mod ffi {
         pub fn liq_image_get_height(img: &liq_image) -> c_int;
         pub fn liq_image_destroy(img: &mut liq_image);
 
+        pub fn liq_histogram_create(attr: &liq_attr) -> *mut liq_histogram;
+        pub fn liq_histogram_add_image(hist: &mut liq_histogram, attr: &liq_attr, image: &liq_image) -> liq_error;
+        pub fn liq_histogram_destroy(hist: &mut liq_histogram);
+
         pub fn liq_quantize_image(options: &liq_attr, input_image: &liq_image) -> *mut liq_result;
+        pub fn liq_histogram_quantize(input_hist: &liq_histogram, options: &liq_attr, result_output: &mut *mut liq_result) -> liq_error;
+        pub fn liq_image_quantize(input_image: &liq_image, options: &liq_attr, result_output: &mut *mut liq_result) -> liq_error;
 
         pub fn liq_set_dithering_level(res: &liq_result, dither_level: f32) -> liq_error;
         pub fn liq_set_output_gamma(res: &liq_result, gamma: f64) -> liq_error;
@@ -145,6 +152,11 @@ pub struct QuantizationResult {
     handle: *mut ffi::liq_result,
 }
 
+pub struct Histogram<'a> {
+    attr: &'a Attributes,
+    handle: *mut ffi::liq_histogram,
+}
+
 impl Drop for Attributes {
     fn drop(&mut self) {
         unsafe {
@@ -165,6 +177,14 @@ impl Drop for QuantizationResult {
     fn drop(&mut self) {
         unsafe {
             ffi::liq_result_destroy(&mut *self.handle);
+        }
+    }
+}
+
+impl<'a> Drop for Histogram<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::liq_histogram_destroy(&mut *self.handle);
         }
     }
 }
@@ -230,6 +250,10 @@ impl Attributes {
         Image::new(self, bitmap, width, height, gamma)
     }
 
+    pub fn new_histogram(&self) -> Histogram {
+        Histogram::new(&self)
+    }
+
     pub fn quantize(&mut self, image: &Image) -> Result<QuantizationResult, liq_error> {
         unsafe {
             let mut h = ptr::null_mut();
@@ -243,6 +267,31 @@ impl Attributes {
 
 pub fn new() -> Attributes {
     Attributes::new()
+}
+
+impl<'a> Histogram<'a> {
+    pub fn new(attr: &'a Attributes) -> Histogram<'a> {
+        Histogram {
+            attr: attr,
+            handle: unsafe { ffi::liq_histogram_create(&*attr.handle) }
+        }
+    }
+
+    pub fn add_image(&mut self, image: &Image) -> liq_error {
+        unsafe {
+            ffi::liq_histogram_add_image(&mut *self.handle, &*self.attr.handle, &*image.handle)
+        }
+    }
+
+    pub fn quantize(&mut self) -> Result<QuantizationResult, liq_error> {
+        unsafe {
+            let mut h = ptr::null_mut();
+            match ffi::liq_histogram_quantize(&mut *self.handle, &*self.attr.handle, &mut h) {
+                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult { handle: h }),
+                err => Err(err),
+            }
+        }
+    }
 }
 
 impl<'a> Image<'a> {
@@ -347,6 +396,24 @@ fn takes_rgba() {
     let badimg = vec![RGB {r:0, g:0, b:0}; 8];
     assert!(liq.new_image(&badimg, 1,1, 0.0).is_none());
     assert!(liq.new_image(&badimg, 100,100, 0.0).is_none());
+}
+
+#[test]
+fn histogram() {
+    let attr = Attributes::new();
+    let mut hist = attr.new_histogram();
+
+    let bitmap1 = vec![0u8; 4];
+    let image1 = attr.new_image(&bitmap1[..], 1, 1, 0.0).unwrap();
+    hist.add_image(&image1);
+
+    let bitmap2 = vec![255u8; 4];
+    let image2 = attr.new_image(&bitmap2[..], 1, 1, 0.0).unwrap();
+    hist.add_image(&image2);
+
+    let mut res = hist.quantize().unwrap();
+    let pal = res.palette();
+    assert_eq!(2, pal.len());
 }
 
 #[test]
