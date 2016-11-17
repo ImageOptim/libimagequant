@@ -13,6 +13,7 @@ use std::option::Option;
 use std::vec::Vec;
 use std::fmt;
 use std::mem;
+use std::ptr;
 
 #[repr(C)]
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -229,11 +230,12 @@ impl Attributes {
         Image::new(self, bitmap, width, height, gamma)
     }
 
-    pub fn quantize(&mut self, image: &Image) -> Result<QuantizationResult,liq_error> {
+    pub fn quantize(&mut self, image: &Image) -> Result<QuantizationResult, liq_error> {
         unsafe {
-            match ffi::liq_quantize_image(&mut *self.handle, &mut *image.handle) {
-                h if !h.is_null() => Ok(QuantizationResult { handle: h }),
-                _ => Err(LIQ_QUALITY_TOO_LOW),
+            let mut h = ptr::null_mut();
+            match ffi::liq_image_quantize(&mut *image.handle, &mut *self.handle, &mut h) {
+                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult { handle: h }),
+                err => Err(err),
             }
         }
     }
