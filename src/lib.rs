@@ -118,7 +118,7 @@ pub mod ffi {
 
         pub fn liq_image_get_width(img: &liq_image) -> c_int;
         pub fn liq_image_get_height(img: &liq_image) -> c_int;
-        pub fn liq_image_destroy(img: &liq_image);
+        pub fn liq_image_destroy(img: &mut liq_image);
 
         pub fn liq_quantize_image(options: &liq_attr, input_image: &liq_image) -> *mut liq_result;
 
@@ -126,15 +126,15 @@ pub mod ffi {
         pub fn liq_set_output_gamma(res: &liq_result, gamma: f64) -> liq_error;
         pub fn liq_get_output_gamma(result: &liq_result) -> f64;
 
-        pub fn liq_get_palette(result: &liq_result) -> *const liq_palette;
+        pub fn liq_get_palette(result: &mut liq_result) -> *const liq_palette;
 
-        pub fn liq_write_remapped_image(result: &liq_result, input_image: &liq_image, buffer: *mut u8, buffer_size: size_t) -> liq_error;
-        pub fn liq_write_remapped_image_rows(result: &liq_result, input_image: &liq_image, row_pointers: *const *mut u8) -> liq_error;
+        pub fn liq_write_remapped_image(result: &mut liq_result, input_image: &liq_image, buffer: *mut u8, buffer_size: size_t) -> liq_error;
+        pub fn liq_write_remapped_image_rows(result: &mut liq_result, input_image: &liq_image, row_pointers: *const *mut u8) -> liq_error;
 
         pub fn liq_get_quantization_error(result: &liq_result) -> f64;
         pub fn liq_get_quantization_quality(result: &liq_result) -> c_int;
 
-        pub fn liq_result_destroy(res: &liq_result);
+        pub fn liq_result_destroy(res: &mut liq_result);
     }
 }
 
