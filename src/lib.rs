@@ -86,9 +86,7 @@ impl<'a> Drop for Histogram<'a> {
 
 impl Clone for Attributes {
     fn clone(&self) -> Attributes {
-        unsafe {
-            Attributes { handle: ffi::liq_attr_copy(&*self.handle) }
-        }
+        unsafe { Attributes { handle: ffi::liq_attr_copy(&*self.handle) } }
     }
 }
 
@@ -100,45 +98,31 @@ impl Attributes {
     }
 
     pub fn set_max_colors(&mut self, value: i32) -> liq_error {
-        unsafe {
-            ffi::liq_set_max_colors(&mut *self.handle, value)
-        }
+        unsafe { ffi::liq_set_max_colors(&mut *self.handle, value) }
     }
 
     pub fn set_min_posterization(&mut self, value: i32) -> liq_error {
-        unsafe {
-            ffi::liq_set_min_posterization(&mut *self.handle, value)
-        }
+        unsafe { ffi::liq_set_min_posterization(&mut *self.handle, value) }
     }
 
     pub fn set_quality(&mut self, min: u32, max: u32) -> liq_error {
-        unsafe {
-            ffi::liq_set_quality(&mut *self.handle, min as c_int, max as c_int)
-        }
+        unsafe { ffi::liq_set_quality(&mut *self.handle, min as c_int, max as c_int) }
     }
 
     pub fn set_speed(&mut self, value: i32) -> liq_error {
-        unsafe {
-            ffi::liq_set_speed(&mut *self.handle, value)
-        }
+        unsafe { ffi::liq_set_speed(&mut *self.handle, value) }
     }
 
     pub fn set_last_index_transparent(&mut self, value: bool) -> () {
-        unsafe {
-            ffi::liq_set_last_index_transparent(&mut *self.handle, value as c_int)
-        }
+        unsafe { ffi::liq_set_last_index_transparent(&mut *self.handle, value as c_int) }
     }
 
     pub fn speed(&mut self) -> i32 {
-        unsafe {
-            ffi::liq_get_speed(&*self.handle)
-        }
+        unsafe { ffi::liq_get_speed(&*self.handle) }
     }
 
     pub fn max_colors(&mut self) -> i32 {
-        unsafe {
-            ffi::liq_get_max_colors(&*self.handle)
-        }
+        unsafe { ffi::liq_get_max_colors(&*self.handle) }
     }
 
     pub fn new_image<'a, T: Copy + Clone>(&self, bitmap: &'a [T], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
@@ -168,7 +152,7 @@ impl<'a> Histogram<'a> {
     pub fn new(attr: &'a Attributes) -> Histogram<'a> {
         Histogram {
             attr: attr,
-            handle: unsafe { ffi::liq_histogram_create(&*attr.handle) }
+            handle: unsafe { ffi::liq_histogram_create(&*attr.handle) },
         }
     }
 
@@ -192,7 +176,7 @@ impl<'a> Histogram<'a> {
 impl<'a> Image<'a> {
     pub fn new<T: Copy + Clone>(attr: &Attributes, bitmap: &'a [T], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
         match mem::size_of::<T>() {
-            1 | 4 => {},
+            1 | 4 => {}
             _ => return None,
         }
         if bitmap.len() * mem::size_of::<T>() < width*height*4 {
@@ -211,42 +195,29 @@ impl<'a> Image<'a> {
     }
 
     pub fn width(&mut self) -> usize {
-        unsafe {
-            ffi::liq_image_get_width(&*self.handle) as usize
-        }
+        unsafe { ffi::liq_image_get_width(&*self.handle) as usize }
     }
 
     pub fn height(&mut self) -> usize {
-        unsafe {
-            ffi::liq_image_get_height(&*self.handle) as usize
-        }
+        unsafe { ffi::liq_image_get_height(&*self.handle) as usize }
     }
 }
 
 impl QuantizationResult {
-
     pub fn set_dithering_level(&mut self, value: f32) -> liq_error {
-        unsafe {
-            ffi::liq_set_dithering_level(&mut *self.handle, value)
-        }
+        unsafe { ffi::liq_set_dithering_level(&mut *self.handle, value) }
     }
 
     pub fn set_output_gamma(&mut self, value: f64) -> liq_error {
-        unsafe {
-            ffi::liq_set_output_gamma(&mut *self.handle, value)
-        }
+        unsafe { ffi::liq_set_output_gamma(&mut *self.handle, value) }
     }
 
     pub fn output_gamma(&mut self) -> f64 {
-        unsafe {
-            ffi::liq_get_output_gamma(&*self.handle)
-        }
+        unsafe { ffi::liq_get_output_gamma(&*self.handle) }
     }
 
     pub fn quantization_quality(&mut self) -> isize {
-        unsafe {
-            ffi::liq_get_quantization_quality(&*self.handle) as isize
-        }
+        unsafe { ffi::liq_get_quantization_quality(&*self.handle) as isize }
     }
 
     pub fn palette(&mut self) -> Vec<Color> {
@@ -279,18 +250,18 @@ fn takes_rgba() {
     let img = vec![RGBA {r:0, g:0, b:0, a:0}; 8];
 
 
-    liq.new_image(&img, 1,1, 0.0).unwrap();
-    liq.new_image(&img, 4,2, 0.0).unwrap();
-    liq.new_image(&img, 8,1, 0.0).unwrap();
-    assert!(liq.new_image(&img, 9,1, 0.0).is_none());
-    assert!(liq.new_image(&img, 4,3, 0.0).is_none());
+    liq.new_image(&img, 1, 1, 0.0).unwrap();
+    liq.new_image(&img, 4, 2, 0.0).unwrap();
+    liq.new_image(&img, 8, 1, 0.0).unwrap();
+    assert!(liq.new_image(&img, 9, 1, 0.0).is_none());
+    assert!(liq.new_image(&img, 4, 3, 0.0).is_none());
 
     #[allow(dead_code)]
     #[derive(Copy, Clone)]
     struct RGB {r:u8, g:u8, b:u8};
     let badimg = vec![RGB {r:0, g:0, b:0}; 8];
-    assert!(liq.new_image(&badimg, 1,1, 0.0).is_none());
-    assert!(liq.new_image(&badimg, 100,100, 0.0).is_none());
+    assert!(liq.new_image(&badimg, 1, 1, 0.0).is_none());
+    assert!(liq.new_image(&badimg, 100, 100, 0.0).is_none());
 }
 
 #[test]
@@ -341,7 +312,7 @@ fn poke_it() {
     // You can reuse the result to generate several images with the same palette
     let (palette, pixels) = res.remapped(img).unwrap();
 
-    assert_eq!(width*height, pixels.len());
+    assert_eq!(width * height, pixels.len());
     assert_eq!(100, res.quantization_quality());
     assert_eq!(Color{r:255,g:255,b:255,a:255}, palette[0]);
     assert_eq!(Color{r:0x55,g:0x66,b:0x77,a:255}, palette[1]);
