@@ -323,6 +323,16 @@ static bool total_box_error_below_target(double target_mse, struct box bv[], uns
     return true;
 }
 
+static void box_init(struct box *box, const hist_item *achv, const unsigned int ind, const unsigned int colors, const double sum, const f_pixel center) {
+    box->ind = ind;
+    box->colors = colors;
+    box->sum = sum;
+    box->total_error = -1;
+    box->color = averagepixels(colors, &achv[ind], center);
+    box->variance = box_variance(achv, box);
+    box->max_error = box_max_error(achv, box);
+}
+
 /*
  ** Here is the fun part, the median-cut colormap generator.  This is based
  ** on Paul Heckbert's paper, "Color Image Quantization for Frame Buffer
@@ -336,14 +346,11 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
     /*
      ** Set up the initial box.
      */
-    bv[0].ind = 0;
-    bv[0].colors = hist->size;
-    bv[0].color = averagepixels(bv[0].colors, &achv[bv[0].ind], (f_pixel){0.5,0.5,0.5,0.5});
-    bv[0].variance = box_variance(achv, &bv[0]);
-    bv[0].max_error = box_max_error(achv, &bv[0]);
-    bv[0].sum = 0;
-    bv[0].total_error = -1;
-    for(unsigned int i=0; i < bv[0].colors; i++) bv[0].sum += achv[i].adjusted_weight;
+    double sum = 0;
+    for(unsigned int i=0; i < hist->size; i++) {
+        sum += achv[i].adjusted_weight;
+    }
+    box_init(&bv[0], achv, 0, hist->size, sum, (f_pixel){0.5,0.5,0.5,0.5});
 
     unsigned int boxes = 1;
 
@@ -389,19 +396,9 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
         for(unsigned int i=0; i < break_at; i++) lowersum += achv[indx + i].adjusted_weight;
 
         const f_pixel previous_center = bv[bi].color;
-        bv[bi].colors = break_at;
-        bv[bi].sum = lowersum;
-        bv[bi].color = averagepixels(bv[bi].colors, &achv[bv[bi].ind], previous_center);
-        bv[bi].total_error = -1;
-        bv[bi].variance = box_variance(achv, &bv[bi]);
-        bv[bi].max_error = box_max_error(achv, &bv[bi]);
-        bv[boxes].ind = indx + break_at;
-        bv[boxes].colors = clrs - break_at;
-        bv[boxes].sum = sm - lowersum;
-        bv[boxes].color = averagepixels(bv[boxes].colors, &achv[bv[boxes].ind], previous_center);
-        bv[boxes].total_error = -1;
-        bv[boxes].variance = box_variance(achv, &bv[boxes]);
-        bv[boxes].max_error = box_max_error(achv, &bv[boxes]);
+
+        box_init(&bv[bi], achv, bv[bi].ind, break_at, lowersum, previous_center);
+        box_init(&bv[boxes], achv, indx + break_at, clrs - break_at, sm - lowersum, previous_center);
 
         ++boxes;
 
