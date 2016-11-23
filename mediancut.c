@@ -38,7 +38,7 @@
 
 #define index_of_channel(ch) (offsetof(f_pixel,ch)/sizeof(float))
 
-static f_pixel averagepixels(unsigned int clrs, const hist_item achv[], const f_pixel center);
+static f_pixel averagepixels(unsigned int clrs, const hist_item achv[]);
 
 struct box {
     f_pixel color;
@@ -245,7 +245,7 @@ static f_pixel get_median(const struct box *b, hist_item achv[])
 
     // technically the second color is not guaranteed to be sorted correctly
     // but most of the time it is good enough to be useful
-    return averagepixels(2, &achv[b->ind + median_start], (f_pixel){0.5,0.5,0.5,0.5});
+    return averagepixels(2, &achv[b->ind + median_start]);
 }
 
 /*
@@ -323,12 +323,12 @@ static bool total_box_error_below_target(double target_mse, struct box bv[], uns
     return true;
 }
 
-static void box_init(struct box *box, const hist_item *achv, const unsigned int ind, const unsigned int colors, const double sum, const f_pixel center) {
+static void box_init(struct box *box, const hist_item *achv, const unsigned int ind, const unsigned int colors, const double sum) {
     box->ind = ind;
     box->colors = colors;
     box->sum = sum;
     box->total_error = -1;
-    box->color = averagepixels(colors, &achv[ind], center);
+    box->color = averagepixels(colors, &achv[ind]);
     box->variance = box_variance(achv, box);
     box->max_error = box_max_error(achv, box);
 }
@@ -350,7 +350,7 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
     for(unsigned int i=0; i < hist->size; i++) {
         sum += achv[i].adjusted_weight;
     }
-    box_init(&bv[0], achv, 0, hist->size, sum, (f_pixel){0.5,0.5,0.5,0.5});
+    box_init(&bv[0], achv, 0, hist->size, sum);
 
     unsigned int boxes = 1;
 
@@ -395,10 +395,8 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
         double lowersum = 0;
         for(unsigned int i=0; i < break_at; i++) lowersum += achv[indx + i].adjusted_weight;
 
-        const f_pixel previous_center = bv[bi].color;
-
-        box_init(&bv[bi], achv, bv[bi].ind, break_at, lowersum, previous_center);
-        box_init(&bv[boxes], achv, indx + break_at, clrs - break_at, sm - lowersum, previous_center);
+        box_init(&bv[bi], achv, bv[bi].ind, break_at, lowersum);
+        box_init(&bv[boxes], achv, indx + break_at, clrs - break_at, sm - lowersum);
 
         ++boxes;
 
@@ -447,7 +445,7 @@ static void adjust_histogram(hist_item *achv, const colormap *map, const struct 
     }
 }
 
-static f_pixel averagepixels(unsigned int clrs, const hist_item achv[], f_pixel center)
+static f_pixel averagepixels(unsigned int clrs, const hist_item achv[])
 {
     double r = 0, g = 0, b = 0, a = 0, sum = 0;
 
