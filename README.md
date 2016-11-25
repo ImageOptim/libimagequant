@@ -17,7 +17,7 @@ The [library](https://pngquant.org/lib) is currently a part of the [pngquant2 pr
 
 ## Compiling and Linking
 
-The library can be linked with ANSI C, C++, [Rust](https://github.com/pornel/libimagequant-rust) and [Java](https://github.com/ImageOptim/libimagequant/tree/master/org/pngquant) programs. It has no external dependencies.
+The library can be linked with ANSI C, C++, [Rust](https://github.com/pornel/libimagequant-rust), [Java](https://github.com/ImageOptim/libimagequant/tree/master/org/pngquant) and [Go](https://code.ivysaur.me/go-imagequant/) programs. It has no external dependencies.
 
 To build on Unix-like systems run:
 
