@@ -1255,7 +1255,7 @@ inline static f_pixel get_dithered_pixel(const float dither_level, const float m
  */
 LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned char *const output_pixels[], liq_remapping_result *quant, const float max_dither_error, const bool output_image_is_remapped)
 {
-    const unsigned int rows = input_image->height, cols = input_image->width;
+    const int rows = input_image->height, cols = input_image->width;
     const unsigned char *dither_map = quant->use_dither_map ? (input_image->dither_map ? input_image->dither_map : input_image->edges) : NULL;
 
     const colormap *map = quant->palette;
@@ -1281,9 +1281,9 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
     }
     base_dithering_level *= 15.0/16.0; // prevent small errors from accumulating
 
-    bool fs_direction = true;
+    int fs_direction = 1;
     unsigned int last_match=0;
-    for (unsigned int row = 0; row < rows; ++row) {
+    for (int row = 0; row < rows; ++row) {
         if (liq_remap_progress(quant, quant->progress_stage1 + row * (100.f - quant->progress_stage1) / rows)) {
             ok = false;
             break;
@@ -1291,7 +1291,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
 
         memset(nexterr, 0, (cols + 2) * sizeof(*nexterr));
 
-        unsigned int col = (fs_direction) ? 0 : (cols - 1);
+        int col = (fs_direction > 0) ? 0 : (cols - 1);
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
 
         do {
@@ -1323,7 +1323,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             }
 
             /* Propagate Floyd-Steinberg error terms. */
-            if (fs_direction) {
+            if (fs_direction > 0) {
                 thiserr[col + 2].a += err.a * (7.f/16.f);
                 thiserr[col + 2].r += err.r * (7.f/16.f);
                 thiserr[col + 2].g += err.g * (7.f/16.f);
@@ -1367,19 +1367,18 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             }
 
             // remapping is done in zig-zag
-            if (fs_direction) {
-                ++col;
+            col += fs_direction;
+            if (fs_direction > 0) {
                 if (col >= cols) break;
             } else {
                 if (col <= 0) break;
-                --col;
             }
         } while(1);
 
         f_pixel *const temperr = thiserr;
         thiserr = nexterr;
         nexterr = temperr;
-        fs_direction = !fs_direction;
+        fs_direction = -fs_direction;
     }
 
     input_image->free(MIN(thiserr, nexterr)); // MIN because pointers were swapped
