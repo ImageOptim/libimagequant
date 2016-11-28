@@ -1876,7 +1876,7 @@ static colormap *add_fixed_colors_to_palette(colormap *palette, const int max_co
 
 LIQ_NONNULL static void adjust_histogram_callback(hist_item *item, float diff)
 {
-    item->adjusted_weight = (item->perceptual_weight+item->adjusted_weight) * (sqrtf(1.f+diff));
+    item->adjusted_weight = (item->perceptual_weight + 2.0 * item->adjusted_weight) * (0.5 + diff);
 }
 
 /**
