@@ -93,8 +93,8 @@ LIQ_PRIVATE void to_f_set_gamma(float gamma_lut[], const double gamma);
  Converts 8-bit color to internal gamma and premultiplied alpha.
  (premultiplied color space is much better for blending of semitransparent colors)
  */
-ALWAYS_INLINE static f_pixel to_f(const float gamma_lut[], const rgba_pixel px);
-inline static f_pixel to_f(const float gamma_lut[], const rgba_pixel px)
+ALWAYS_INLINE static f_pixel rgba_to_f(const float gamma_lut[], const rgba_pixel px);
+inline static f_pixel rgba_to_f(const float gamma_lut[], const rgba_pixel px)
 {
     float a = px.a/255.f;
 
@@ -106,7 +106,7 @@ inline static f_pixel to_f(const float gamma_lut[], const rgba_pixel px)
     };
 }
 
-inline static rgba_pixel to_rgb(const float gamma, const f_pixel px)
+inline static rgba_pixel f_to_rgb(const float gamma, const f_pixel px)
 {
     if (px.a < 1.f/256.f) {
         return (rgba_pixel){0,0,0,0};

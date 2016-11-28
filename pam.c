@@ -178,7 +178,7 @@ LIQ_PRIVATE struct acolorhash_table *pam_allocacolorhash(unsigned int maxcolors,
 }
 
 #define PAM_ADD_TO_HIST(entry) { \
-    hist->achv[j].acolor = to_f(gamma_lut, entry.color.rgba); \
+    hist->achv[j].acolor = rgba_to_f(gamma_lut, entry.color.rgba); \
     total_weight += hist->achv[j].adjusted_weight = hist->achv[j].perceptual_weight = MIN(entry.perceptual_weight, max_perceptual_weight); \
     ++j; \
 }

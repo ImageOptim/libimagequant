@@ -532,7 +532,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_add_fixed_color(liq_image *img, liq_c
 
     float gamma_lut[256];
     to_f_set_gamma(gamma_lut, img->gamma);
-    img->fixed_colors[img->fixed_colors_count++] = to_f(gamma_lut, (rgba_pixel){
+    img->fixed_colors[img->fixed_colors_count++] = rgba_to_f(gamma_lut, (rgba_pixel){
         .r = color.r,
         .g = color.g,
         .b = color.b,
@@ -750,7 +750,7 @@ LIQ_NONNULL static void convert_row_to_f(liq_image *img, f_pixel *row_f_pixels, 
     const rgba_pixel *const row_pixels = liq_image_get_row_rgba(img, row);
 
     for(unsigned int col=0; col < img->width; col++) {
-        row_f_pixels[col] = to_f(gamma_lut, row_pixels[col]);
+        row_f_pixels[col] = rgba_to_f(gamma_lut, row_pixels[col]);
     }
 }
 
@@ -1138,14 +1138,14 @@ LIQ_NONNULL static void set_rounded_palette(liq_palette *const dest, colormap *c
 
     dest->count = map->colors;
     for(unsigned int x = 0; x < map->colors; ++x) {
-        rgba_pixel px = to_rgb(gamma, map->palette[x].acolor);
+        rgba_pixel px = f_to_rgb(gamma, map->palette[x].acolor);
 
         px.r = posterize_channel(px.r, posterize);
         px.g = posterize_channel(px.g, posterize);
         px.b = posterize_channel(px.b, posterize);
         px.a = posterize_channel(px.a, posterize);
 
-        map->palette[x].acolor = to_f(gamma_lut, px); /* saves rounding error introduced by to_rgb, which makes remapping & dithering more accurate */
+        map->palette[x].acolor = rgba_to_f(gamma_lut, px); /* saves rounding error introduced by to_rgb, which makes remapping & dithering more accurate */
 
         if (!px.a && !map->palette[x].fixed) {
             px.r = 71; px.g = 112; px.b = 76;
