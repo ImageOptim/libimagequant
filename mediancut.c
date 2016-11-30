@@ -25,27 +25,19 @@ struct box {
     unsigned int colors;
 };
 
-ALWAYS_INLINE static double variance_diff(double val, const double good_enough);
-inline static double variance_diff(double val, const double good_enough)
-{
-    val *= val;
-    if (val < good_enough*good_enough) return val*0.25;
-    return val;
-}
-
 /** Weighted per-channel variance of the box. It's used to decide which channel to split by */
 static f_pixel box_variance(const hist_item achv[], const struct box *box)
 {
-    f_pixel mean = box->color;
+    const f_pixel mean = box->color;
     double variancea=0, variancer=0, varianceg=0, varianceb=0;
 
     for(unsigned int i = 0; i < box->colors; ++i) {
         const f_pixel px = achv[box->ind + i].acolor;
         double weight = achv[box->ind + i].adjusted_weight;
-        variancea += variance_diff(mean.a - px.a, 2.0/256.0)*weight;
-        variancer += variance_diff(mean.r - px.r, 1.0/256.0)*weight;
-        varianceg += variance_diff(mean.g - px.g, 1.0/256.0)*weight;
-        varianceb += variance_diff(mean.b - px.b, 1.0/256.0)*weight;
+        variancea += (mean.a - px.a)*(mean.a - px.a)*weight;
+        variancer += (mean.r - px.r)*(mean.r - px.r)*weight;
+        varianceg += (mean.g - px.g)*(mean.g - px.g)*weight;
+        varianceb += (mean.b - px.b)*(mean.b - px.b)*weight;
     }
 
     return (f_pixel){
