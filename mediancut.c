@@ -63,7 +63,7 @@ static f_pixel box_variance(const hist_item achv[], const struct box *box)
     double variancea=0, variancer=0, varianceg=0, varianceb=0;
 
     for(unsigned int i = 0; i < box->colors; ++i) {
-        f_pixel px = achv[box->ind + i].acolor;
+        const f_pixel px = achv[box->ind + i].acolor;
         double weight = achv[box->ind + i].adjusted_weight;
         variancea += variance_diff(mean.a - px.a, 2.0/256.0)*weight;
         variancer += variance_diff(mean.r - px.r, 1.0/256.0)*weight;
@@ -208,10 +208,10 @@ static double prepare_sort(struct box *b, hist_item achv[])
      ** Sort dimensions by their variance, and then sort colors first by dimension with highest variance
      */
     channelvariance channels[4] = {
+        {index_of_channel(a), b->variance.a},
         {index_of_channel(r), b->variance.r},
         {index_of_channel(g), b->variance.g},
         {index_of_channel(b), b->variance.b},
-        {index_of_channel(a), b->variance.a},
     };
 
     qsort(channels, 4, sizeof(channels[0]), comparevariance);
@@ -344,10 +344,10 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
     /*
      ** Set up the initial box.
      */
-    double sum = 0;
+        double sum = 0;
     for(unsigned int i=0; i < hist->size; i++) {
-        sum += achv[i].adjusted_weight;
-    }
+            sum += achv[i].adjusted_weight;
+        }
     box_init(&bv[0], achv, 0, hist->size, sum);
 
     unsigned int boxes = 1;
@@ -451,10 +451,10 @@ static f_pixel averagepixels(unsigned int clrs, const hist_item achv[])
         const double weight = achv[i].adjusted_weight;
 
         sum += weight;
+        a += px.a * weight;
         r += px.r * weight;
         g += px.g * weight;
         b += px.b * weight;
-        a += px.a * weight;
     }
 
     if (sum) {
