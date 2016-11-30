@@ -175,14 +175,18 @@ LIQ_PRIVATE struct acolorhash_table *pam_allocacolorhash(unsigned int maxcolors,
     return t;
 }
 
-ALWAYS_INLINE static float pam_add_to_hist(const float *gamma_lut, hist_item *achv, unsigned int *j, const struct acolorhist_arr_item *entry, const float max_perceptual_weight)
+ALWAYS_INLINE static float pam_add_to_hist(struct temp_hist_item achv[], unsigned int *j, const struct acolorhist_arr_item *entry, const float max_perceptual_weight, int counts[])
 {
     if (entry->perceptual_weight == 0 && *j > 0) {
         return 0;
     }
-    const float w = MIN(entry->perceptual_weight/128.f, max_perceptual_weight);
-    achv[*j].adjusted_weight = achv[*j].perceptual_weight = w;
-    achv[*j].acolor = rgba_to_f(gamma_lut, entry->color.rgba);
+    const liq_color px = entry->color.rgba;
+    achv[*j].color = px;
+    const short cluster = ((px.r>>7)<<3) | ((px.g>>7)<<2) | ((px.b>>7)<<1) | (px.a>>7);
+    counts[cluster]++;
+    achv[*j].cluster = cluster;
+    const float w = MIN(entry->perceptual_weight/170.f, max_perceptual_weight);
+    achv[*j].weight = w;
     *j += 1;
     return w;
 }
@@ -199,8 +203,9 @@ LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table 
     };
     if (!hist->achv) return NULL;
 
-    float gamma_lut[256];
-    to_f_set_gamma(gamma_lut, gamma);
+    /// Clusters form initial boxes for quantization, to ensure extreme colors are better represented
+    int counts[LIQ_MAXCLUSTER] = {};
+    struct temp_hist_item *temp = malloc(MAX(1, acht->colors) * sizeof(temp[0]));
 
     /* Limit perceptual weight to 1/10th of the image surface area to prevent
        a single color from dominating all others. */
@@ -211,26 +216,47 @@ LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table 
     for(unsigned int i=0; i < acht->hash_size; ++i) {
         const struct acolorhist_arr_head *const achl = &acht->buckets[i];
         if (achl->used) {
-            total_weight += pam_add_to_hist(gamma_lut, hist->achv, &j, &achl->inline1, max_perceptual_weight);
+            total_weight += pam_add_to_hist(temp, &j, &achl->inline1, max_perceptual_weight, counts);
 
             if (achl->used > 1) {
-                total_weight += pam_add_to_hist(gamma_lut, hist->achv, &j, &achl->inline2, max_perceptual_weight);
+                total_weight += pam_add_to_hist(temp, &j, &achl->inline2, max_perceptual_weight, counts);
 
                 for(unsigned int k=0; k < achl->used-2; k++) {
-                    total_weight += pam_add_to_hist(gamma_lut, hist->achv, &j, &achl->other_items[k], max_perceptual_weight);
+                    total_weight += pam_add_to_hist(temp, &j, &achl->other_items[k], max_perceptual_weight, counts);
                 }
             }
         }
     }
+    hist->total_perceptual_weight = total_weight;
+
+    int begin = 0;
+    for(int i=0; i < LIQ_MAXCLUSTER; i++) {
+        hist->boxes[i].begin = begin;
+        hist->boxes[i].end = begin;
+        begin = begin + counts[i];
+    }
+
     hist->size = j;
     hist->total_perceptual_weight = total_weight;
     for(unsigned int k=0; k < hist->size; k++) {
         hist->achv[k].tmp.likely_colormap_index = 0;
     }
     if (!j) {
+        free(temp);
         pam_freeacolorhist(hist);
         return NULL;
     }
+
+    float gamma_lut[256];
+    to_f_set_gamma(gamma_lut, gamma);
+    for(int i=0; i < hist->size; i++) {
+        int j = hist->boxes[temp[i].cluster].end++;
+        hist->achv[j].acolor = rgba_to_f(gamma_lut, temp[i].color);
+        hist->achv[j].perceptual_weight = temp[i].weight;
+        hist->achv[j].adjusted_weight = temp[i].weight;
+    }
+    free(temp);
+
     return hist;
 }
 

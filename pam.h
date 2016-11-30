@@ -232,12 +232,25 @@ typedef struct {
     } tmp;
 } hist_item;
 
+#define LIQ_MAXCLUSTER 16
+
+struct temp_hist_item {
+    liq_color color;
+    float weight;
+    short cluster;
+};
+
+struct histogram_box {
+    int begin, end;
+};
+
 typedef struct {
     hist_item *achv;
     void (*free)(void*);
     double total_perceptual_weight;
     unsigned int size;
     unsigned int ignorebits;
+    struct histogram_box boxes[LIQ_MAXCLUSTER];
 } histogram;
 
 typedef struct {

@@ -304,6 +304,9 @@ static bool total_box_error_below_target(double target_mse, struct box bv[], uns
 }
 
 static void box_init(struct box *box, const hist_item *achv, const unsigned int ind, const unsigned int colors, const double sum) {
+    assert(colors > 0);
+    assert(sum > 0);
+
     box->ind = ind;
     box->colors = colors;
     box->sum = sum;
@@ -322,18 +325,35 @@ static void box_init(struct box *box, const hist_item *achv, const unsigned int 
 LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const double target_mse, const double max_mse, void* (*malloc)(size_t), void (*free)(void*))
 {
     hist_item *achv = hist->achv;
-    LIQ_ARRAY(struct box, bv, newcolors);
-    unsigned int boxes = 1;
+    struct box bv[newcolors+16];
 
-    /*
-     ** Set up the initial box.
-     */
-    {
+    assert(hist->boxes[0].begin == 0);
+    assert(hist->boxes[LIQ_MAXCLUSTER-1].end == hist->size);
+
+    unsigned int boxes = 0;
+    for(int b=0; b < LIQ_MAXCLUSTER; b++) {
+        int begin = hist->boxes[b].begin;
+        int end = hist->boxes[b].end;
+        if (begin == end) {
+            continue;
+        }
+
+        if (boxes >= newcolors/3) {
+            boxes = 0;
+            begin = 0;
+            end = hist->boxes[LIQ_MAXCLUSTER-1].end;
+            b = LIQ_MAXCLUSTER;
+        }
+
         double sum = 0;
-        for(unsigned int i=0; i < hist->size; i++) {
+        for(int i=begin; i < end; i++) {
             sum += achv[i].adjusted_weight;
         }
-        box_init(&bv[0], achv, 0, hist->size, sum);
+        box_init(&bv[boxes], achv, begin, end-begin, sum);
+        boxes++;
+    }
+
+    assert(boxes < newcolors);
 
 
         /*
@@ -386,7 +406,6 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
                 break;
             }
         }
-    }
 
     colormap *map = pam_colormap(boxes, malloc, free);
     set_colormap_from_boxes(map, bv, boxes, achv);
