@@ -177,10 +177,12 @@ LIQ_PRIVATE struct acolorhash_table *pam_allocacolorhash(unsigned int maxcolors,
     return t;
 }
 
-#define PAM_ADD_TO_HIST(entry) { \
-    hist->achv[j].acolor = rgba_to_f(gamma_lut, entry.color.rgba); \
-    total_weight += hist->achv[j].adjusted_weight = hist->achv[j].perceptual_weight = MIN(entry.perceptual_weight, max_perceptual_weight); \
-    ++j; \
+ALWAYS_INLINE static float pam_add_to_hist(const float *gamma_lut, hist_item *achv, unsigned int j, const struct acolorhist_arr_item *entry, const float max_perceptual_weight)
+{
+    achv[j].acolor = rgba_to_f(gamma_lut, entry->color.rgba);
+    const float w = MIN(entry->perceptual_weight, max_perceptual_weight);
+    achv[j].adjusted_weight = achv[j].perceptual_weight = w;
+    return w;
 }
 
 LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table *acht, const double gamma, void* (*malloc)(size_t), void (*free)(void*))
@@ -206,13 +208,13 @@ LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table 
     for(unsigned int j=0, i=0; i < acht->hash_size; ++i) {
         const struct acolorhist_arr_head *const achl = &acht->buckets[i];
         if (achl->used) {
-            PAM_ADD_TO_HIST(achl->inline1);
+            total_weight += pam_add_to_hist(gamma_lut, hist->achv, j++, &achl->inline1, max_perceptual_weight);
 
             if (achl->used > 1) {
-                PAM_ADD_TO_HIST(achl->inline2);
+                total_weight += pam_add_to_hist(gamma_lut, hist->achv, j++, &achl->inline2, max_perceptual_weight);
 
                 for(unsigned int k=0; k < achl->used-2; k++) {
-                    PAM_ADD_TO_HIST(achl->other_items[k]);
+                    total_weight += pam_add_to_hist(gamma_lut, hist->achv, j++, &achl->other_items[k], max_perceptual_weight);
                 }
             }
         }
