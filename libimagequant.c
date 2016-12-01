@@ -78,7 +78,7 @@ struct liq_attr {
     unsigned int max_colors, max_histogram_entries;
     unsigned int min_posterization_output /* user setting */, min_posterization_input /* speed setting */;
     unsigned int voronoi_iterations, feedback_loop_trials;
-    bool last_index_transparent, use_contrast_maps, use_dither_map, fast_palette;
+    bool last_index_transparent, use_contrast_maps, use_dither_map;
     unsigned char speed;
 
     unsigned char progress_stage1, progress_stage2, progress_stage3;
@@ -141,7 +141,7 @@ struct liq_result {
     float dither_level;
     double gamma, palette_error;
     int min_posterization_output;
-    bool use_dither_map, fast_palette;
+    bool use_dither_map;
 };
 
 struct liq_histogram {
@@ -355,7 +355,6 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_set_speed(liq_attr* attr, int speed)
 
     attr->max_histogram_entries = (1<<17) + (1<<18)*(10-speed);
     attr->min_posterization_input = (speed >= 8) ? 1 : 0;
-    attr->fast_palette = (speed >= 7);
     attr->use_dither_map = (speed <= (omp_get_max_threads() > 1 ? 7 : 5)); // parallelized dither map might speed up floyd remapping
     attr->use_contrast_maps = (speed <= 7) || attr->use_dither_map;
     attr->speed = speed;
@@ -1169,7 +1168,7 @@ LIQ_EXPORT LIQ_NONNULL const liq_palette *liq_get_palette(liq_result *result)
     return &result->int_palette;
 }
 
-LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned char *const *const output_pixels, colormap *const map, const bool fast)
+LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned char *const *const output_pixels, colormap *const map)
 {
     const int rows = input_image->height;
     const unsigned int cols = input_image->width;
@@ -1179,7 +1178,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
         return -1;
     }
 
-    struct nearest_map *const n = nearest_init(map, fast);
+    struct nearest_map *const n = nearest_init(map);
 
     const unsigned int max_threads = omp_get_max_threads();
     viter_state average_color[(VITER_CACHE_LINE_GAP+map->colors) * max_threads];
@@ -1270,7 +1269,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
     nexterr = thiserr + (cols + 2);
 
     bool ok = true;
-    struct nearest_map *const n = nearest_init(map, false);
+    struct nearest_map *const n = nearest_init(map);
 
     // response to this value is non-linear and without it any value < 0.8 would give almost no dithering
     float base_dithering_level = quant->dither_level;
@@ -1732,7 +1731,7 @@ static colormap *find_best_palette(histogram *hist, const liq_attr *options, con
         // and histogram weights are adjusted based on remapping error to give more weight to poorly matched colors
 
         const bool first_run_of_target_mse = !acolormap && target_mse > 0;
-        double total_error = viter_do_iteration(hist, newmap, first_run_of_target_mse ? NULL : adjust_histogram_callback, !acolormap || options->fast_palette);
+        double total_error = viter_do_iteration(hist, newmap, first_run_of_target_mse ? NULL : adjust_histogram_callback);
 
         // goal is to increase quality or to reduce number of colors used if quality is good enough
         if (!acolormap || total_error < least_error || (total_error <= target_mse && newmap->colors < max_colors)) {
@@ -1793,8 +1792,6 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
 
     assert((verbose_print(options, "SLOW debug checks enabled. Recompile with NDEBUG for normal operation."),1));
 
-    // no point having perfect match with imperfect colors (ignorebits > 0)
-    const bool fast_palette = options->fast_palette || hist->ignorebits > 0;
     const bool few_input_colors = hist->size+fixed_colors_count <= options->max_colors;
 
     if (liq_progress(options, options->progress_stage1)) return LIQ_ABORTED;
@@ -1830,7 +1827,7 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
             double previous_palette_error = MAX_DIFF;
 
             for(unsigned int i=0; i < iterations; i++) {
-                palette_error = viter_do_iteration(hist, acolormap, NULL, i==0 || options->fast_palette);
+                palette_error = viter_do_iteration(hist, acolormap, NULL);
 
                 if (liq_progress(options, options->progress_stage1 + options->progress_stage2 + (i * options->progress_stage3 * 0.9f) / iterations)) {
                     break;
@@ -1881,7 +1878,6 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
         .free = options->free,
         .palette = acolormap,
         .palette_error = palette_error,
-        .fast_palette = fast_palette,
         .use_dither_map = options->use_dither_map,
         .gamma = gamma,
         .min_posterization_output = options->min_posterization_output,
@@ -1945,12 +1941,12 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image_rows(liq_result *quant
     float remapping_error = result->palette_error;
     if (result->dither_level == 0) {
         set_rounded_palette(&result->int_palette, result->palette, result->gamma, quant->min_posterization_output);
-        remapping_error = remap_to_palette(input_image, row_pointers, result->palette, quant->fast_palette);
+        remapping_error = remap_to_palette(input_image, row_pointers, result->palette);
     } else {
         const bool generate_dither_map = result->use_dither_map && (input_image->edges && !input_image->dither_map);
         if (generate_dither_map) {
             // If dithering (with dither map) is required, this image is used to find areas that require dithering
-            remapping_error = remap_to_palette(input_image, row_pointers, result->palette, quant->fast_palette);
+            remapping_error = remap_to_palette(input_image, row_pointers, result->palette);
             update_dither_map(row_pointers, input_image);
         }
 
