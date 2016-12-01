@@ -534,7 +534,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_add_fixed_color(liq_image *img, liq_c
 
     float gamma_lut[256];
     to_f_set_gamma(gamma_lut, img->gamma);
-    img->fixed_colors[img->fixed_colors_count++] = to_f(gamma_lut, (rgba_pixel){
+    img->fixed_colors[img->fixed_colors_count++] = rgba_to_f(gamma_lut, (rgba_pixel){
         .r = color.r,
         .g = color.g,
         .b = color.b,
@@ -754,7 +754,7 @@ LIQ_NONNULL static void convert_row_to_f(liq_image *img, f_pixel *row_f_pixels, 
     const rgba_pixel *const row_pixels = liq_image_get_row_rgba(img, row);
 
     for(unsigned int col=0; col < img->width; col++) {
-        row_f_pixels[col] = to_f(gamma_lut, row_pixels[col]);
+        row_f_pixels[col] = rgba_to_f(gamma_lut, row_pixels[col]);
     }
 }
 
@@ -1142,14 +1142,14 @@ LIQ_NONNULL static void set_rounded_palette(liq_palette *const dest, colormap *c
 
     dest->count = map->colors;
     for(unsigned int x = 0; x < map->colors; ++x) {
-        rgba_pixel px = to_rgb(gamma, map->palette[x].acolor);
+        rgba_pixel px = f_to_rgb(gamma, map->palette[x].acolor);
 
         px.r = posterize_channel(px.r, posterize);
         px.g = posterize_channel(px.g, posterize);
         px.b = posterize_channel(px.b, posterize);
         px.a = posterize_channel(px.a, posterize);
 
-        map->palette[x].acolor = to_f(gamma_lut, px); /* saves rounding error introduced by to_rgb, which makes remapping & dithering more accurate */
+        map->palette[x].acolor = rgba_to_f(gamma_lut, px); /* saves rounding error introduced by to_rgb, which makes remapping & dithering more accurate */
 
         if (!px.a && !map->palette[x].fixed) {
             px.r = 71; px.g = 112; px.b = 76;
@@ -1227,12 +1227,12 @@ inline static f_pixel get_dithered_pixel(const float dither_level, const float m
     const float max_underflow = -0.1f;
 
     // allowing some overflow prevents undithered bands caused by clamping of all channels
-         if (px.r + sr > max_overflow)  ratio = MIN(ratio, (max_overflow -px.r)/sr);
-    else if (px.r + sr < max_underflow) ratio = MIN(ratio, (max_underflow-px.r)/sr);
-         if (px.g + sg > max_overflow)  ratio = MIN(ratio, (max_overflow -px.g)/sg);
-    else if (px.g + sg < max_underflow) ratio = MIN(ratio, (max_underflow-px.g)/sg);
-         if (px.b + sb > max_overflow)  ratio = MIN(ratio, (max_overflow -px.b)/sb);
-    else if (px.b + sb < max_underflow) ratio = MIN(ratio, (max_underflow-px.b)/sb);
+           if (px.r + sr > max_overflow)  ratio = MIN(ratio, (max_overflow -px.r)/sr);
+    else { if (px.r + sr < max_underflow) ratio = MIN(ratio, (max_underflow-px.r)/sr); }
+           if (px.g + sg > max_overflow)  ratio = MIN(ratio, (max_overflow -px.g)/sg);
+    else { if (px.g + sg < max_underflow) ratio = MIN(ratio, (max_underflow-px.g)/sg); }
+           if (px.b + sb > max_overflow)  ratio = MIN(ratio, (max_overflow -px.b)/sb);
+    else { if (px.b + sb < max_underflow) ratio = MIN(ratio, (max_underflow-px.b)/sb); }
 
     float a = px.a + sa;
          if (a > 1.0) { a = 1.0; }
@@ -1263,7 +1263,7 @@ inline static f_pixel get_dithered_pixel(const float dither_level, const float m
  */
 LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned char *const output_pixels[], liq_remapping_result *quant, const float max_dither_error, const bool output_image_is_remapped)
 {
-    const unsigned int rows = input_image->height, cols = input_image->width;
+    const int rows = input_image->height, cols = input_image->width;
     const unsigned char *dither_map = quant->use_dither_map ? (input_image->dither_map ? input_image->dither_map : input_image->edges) : NULL;
 
     const colormap *map = quant->palette;
@@ -1289,9 +1289,9 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
     }
     base_dithering_level *= 15.0/16.0; // prevent small errors from accumulating
 
-    bool fs_direction = true;
+    int fs_direction = 1;
     unsigned int last_match=0;
-    for (unsigned int row = 0; row < rows; ++row) {
+    for (int row = 0; row < rows; ++row) {
         if (liq_remap_progress(quant, quant->progress_stage1 + row * (100.f - quant->progress_stage1) / rows)) {
             ok = false;
             break;
@@ -1299,7 +1299,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
 
         memset(nexterr, 0, (cols + 2) * sizeof(*nexterr));
 
-        unsigned int col = (fs_direction) ? 0 : (cols - 1);
+        int col = (fs_direction > 0) ? 0 : (cols - 1);
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
 
         do {
@@ -1331,7 +1331,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             }
 
             /* Propagate Floyd-Steinberg error terms. */
-            if (fs_direction) {
+            if (fs_direction > 0) {
                 thiserr[col + 2].a += err.a * (7.f/16.f);
                 thiserr[col + 2].r += err.r * (7.f/16.f);
                 thiserr[col + 2].g += err.g * (7.f/16.f);
@@ -1375,19 +1375,18 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             }
 
             // remapping is done in zig-zag
-            if (fs_direction) {
-                ++col;
+            col += fs_direction;
+            if (fs_direction > 0) {
                 if (col >= cols) break;
             } else {
                 if (col <= 0) break;
-                --col;
             }
         } while(1);
 
         f_pixel *const temperr = thiserr;
         thiserr = nexterr;
         nexterr = temperr;
-        fs_direction = !fs_direction;
+        fs_direction = -fs_direction;
     }
 
     input_image->free(MIN(thiserr, nexterr)); // MIN because pointers were swapped
