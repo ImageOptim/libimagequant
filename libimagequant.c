@@ -208,7 +208,8 @@ static double quality_to_mse(long quality)
     // curve fudged to be roughly similar to quality of libjpeg
     // except lowest 10 for really low number of colors
     const double extra_low_quality_fudge = MAX(0,0.016/(0.001+quality) - 0.001);
-    return extra_low_quality_fudge + 2.5/pow(210.0 + quality, 1.2) * (100.1-quality)/100.0;
+    // LIQ_WEIGHT_MSE is a fudge factor - reminder that colors are not in 0..1 range any more
+    return LIQ_WEIGHT_MSE * (extra_low_quality_fudge + 2.5/pow(210.0 + quality, 1.2) * (100.1-quality)/100.0);
 }
 
 static unsigned int mse_to_quality(double mse)
@@ -224,7 +225,7 @@ static unsigned int mse_to_quality(double mse)
 /** internally MSE is a sum of all channels with pixels 0..1 range,
  but other software gives per-RGB-channel MSE for 0..255 range */
 static double mse_to_standard_mse(double mse) {
-    return mse * 65536.0/6.0;
+    return (mse * 65536.0/6.0) / LIQ_WEIGHT_MSE;
 }
 
 LIQ_EXPORT LIQ_NONNULL liq_error liq_set_quality(liq_attr* attr, int minimum, int target)

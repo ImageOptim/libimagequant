@@ -103,6 +103,7 @@ LIQ_PRIVATE void to_f_set_gamma(float gamma_lut[], const double gamma);
 #define LIQ_WEIGHT_R 0.5f
 #define LIQ_WEIGHT_G 1.0f
 #define LIQ_WEIGHT_B 0.45f
+#define LIQ_WEIGHT_MSE 0.45 // fudge factor for compensating that colors aren't 0..1 range
 
 /**
  Converts 8-bit color to internal gamma and premultiplied alpha.
