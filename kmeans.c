@@ -92,21 +92,23 @@ LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kme
     for(int j=0; j < hist_size; j++) {
         float diff;
         const f_pixel px = achv[j].acolor;
-        const unsigned int match = nearest_search(n, &px, achv[j].tmp.likely_colormap_index, NULL);
-
-        // Check how average diff would look like if there was dithering
-        const f_pixel remapped = map->palette[match].acolor;
-        nearest_search(n, &(f_pixel){
-            .a = px.a + px.a - remapped.a,
-            .r = px.r + px.r - remapped.r,
-            .g = px.g + px.g - remapped.g,
-            .b = px.b + px.b - remapped.b,
-        }, match, &diff);
-
+        const unsigned int match = nearest_search(n, &px, achv[j].tmp.likely_colormap_index, &diff);
         achv[j].tmp.likely_colormap_index = match;
-        total_diff += diff * achv[j].perceptual_weight;
 
-        if (callback) callback(&achv[j], diff);
+        if (callback) {
+            // Check how average diff would look like if there was dithering
+            const f_pixel remapped = map->palette[match].acolor;
+            nearest_search(n, &(f_pixel){
+                .a = px.a + px.a - remapped.a,
+                .r = px.r + px.r - remapped.r,
+                .g = px.g + px.g - remapped.g,
+                .b = px.b + px.b - remapped.b,
+            }, match, &diff);
+
+            callback(&achv[j], diff);
+        }
+
+        total_diff += diff * achv[j].perceptual_weight;
 
         kmeans_update_color(px, achv[j].adjusted_weight, map, match, omp_get_thread_num(), average_color);
     }
