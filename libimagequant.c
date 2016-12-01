@@ -1846,6 +1846,7 @@ static colormap *find_best_palette(histogram *hist, const liq_attr *options, con
     double least_error = MAX_DIFF;
     double target_mse_overshoot = feedback_loop_trials>0 ? 1.05 : 1.0;
     const float total_trials = (float)(feedback_loop_trials>0?feedback_loop_trials:1);
+    int fails_in_a_row=0;
 
     do {
         colormap *newmap;
@@ -1890,15 +1891,13 @@ static colormap *find_best_palette(histogram *hist, const liq_attr *options, con
             max_colors = MIN(newmap->colors+1, max_colors);
 
             feedback_loop_trials -= 1; // asymptotic improvement could make it go on forever
+            fails_in_a_row = 0;
         } else {
-            for(unsigned int j=0; j < hist->size; j++) {
-                hist->achv[j].adjusted_weight = (hist->achv[j].perceptual_weight + hist->achv[j].adjusted_weight)/2.0;
-            }
-
+            fails_in_a_row++;
             target_mse_overshoot = 1.0;
-            feedback_loop_trials -= 6;
+
             // if error is really bad, it's unlikely to improve, so end sooner
-            if (total_error > least_error*4) feedback_loop_trials -= 3;
+            feedback_loop_trials -= 5 + fails_in_a_row;
             pam_freecolormap(newmap);
         }
 
