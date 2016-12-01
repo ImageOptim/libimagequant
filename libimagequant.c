@@ -1587,7 +1587,7 @@ LIQ_NONNULL static void contrast_maps(liq_image *image)
             z *= 256.f;
             noise[j*cols+i] = z < 256 ? z : 255;
             z = (1.f-edge)*256.f;
-            edges[j*cols+i] = z < 256 ? z : 255;
+            edges[j*cols+i] = z > 0 ? (z < 256 ? z : 255) : 0;
         }
     }
 
