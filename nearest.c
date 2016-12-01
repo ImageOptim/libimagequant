@@ -24,11 +24,18 @@ typedef struct vp_search_tmp {
     int exclude;
 } vp_search_tmp;
 
+struct leaf {
+    f_pixel color;
+    unsigned int idx;
+};
+
 typedef struct vp_node {
     struct vp_node *near, *far;
     f_pixel vantage_point;
     float radius, radius_squared;
-    unsigned int idx;
+    struct leaf *rest;
+    unsigned short idx;
+    unsigned short restcount;
 } vp_node;
 
 struct nearest_map {
@@ -103,8 +110,17 @@ static vp_node *vp_create_node(mempoolptr *m, vp_sort_tmp indexes[], int num_ind
         .radius = sqrtf(indexes[half_idx].distance_squared),
         .radius_squared = indexes[half_idx].distance_squared,
     };
-    node->near = vp_create_node(m, indexes, half_idx, items);
-    node->far = vp_create_node(m, &indexes[half_idx], num_indexes - half_idx, items);
+    if (num_indexes < 7) {
+        node->rest = mempool_alloc(m, sizeof(node->rest[0]) * num_indexes, 0);
+        node->restcount = num_indexes;
+        for(int i=0; i < num_indexes; i++) {
+            node->rest[i].idx = indexes[i].idx;
+            node->rest[i].color = items[indexes[i].idx].acolor;
+        }
+    } else {
+        node->near = vp_create_node(m, indexes, half_idx, items);
+        node->far = vp_create_node(m, &indexes[half_idx], num_indexes - half_idx, items);
+    }
 
     return node;
 }
@@ -148,6 +164,18 @@ static void vp_search_node(const vp_node *node, const f_pixel *const needle, vp_
             best_candidate->distance = distance;
             best_candidate->distance_squared = distance_squared;
             best_candidate->idx = node->idx;
+        }
+
+        if (node->restcount) {
+            for(int i=0; i < node->restcount; i++) {
+                const float distance_squared = colordifference(node->rest[i].color, *needle);
+                if (distance_squared < best_candidate->distance_squared && best_candidate->exclude != node->rest[i].idx) {
+                    best_candidate->distance = sqrtf(distance_squared);
+                    best_candidate->distance_squared = distance_squared;
+                    best_candidate->idx = node->rest[i].idx;
+                }
+            }
+            return;
         }
 
         // Recurse towards most likely candidate first to narrow best candidate's distance as soon as possible
