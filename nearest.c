@@ -117,7 +117,7 @@ static vp_node *vp_create_node(mempool *m, vp_sort_tmp *indexes, int num_indexes
     return node;
         }
 
-LIQ_PRIVATE struct nearest_map *nearest_init(const colormap *map, const bool fast) {
+LIQ_PRIVATE struct nearest_map *nearest_init(const colormap *map) {
     mempool m = NULL;
     struct nearest_map *handle = mempool_create(&m, sizeof(handle[0]), sizeof(handle[0]) + sizeof(vp_node)*map->colors+16, map->malloc, map->free);
 

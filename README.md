@@ -113,6 +113,8 @@ Returns `NULL` in the unlikely case that the library cannot run on the current m
 
 Specifies maximum number of colors to use. The default is 256. Instead of setting a fixed limit it's better to use `liq_set_quality()`.
 
+The first argument is attributes object from `liq_attr_create()`.
+
 Returns `LIQ_VALUE_OUT_OF_RANGE` if number of colors is outside the range 2-256.
 
 ----
@@ -134,6 +136,8 @@ If it's not possible to convert the image with at least `minimum` quality (i.e. 
 Quality measures how well the generated palette fits image given to `liq_image_quantize()`. If a different image is remapped with `liq_write_remapped_image()` then actual quality may be different.
 
 Regardless of the quality settings the number of colors won't exceed the maximum (see `liq_set_max_colors()`).
+
+The first argument is attributes object from `liq_attr_create()`.
 
 Returns `LIQ_VALUE_OUT_OF_RANGE` if target is lower than minimum or any of them is outside the 0-100 range.
 Returns `LIQ_INVALID_POINTER` if `attr` appears to be invalid.
@@ -157,11 +161,13 @@ Returns the upper bound set by `liq_set_quality()`.
 
     liq_image *liq_image_create_rgba(liq_attr *attr, void* pixels, int width, int height, double gamma);
 
-Creates an object that represents the image pixels later used for quantization and remapping. The pixel array must be contiguous run of RGBA pixels (alpha is the last component, 0 = transparent, 255 = opaque).
+Creates an object that represents the image pixels to be used for quantization and remapping. The pixel array must be contiguous run of RGBA pixels (alpha is the last component, 0 = transparent, 255 = opaque).
 
-The pixel array must not be modified or freed until this object is freed with `liq_image_destroy()`. See also `liq_image_set_memory_ownership()`.
+The first argument is attributes object from `liq_attr_create()`. The same `attr` object should be used for the entire process, from creation of images to quantization.
 
-`width` and `height` are dimensions in pixels. An image 10x10 pixel large will need 400-byte array.
+The `pixels` array must not be modified or freed until this object is freed with `liq_image_destroy()`. See also `liq_image_set_memory_ownership()`.
+
+`width` and `height` are dimensions in pixels. An image 10x10 pixel large will need a 400-byte array.
 
 `gamma` can be `0` for images with the typical 1/2.2 [gamma](https://en.wikipedia.org/wiki/Gamma_correction).
 Otherwise `gamma` must be > 0 and < 1, e.g. `0.45455` (1/2.2) or `0.55555` (1/1.8). Generated palette will use the same gamma unless `liq_set_output_gamma()` is used. If `liq_set_output_gamma` is not used, then it only affects whether brighter or darker areas of the image will get more palette colors allocated.
@@ -195,7 +201,7 @@ See also `liq_image_create_rgba()` and `liq_image_create_custom()`.
 
     liq_error liq_image_quantize(liq_image *const input_image, liq_attr *const attr, liq_result **out_result);
 
-Performs quantization (palette generation) based on settings in `attr` and pixels of the image.
+Performs quantization (palette generation) based on settings in `attr` (from `liq_attr_create()`) and pixels of the image.
 
 Returns `LIQ_OK` if quantization succeeds and sets `liq_result` pointer in `out_result`. The last argument is used for receiving the `result` object:
 
@@ -207,6 +213,8 @@ Returns `LIQ_OK` if quantization succeeds and sets `liq_result` pointer in `out_
 Returns `LIQ_QUALITY_TOO_LOW` if quantization fails due to limit set in `liq_set_quality()`.
 
 See `liq_write_remapped_image()`.
+
+If you want to generate one palette for multiple images at once, see `liq_histogram_create()`.
 
 ----
 

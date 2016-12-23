@@ -180,6 +180,7 @@ fi
 if [[ "$OSTYPE" =~ "darwin" ]]; then
     cflags "-mmacosx-version-min=10.6"
     lflags "-mmacosx-version-min=10.6"
+fi
 
 if [[ "$OSTYPE" =~ "darwin" ]]; then
     SOLIBSUFFIX=dylib
@@ -191,8 +192,6 @@ if [[ "$OSTYPE" =~ "darwin" ]]; then
     DIRS+=("$XCODE_PATH/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/usr/include $XCODE_PATH/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/usr/lib")
 else
     SOLIBSUFFIX=so
-fi
-
 fi
 
 echo
