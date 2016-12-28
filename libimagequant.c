@@ -1191,9 +1191,10 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     }
     viter_init(map, max_threads, average_color);
 
+    int row;
     #pragma omp parallel for if (rows*cols > 3000) \
         schedule(static) default(none) shared(average_color) reduction(+:remapping_error)
-    for(int row = 0; row < rows; ++row) {
+    for(row = 0; row < rows; ++row) {
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
         unsigned int last_match=0;
         for(unsigned int col = 0; col < cols; ++col) {
