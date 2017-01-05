@@ -19,7 +19,7 @@ along with libimagequant. If not, see <http://www.gnu.org/licenses/>.
 
 #include "libimagequant.h"
 #include "pam.h"
-#include "viter.h"
+#include "kmeans.h"
 #include "nearest.h"
 #include <stdlib.h>
 #include <string.h>
@@ -32,16 +32,16 @@ along with libimagequant. If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 /*
- * Voronoi iteration: new palette color is computed from weighted average of colors that map to that palette entry.
+ * K-Means iteration: new palette color is computed from weighted average of colors that map to that palette entry.
  */
-LIQ_PRIVATE void viter_init(const colormap *map, const unsigned int max_threads, viter_state average_color[])
+LIQ_PRIVATE void kmeans_init(const colormap *map, const unsigned int max_threads, kmeans_state average_color[])
 {
-    memset(average_color, 0, sizeof(average_color[0])*(VITER_CACHE_LINE_GAP+map->colors)*max_threads);
+    memset(average_color, 0, sizeof(average_color[0])*(KMEANS_CACHE_LINE_GAP+map->colors)*max_threads);
 }
 
-LIQ_PRIVATE void viter_update_color(const f_pixel acolor, const float value, const colormap *map, unsigned int match, const unsigned int thread, viter_state average_color[])
+LIQ_PRIVATE void kmeans_update_color(const f_pixel acolor, const float value, const colormap *map, unsigned int match, const unsigned int thread, kmeans_state average_color[])
 {
-    match += thread * (VITER_CACHE_LINE_GAP+map->colors);
+    match += thread * (KMEANS_CACHE_LINE_GAP+map->colors);
     average_color[match].a += acolor.a * value;
     average_color[match].r += acolor.r * value;
     average_color[match].g += acolor.g * value;
@@ -49,14 +49,14 @@ LIQ_PRIVATE void viter_update_color(const f_pixel acolor, const float value, con
     average_color[match].total += value;
 }
 
-LIQ_PRIVATE void viter_finalize(colormap *map, const unsigned int max_threads, const viter_state average_color[])
+LIQ_PRIVATE void kmeans_finalize(colormap *map, const unsigned int max_threads, const kmeans_state average_color[])
 {
     for (unsigned int i=0; i < map->colors; i++) {
         double a=0, r=0, g=0, b=0, total=0;
 
         // Aggregate results from all threads
         for(unsigned int t=0; t < max_threads; t++) {
-            const unsigned int offset = (VITER_CACHE_LINE_GAP+map->colors) * t + i;
+            const unsigned int offset = (KMEANS_CACHE_LINE_GAP+map->colors) * t + i;
 
             a += average_color[offset].a;
             r += average_color[offset].r;
@@ -77,11 +77,11 @@ LIQ_PRIVATE void viter_finalize(colormap *map, const unsigned int max_threads, c
     }
 }
 
-LIQ_PRIVATE double viter_do_iteration(histogram *hist, colormap *const map, viter_callback callback)
+LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kmeans_callback callback)
 {
     const unsigned int max_threads = omp_get_max_threads();
-    viter_state average_color[(VITER_CACHE_LINE_GAP+map->colors) * max_threads];
-    viter_init(map, max_threads, average_color);
+    kmeans_state average_color[(KMEANS_CACHE_LINE_GAP+map->colors) * max_threads];
+    kmeans_init(map, max_threads, average_color);
     struct nearest_map *const n = nearest_init(map);
     hist_item *const achv = hist->achv;
     const int hist_size = hist->size;
@@ -95,13 +95,13 @@ LIQ_PRIVATE double viter_do_iteration(histogram *hist, colormap *const map, vite
         achv[j].tmp.likely_colormap_index = match;
         total_diff += diff * achv[j].perceptual_weight;
 
-        viter_update_color(achv[j].acolor, achv[j].perceptual_weight, map, match, omp_get_thread_num(), average_color);
+        kmeans_update_color(achv[j].acolor, achv[j].perceptual_weight, map, match, omp_get_thread_num(), average_color);
 
         if (callback) callback(&achv[j], diff);
     }
 
     nearest_free(n);
-    viter_finalize(map, max_threads, average_color);
+    kmeans_finalize(map, max_threads, average_color);
 
     return total_diff / hist->total_perceptual_weight;
 }

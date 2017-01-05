@@ -226,7 +226,7 @@ typedef struct {
 typedef struct {
     f_pixel acolor;
     float popularity;
-    bool fixed; // if true it's user-supplied and must not be changed (e.g in voronoi iteration)
+    bool fixed; // if true it's user-supplied and must not be changed (e.g in K-Means iteration)
 } colormap_item;
 
 typedef struct colormap {

@@ -73,11 +73,11 @@ struct liq_attr {
     void* (*malloc)(size_t);
     void (*free)(void*);
 
-    double target_mse, max_mse, voronoi_iteration_limit;
+    double target_mse, max_mse, kmeans_iteration_limit;
     float min_opaque_val;
     unsigned int max_colors, max_histogram_entries;
     unsigned int min_posterization_output /* user setting */, min_posterization_input /* speed setting */;
-    unsigned int voronoi_iterations, feedback_loop_trials;
+    unsigned int kmeans_iterations, feedback_loop_trials;
     bool last_index_transparent, use_contrast_maps, use_dither_map;
     unsigned char speed;
 
@@ -349,8 +349,8 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_set_speed(liq_attr* attr, int speed)
     if (speed < 1 || speed > 10) return LIQ_VALUE_OUT_OF_RANGE;
 
     unsigned int iterations = MAX(8-speed, 0); iterations += iterations * iterations/2;
-    attr->voronoi_iterations = iterations;
-    attr->voronoi_iteration_limit = 1.0/(double)(1<<(23-speed));
+    attr->kmeans_iterations = iterations;
+    attr->kmeans_iteration_limit = 1.0/(double)(1<<(23-speed));
     attr->feedback_loop_trials = MAX(56-9*speed, 0);
 
     attr->max_histogram_entries = (1<<17) + (1<<18)*(10-speed);
@@ -1181,8 +1181,8 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     struct nearest_map *const n = nearest_init(map);
 
     const unsigned int max_threads = omp_get_max_threads();
-    viter_state average_color[(VITER_CACHE_LINE_GAP+map->colors) * max_threads];
-    viter_init(map, max_threads, average_color);
+    kmeans_state average_color[(KMEANS_CACHE_LINE_GAP+map->colors) * max_threads];
+    kmeans_init(map, max_threads, average_color);
 
     #pragma omp parallel for if (rows*cols > 3000) \
         schedule(static) default(none) shared(average_color) reduction(+:remapping_error)
@@ -1194,11 +1194,11 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
             output_pixels[row][col] = last_match = nearest_search(n, &row_pixels[col], last_match, &diff);
 
             remapping_error += diff;
-            viter_update_color(row_pixels[col], 1.0, map, last_match, omp_get_thread_num(), average_color);
+            kmeans_update_color(row_pixels[col], 1.0, map, last_match, omp_get_thread_num(), average_color);
         }
     }
 
-    viter_finalize(map, max_threads, average_color);
+    kmeans_finalize(map, max_threads, average_color);
 
     nearest_free(n);
 
@@ -1727,11 +1727,11 @@ static colormap *find_best_palette(histogram *hist, const liq_attr *options, con
         }
 
         // after palette has been created, total error (MSE) is calculated to keep the best palette
-        // at the same time Voronoi iteration is done to improve the palette
+        // at the same time K-Means iteration is done to improve the palette
         // and histogram weights are adjusted based on remapping error to give more weight to poorly matched colors
 
         const bool first_run_of_target_mse = !acolormap && target_mse > 0;
-        double total_error = viter_do_iteration(hist, newmap, first_run_of_target_mse ? NULL : adjust_histogram_callback);
+        double total_error = kmeans_do_iteration(hist, newmap, first_run_of_target_mse ? NULL : adjust_histogram_callback);
 
         // goal is to increase quality or to reduce number of colors used if quality is good enough
         if (!acolormap || total_error < least_error || (total_error <= target_mse && newmap->colors < max_colors)) {
@@ -1739,7 +1739,7 @@ static colormap *find_best_palette(histogram *hist, const liq_attr *options, con
             acolormap = newmap;
 
             if (total_error < target_mse && total_error > 0) {
-                // voronoi iteration improves quality above what mediancut aims for
+                // K-Means iteration improves quality above what mediancut aims for
                 // this compensates for it, making mediancut aim for worse
                 target_mse_overshoot = MIN(target_mse_overshoot*1.25, target_mse/total_error);
             }
@@ -1808,14 +1808,14 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
             return LIQ_VALUE_OUT_OF_RANGE;
         }
 
-        // Voronoi iteration approaches local minimum for the palette
-        const double iteration_limit = options->voronoi_iteration_limit;
-        unsigned int iterations = options->voronoi_iterations;
+        // K-Means iteration approaches local minimum for the palette
+        const double iteration_limit = options->kmeans_iteration_limit;
+        unsigned int iterations = options->kmeans_iterations;
 
         if (!iterations && palette_error < 0 && max_mse < MAX_DIFF) iterations = 1; // otherwise total error is never calculated and MSE limit won't work
 
         if (iterations) {
-            // likely_colormap_index (used and set in viter_do_iteration) can't point to index outside colormap
+            // likely_colormap_index (used and set in kmeans_do_iteration) can't point to index outside colormap
             if (acolormap->colors < 256) for(unsigned int j=0; j < hist->size; j++) {
                 if (hist->achv[j].tmp.likely_colormap_index >= acolormap->colors) {
                     hist->achv[j].tmp.likely_colormap_index = 0; // actual value doesn't matter, as the guess is out of date anyway
@@ -1827,7 +1827,7 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
             double previous_palette_error = MAX_DIFF;
 
             for(unsigned int i=0; i < iterations; i++) {
-                palette_error = viter_do_iteration(hist, acolormap, NULL);
+                palette_error = kmeans_do_iteration(hist, acolormap, NULL);
 
                 if (liq_progress(options, options->progress_stage1 + options->progress_stage2 + (i * options->progress_stage3 * 0.9f) / iterations)) {
                     break;
@@ -1954,7 +1954,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image_rows(liq_result *quant
             return LIQ_ABORTED;
         }
 
-        // remapping above was the last chance to do voronoi iteration, hence the final palette is set after remapping
+        // remapping above was the last chance to do K-Means iteration, hence the final palette is set after remapping
         set_rounded_palette(&result->int_palette, result->palette, result->gamma, quant->min_posterization_output);
 
         if (!remap_to_palette_floyd(input_image, row_pointers, result, MAX(remapping_error*2.4, 16.f/256.f), generate_dither_map)) {

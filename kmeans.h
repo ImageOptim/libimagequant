@@ -1,19 +1,19 @@
 
-#ifndef VITER_H
-#define VITER_H
+#ifndef KMEANS_H
+#define KMEANS_H
 
 // Spread memory touched by different threads at least 64B apart which I assume is the cache line size. This should avoid memory write contention.
-#define VITER_CACHE_LINE_GAP ((64+sizeof(viter_state)-1)/sizeof(viter_state))
+#define KMEANS_CACHE_LINE_GAP ((64+sizeof(kmeans_state)-1)/sizeof(kmeans_state))
 
 typedef struct {
     double a, r, g, b, total;
-} viter_state;
+} kmeans_state;
 
-typedef void (*viter_callback)(hist_item *item, float diff);
+typedef void (*kmeans_callback)(hist_item *item, float diff);
 
-LIQ_PRIVATE void viter_init(const colormap *map, const unsigned int max_threads, viter_state state[]);
-LIQ_PRIVATE void viter_update_color(const f_pixel acolor, const float value, const colormap *map, unsigned int match, const unsigned int thread, viter_state average_color[]);
-LIQ_PRIVATE void viter_finalize(colormap *map, const unsigned int max_threads, const viter_state state[]);
-LIQ_PRIVATE double viter_do_iteration(histogram *hist, colormap *const map, viter_callback callback);
+LIQ_PRIVATE void kmeans_init(const colormap *map, const unsigned int max_threads, kmeans_state state[]);
+LIQ_PRIVATE void kmeans_update_color(const f_pixel acolor, const float value, const colormap *map, unsigned int match, const unsigned int thread, kmeans_state average_color[]);
+LIQ_PRIVATE void kmeans_finalize(colormap *map, const unsigned int max_threads, const kmeans_state state[]);
+LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kmeans_callback callback);
 
 #endif
