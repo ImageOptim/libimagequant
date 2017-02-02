@@ -68,7 +68,7 @@ static void convert_bgr(liq_color row_out[], int row_index, int width, void* use
     }
 }
 
-JNIEXPORT jlong JNICALL Java_org_pngquant_Image_liq_1image_1create(JNIEnv *env, jclass class, jlong attr, jbyteArray bytearray, jint w, jint h, int components) {
+JNIEXPORT jlong JNICALL Java_org_pngquant_Image_liq_1image_1create(JNIEnv *env, jclass class, jlong attr, jbyteArray bytearray, jint w, jint h, jint components) {
     /* liq_image needs to be wrapped to keep track of allocated buffer */
     liq_jni_image *jniimg = malloc(sizeof(liq_jni_image));
 
