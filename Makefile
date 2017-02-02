@@ -14,7 +14,7 @@ SHAREDOBJS = $(subst .o,.lo,$(OBJS))
 
 JAVACLASSES = org/pngquant/LiqObject.class org/pngquant/PngQuant.class org/pngquant/Image.class org/pngquant/Result.class
 JAVAHEADERS = $(JAVACLASSES:.class=.h)
-JAVAINCLUDE = -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux -I$(JAVA_HOME)/include/darwin
+JAVAINCLUDE = -I'$(JAVA_HOME)/include' -I'$(JAVA_HOME)/include/linux' -I'$(JAVA_HOME)/include/darwin'
 
 DISTFILES = $(OBJS:.o=.c) *.h README.md CHANGELOG COPYRIGHT Makefile configure
 TARNAME = libimagequant-$(VERSION)
@@ -66,7 +66,7 @@ $(TARFILE): $(DISTFILES)
 	-shasum $(TARFILE)
 
 clean:
-	rm -f $(OBJS) $(SHAREDOBJS) $(SHAREDLIB).$(SOVER) $(SHAREDLIB) $(STATICLIB) $(TARFILE) $(DLL) $(DLLIMP) $(DLLDEF)
+	rm -f $(OBJS) $(SHAREDOBJS) $(SHAREDLIB).$(SOVER) $(SHAREDLIB) $(STATICLIB) $(TARFILE) $(DLL) '$(DLLIMP)' '$(DLLDEF)'
 	rm -f $(JAVAHEADERS) $(JAVACLASSES) $(JNILIB)
 
 distclean: clean
