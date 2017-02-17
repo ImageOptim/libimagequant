@@ -578,6 +578,14 @@ Fixed colors added to the image are also added to the histogram. If total number
 
 ---
 
+    liq_error liq_histogram_add_colors(liq_histogram *hist, liq_attr *attr, liq_histogram_entry entries[], int num_entries, double gamma);
+
+Alternative to `liq_histogram_add_image()`. Intead of counting colors in an image, it directly takes an array of colors and their counts (see `liq_histogram_entry` in `libimagequant.h`). This function is only useful if you already have a histogram of the image from another source.
+
+For description of gamma, see `liq_image_create_rgba()`.
+
+---
+
     liq_error liq_histogram_quantize(liq_histogram *const hist, liq_attr *const attr, liq_result **out_result);
 
 Generates palette from the histogram. On success returns `LIQ_OK` and writes `liq_result*` pointer to `out_result`. Use it as follows:

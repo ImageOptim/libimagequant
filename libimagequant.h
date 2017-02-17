@@ -62,6 +62,11 @@ typedef enum liq_error {
 
 enum liq_ownership {LIQ_OWN_ROWS=4, LIQ_OWN_PIXELS=8};
 
+typedef struct liq_histogram_entry {
+    liq_color color;
+    unsigned int count;
+} liq_histogram_entry;
+
 LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_create(void);
 LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_create_with_allocator(void* (*malloc)(size_t), void (*free)(void*));
 LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_copy(liq_attr *orig) LIQ_NONNULL;
@@ -69,6 +74,7 @@ LIQ_EXPORT void liq_attr_destroy(liq_attr *attr) LIQ_NONNULL;
 
 LIQ_EXPORT LIQ_USERESULT liq_histogram* liq_histogram_create(liq_attr* attr);
 LIQ_EXPORT liq_error liq_histogram_add_image(liq_histogram *hist, liq_attr *attr, liq_image* image) LIQ_NONNULL;
+LIQ_EXPORT liq_error liq_histogram_add_colors(liq_histogram *hist, liq_attr *attr, liq_histogram_entry entries[], int num_entries, double gamma) LIQ_NONNULL;
 LIQ_EXPORT void liq_histogram_destroy(liq_histogram *hist) LIQ_NONNULL;
 
 LIQ_EXPORT liq_error liq_set_max_colors(liq_attr* attr, int colors) LIQ_NONNULL;

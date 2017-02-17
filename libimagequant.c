@@ -1402,6 +1402,57 @@ LIQ_NONNULL static void remove_fixed_colors_from_histogram(histogram *hist, cons
     }
 }
 
+LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_colors(liq_histogram *input_hist, liq_attr *options, liq_histogram_entry entries[], int num_entries, double gamma)
+{
+    if (!CHECK_STRUCT_TYPE(options, liq_attr)) return LIQ_INVALID_POINTER;
+    if (!CHECK_STRUCT_TYPE(input_hist, liq_histogram)) return LIQ_INVALID_POINTER;
+    if (!CHECK_USER_POINTER(entries)) return LIQ_INVALID_POINTER;
+    if (gamma < 0 || gamma >= 1.0) return LIQ_VALUE_OUT_OF_RANGE;
+    if (num_entries <= 0 || num_entries > 1<<30) return LIQ_VALUE_OUT_OF_RANGE;
+
+    if (input_hist->ignorebits > 0 && input_hist->had_image_added) {
+        return LIQ_UNSUPPORTED;
+    }
+    input_hist->ignorebits = 0;
+
+    input_hist->had_image_added = true;
+    input_hist->gamma = gamma ? gamma : 0.45455;
+
+    if (!input_hist->acht) {
+        input_hist->acht = pam_allocacolorhash(~0, num_entries*num_entries, 0, options->malloc, options->free);
+        if (!input_hist->acht) {
+            return LIQ_OUT_OF_MEMORY;
+        }
+    }
+    // Fake image size. It's only for hash size estimates.
+    if (!input_hist->acht->cols) {
+        input_hist->acht->cols = num_entries;
+    }
+    input_hist->acht->rows += num_entries;
+
+    const unsigned int hash_size = input_hist->acht->hash_size;
+    for(int i=0; i < num_entries; i++) {
+        const rgba_pixel rgba = {
+            .r = entries[i].color.r,
+            .g = entries[i].color.g,
+            .b = entries[i].color.b,
+            .a = entries[i].color.a,
+        };
+        union rgba_as_int px = {rgba};
+        unsigned int hash;
+        if (px.rgba.a) {
+            hash = px.l % hash_size;
+        } else {
+            hash=0; px.l=0;
+        }
+        if (!pam_add_to_hash(input_hist->acht, hash, entries[i].count, px, i, num_entries)) {
+            return LIQ_OUT_OF_MEMORY;
+        }
+    }
+
+    return LIQ_OK;
+}
+
 LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hist, liq_attr *options, liq_image *input_image)
 {
     if (!CHECK_STRUCT_TYPE(options, liq_attr)) return LIQ_INVALID_POINTER;
