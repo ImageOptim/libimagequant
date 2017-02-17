@@ -57,6 +57,7 @@ typedef enum liq_error {
     LIQ_BITMAP_NOT_AVAILABLE,
     LIQ_BUFFER_TOO_SMALL,
     LIQ_INVALID_POINTER,
+    LIQ_UNSUPPORTED,
 } liq_error;
 
 enum liq_ownership {LIQ_OWN_ROWS=4, LIQ_OWN_PIXELS=8};

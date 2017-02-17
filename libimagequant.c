@@ -527,7 +527,7 @@ LIQ_EXPORT liq_attr* liq_attr_create_with_allocator(void* (*custom_malloc)(size_
 LIQ_EXPORT LIQ_NONNULL liq_error liq_image_add_fixed_color(liq_image *img, liq_color color)
 {
     if (!CHECK_STRUCT_TYPE(img, liq_image)) return LIQ_INVALID_POINTER;
-    if (img->fixed_colors_count > 255) return LIQ_BUFFER_TOO_SMALL;
+    if (img->fixed_colors_count > 255) return LIQ_UNSUPPORTED;
 
     float gamma_lut[256];
     to_f_set_gamma(gamma_lut, img->gamma);
@@ -542,7 +542,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_add_fixed_color(liq_image *img, liq_c
 
 LIQ_NONNULL static liq_error liq_histogram_add_fixed_color_internal(liq_histogram *hist, f_pixel color)
 {
-    if (hist->fixed_colors_count > 255) return LIQ_BUFFER_TOO_SMALL;
+    if (hist->fixed_colors_count > 255) return LIQ_UNSUPPORTED;
 
     hist->fixed_colors[hist->fixed_colors_count++] = color;
     return LIQ_OK;
@@ -892,7 +892,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_quantize(liq_image *const img, liq_at
 {
     if (!CHECK_STRUCT_TYPE(attr, liq_attr)) return LIQ_INVALID_POINTER;
     if (!liq_image_has_rgba_pixels(img)) {
-        return LIQ_INVALID_POINTER;
+        return LIQ_UNSUPPORTED;
     }
 
     liq_histogram *hist = liq_histogram_create(attr);
