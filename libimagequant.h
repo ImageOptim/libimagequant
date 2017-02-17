@@ -68,7 +68,7 @@ LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_copy(liq_attr *orig) LIQ_NONNULL;
 LIQ_EXPORT void liq_attr_destroy(liq_attr *attr) LIQ_NONNULL;
 
 LIQ_EXPORT LIQ_USERESULT liq_histogram* liq_histogram_create(liq_attr* attr);
-LIQ_EXPORT LIQ_USERESULT liq_error liq_histogram_add_image(liq_histogram *hist, liq_attr *attr, liq_image* image);
+LIQ_EXPORT liq_error liq_histogram_add_image(liq_histogram *hist, liq_attr *attr, liq_image* image) LIQ_NONNULL;
 LIQ_EXPORT void liq_histogram_destroy(liq_histogram *hist) LIQ_NONNULL;
 
 LIQ_EXPORT liq_error liq_set_max_colors(liq_attr* attr, int colors) LIQ_NONNULL;
