@@ -27,14 +27,8 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
     const unsigned int channel_hmask = (255U>>ignorebits) ^ 0xFFU;
     const unsigned int posterize_mask = channel_mask << 24 | channel_mask << 16 | channel_mask << 8 | channel_mask;
     const unsigned int posterize_high_mask = channel_hmask << 24 | channel_hmask << 16 | channel_hmask << 8 | channel_hmask;
-    struct acolorhist_arr_head *const buckets = acht->buckets;
 
-    unsigned int colors = acht->colors;
     const unsigned int hash_size = acht->hash_size;
-
-    const unsigned int stacksize = sizeof(acht->freestack)/sizeof(acht->freestack[0]);
-    struct acolorhist_arr_item **freestack = acht->freestack;
-    unsigned int freestackp=acht->freestackp;
 
     /* Go through the entire image, building a hash table of colors. */
     for(unsigned int row = 0; row < rows; ++row) {
@@ -62,7 +56,7 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
             /* head of the hash function stores first 2 colors inline (achl->used = 1..2),
                to reduce number of allocations of achl->other_items.
              */
-            struct acolorhist_arr_head *achl = &buckets[hash];
+            struct acolorhist_arr_head *achl = &acht->buckets[hash];
             if (achl->inline1.color.l == px.l && achl->used) {
                 achl->inline1.perceptual_weight += boost;
                 continue;
@@ -90,13 +84,11 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
                             .perceptual_weight = boost,
                         };
                         achl->used++;
-                        ++colors;
+                        ++acht->colors;
                         continue;
                     }
 
-                    if (++colors > maxacolors) {
-                        acht->colors = colors;
-                        acht->freestackp = freestackp;
+                    if (++acht->colors > maxacolors) {
                         return false;
                     }
 
@@ -104,22 +96,24 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
                     unsigned int capacity;
                     if (!other_items) { // there was no array previously, alloc "small" array
                         capacity = 8;
-                        if (freestackp <= 0) {
+                        if (acht->freestackp <= 0) {
                             // estimate how many colors are going to be + headroom
-                            const size_t mempool_size = ((acht->rows + rows-row) * 2 * colors / (acht->rows + row + 1) + 1024) * sizeof(struct acolorhist_arr_item);
+                            const size_t mempool_size = ((acht->rows + rows-row) * 2 * acht->colors / (acht->rows + row + 1) + 1024) * sizeof(struct acolorhist_arr_item);
                             new_items = mempool_alloc(&acht->mempool, sizeof(struct acolorhist_arr_item)*capacity, mempool_size);
                         } else {
                             // freestack stores previously freed (reallocated) arrays that can be reused
                             // (all pesimistically assumed to be capacity = 8)
-                            new_items = freestack[--freestackp];
+                            new_items = acht->freestack[--acht->freestackp];
                         }
                     } else {
+                        const unsigned int stacksize = sizeof(acht->freestack)/sizeof(acht->freestack[0]);
+
                         // simply reallocs and copies array to larger capacity
                         capacity = achl->capacity*2 + 16;
-                        if (freestackp < stacksize-1) {
-                            freestack[freestackp++] = other_items;
+                        if (acht->freestackp < stacksize-1) {
+                            acht->freestack[acht->freestackp++] = other_items;
                         }
-                        const size_t mempool_size = ((acht->rows + rows-row) * 2 * colors / (acht->rows + row + 1) + 32*capacity) * sizeof(struct acolorhist_arr_item);
+                        const size_t mempool_size = ((acht->rows + rows-row) * 2 * acht->colors / (acht->rows + row + 1) + 32*capacity) * sizeof(struct acolorhist_arr_item);
                         new_items = mempool_alloc(&acht->mempool, sizeof(struct acolorhist_arr_item)*capacity, mempool_size);
                         if (!new_items) return false;
                         memcpy(new_items, other_items, sizeof(other_items[0])*achl->capacity);
@@ -137,23 +131,21 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
                     achl->inline2.color.l = px.l;
                     achl->inline2.perceptual_weight = boost;
                     achl->used = 2;
-                    ++colors;
+                    ++acht->colors;
                 }
             } else {
                 achl->inline1.color.l = px.l;
                 achl->inline1.perceptual_weight = boost;
                 achl->used = 1;
-                ++colors;
+                ++acht->colors;
             }
 
             continue_outer_loop:;
         }
 
     }
-    acht->colors = colors;
     acht->cols = cols;
     acht->rows += rows;
-    acht->freestackp = freestackp;
     return true;
 }
 
