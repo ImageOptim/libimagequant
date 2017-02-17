@@ -1404,6 +1404,10 @@ LIQ_NONNULL static void remove_fixed_colors_from_histogram(histogram *hist, cons
 
 LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hist, liq_attr *options, liq_image *input_image)
 {
+    if (!CHECK_STRUCT_TYPE(options, liq_attr)) return LIQ_INVALID_POINTER;
+    if (!CHECK_STRUCT_TYPE(input_hist, liq_histogram)) return LIQ_INVALID_POINTER;
+    if (!CHECK_STRUCT_TYPE(input_image, liq_image)) return LIQ_INVALID_POINTER;
+
     const unsigned int cols = input_image->width, rows = input_image->height;
 
     if (!input_image->noise && options->use_contrast_maps) {
