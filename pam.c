@@ -22,7 +22,7 @@
 
 LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba_pixel *const pixels[], unsigned int cols, unsigned int rows, const unsigned char *importance_map)
 {
-    const unsigned int maxacolors = acht->maxcolors, ignorebits = acht->ignorebits;
+    const unsigned int ignorebits = acht->ignorebits;
     const unsigned int channel_mask = 255U>>ignorebits<<ignorebits;
     const unsigned int channel_hmask = (255U>>ignorebits) ^ 0xFFU;
     const unsigned int posterize_mask = channel_mask << 24 | channel_mask << 16 | channel_mask << 8 | channel_mask;
@@ -53,19 +53,32 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
                 hash = px.l % hash_size;
             }
 
+            if (!pam_add_to_hash(acht, hash, boost, px, row, rows)) {
+                return false;
+            }
+        }
+
+    }
+    acht->cols = cols;
+    acht->rows += rows;
+    return true;
+}
+
+LIQ_PRIVATE bool pam_add_to_hash(struct acolorhash_table *acht, unsigned int hash, float boost, union rgba_as_int px, unsigned int row, unsigned int rows)
+{
             /* head of the hash function stores first 2 colors inline (achl->used = 1..2),
                to reduce number of allocations of achl->other_items.
              */
             struct acolorhist_arr_head *achl = &acht->buckets[hash];
             if (achl->inline1.color.l == px.l && achl->used) {
                 achl->inline1.perceptual_weight += boost;
-                continue;
+                return true;
             }
             if (achl->used) {
                 if (achl->used > 1) {
                     if (achl->inline2.color.l == px.l) {
                         achl->inline2.perceptual_weight += boost;
-                        continue;
+                        return true;
                     }
                     // other items are stored as an array (which gets reallocated if needed)
                     struct acolorhist_arr_item *other_items = achl->other_items;
@@ -73,7 +86,7 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
                     for (; i < achl->used-2; i++) {
                         if (other_items[i].color.l == px.l) {
                             other_items[i].perceptual_weight += boost;
-                            goto continue_outer_loop;
+                            return true;
                         }
                     }
 
@@ -85,10 +98,10 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
                         };
                         achl->used++;
                         ++acht->colors;
-                        continue;
+                        return true;
                     }
 
-                    if (++acht->colors > maxacolors) {
+                    if (++acht->colors > acht->maxcolors) {
                         return false;
                     }
 
@@ -139,13 +152,6 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
                 achl->used = 1;
                 ++acht->colors;
             }
-
-            continue_outer_loop:;
-        }
-
-    }
-    acht->cols = cols;
-    acht->rows += rows;
     return true;
 }
 
