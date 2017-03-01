@@ -31,7 +31,6 @@ pub struct Attributes {
     handle: *mut ffi::liq_attr,
 }
 
-
 pub struct Image<'a> {
     handle: *mut ffi::liq_image,
     _marker: std::marker::PhantomData<&'a [u8]>,
@@ -85,7 +84,7 @@ impl Clone for Attributes {
 }
 
 impl Attributes {
-    pub fn new() -> Attributes {
+    pub fn new() -> Self {
         let handle = unsafe { ffi::liq_attr_create() };
         assert!(!handle.is_null());
         Attributes { handle: handle }
@@ -119,7 +118,7 @@ impl Attributes {
         unsafe { ffi::liq_get_max_colors(&*self.handle) }
     }
 
-    pub fn new_image<'a, T: Copy + Clone>(&self, bitmap: &'a [T], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
+    pub fn new_image<'a, RGBA: Copy>(&self, bitmap: &'a [RGBA], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
@@ -143,7 +142,7 @@ pub fn new() -> Attributes {
 }
 
 impl<'a> Histogram<'a> {
-    pub fn new(attr: &'a Attributes) -> Histogram<'a> {
+    pub fn new(attr: &'a Attributes) -> Self {
         Histogram {
             attr: attr,
             handle: unsafe { ffi::liq_histogram_create(&*attr.handle) },
@@ -168,20 +167,20 @@ impl<'a> Histogram<'a> {
 }
 
 impl<'a> Image<'a> {
-    pub fn new<T: Copy + Clone>(attr: &Attributes, bitmap: &'a [T], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
-        match mem::size_of::<T>() {
-            1 | 4 => {}
+    pub fn new<RGBA: Copy>(attr: &Attributes, bitmap: &'a [RGBA], width: usize, height: usize, gamma: f64) -> Option<Self> {
+        match mem::size_of::<RGBA>() {
+            1 | 4 => {},
             _ => return None,
         }
-        if bitmap.len() * mem::size_of::<T>() < width*height*4 {
-            println!("Buffer length is {}x{} bytes, which is not enough for {}x{}x4 RGBA bytes", bitmap.len(), mem::size_of::<T>(), width, height);
+        if bitmap.len() * mem::size_of::<RGBA>() < width*height*4 {
+            println!("Buffer length is {}x{} bytes, which is not enough for {}x{}x4 RGBA bytes", bitmap.len(), mem::size_of::<RGBA>(), width, height);
             return None;
         }
         unsafe {
             match ffi::liq_image_create_rgba(&*attr.handle, mem::transmute(bitmap.as_ptr()), width as c_int, height as c_int, gamma) {
                 h if !h.is_null() => Some(Image {
                     handle: h,
-                    _marker: std::marker::PhantomData::<&'a [u8]>,
+                    _marker: std::marker::PhantomData,
                 }),
                 _ => None,
             }
