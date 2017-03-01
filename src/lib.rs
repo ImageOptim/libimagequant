@@ -103,7 +103,7 @@ impl Attributes {
         unsafe { ffi::liq_get_max_colors(&*self.handle) }
     }
 
-    pub fn new_image<'a, RGBA: Copy>(&self, bitmap: &'a [RGBA], width: usize, height: usize, gamma: f64) -> Option<Image<'a>> {
+    pub fn new_image<'a, RGBA: Copy>(&self, bitmap: &'a [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'a>, liq_error> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
@@ -156,22 +156,22 @@ impl<'a> Histogram<'a> {
 }
 
 impl<'a> Image<'a> {
-    pub fn new<RGBA: Copy>(attr: &Attributes, bitmap: &'a [RGBA], width: usize, height: usize, gamma: f64) -> Option<Self> {
-        match mem::size_of::<RGBA>() {
-            1 | 4 => {},
-            _ => return None,
+    pub fn new<T: Copy>(attr: &Attributes, bitmap: &'a [T], width: usize, height: usize, gamma: f64) -> Result<Self,liq_error> {
+        match mem::size_of::<T>() {
+            1 | 4 => {}
+            _ => return Err(LIQ_UNSUPPORTED),
         }
-        if bitmap.len() * mem::size_of::<RGBA>() < width*height*4 {
-            println!("Buffer length is {}x{} bytes, which is not enough for {}x{}x4 RGBA bytes", bitmap.len(), mem::size_of::<RGBA>(), width, height);
-            return None;
+        if bitmap.len() * mem::size_of::<T>() < width*height*4 {
+            println!("Buffer length is {}x{} bytes, which is not enough for {}x{}x4 RGBA bytes", bitmap.len(), mem::size_of::<T>(), width, height);
+            return Err(LIQ_BUFFER_TOO_SMALL);
         }
         unsafe {
             match ffi::liq_image_create_rgba(&*attr.handle, mem::transmute(bitmap.as_ptr()), width as c_int, height as c_int, gamma) {
-                h if !h.is_null() => Some(Image {
+                h if !h.is_null() => Ok(Image {
                     handle: h,
                     _marker: std::marker::PhantomData,
                 }),
-                _ => None,
+                _ => Err(LIQ_INVALID_POINTER),
             }
         }
     }
@@ -198,8 +198,8 @@ impl QuantizationResult {
         unsafe { ffi::liq_get_output_gamma(&*self.handle) }
     }
 
-    pub fn quantization_quality(&mut self) -> isize {
-        unsafe { ffi::liq_get_quantization_quality(&*self.handle) as isize }
+    pub fn quantization_quality(&mut self) -> i32 {
+        unsafe { ffi::liq_get_quantization_quality(&*self.handle) as i32 }
     }
 
     pub fn palette(&mut self) -> Vec<Color> {
@@ -209,14 +209,14 @@ impl QuantizationResult {
         }
     }
 
-    pub fn remapped(&mut self, image: &mut Image) -> Option<(Vec<Color>, Vec<u8>)> {
+    pub fn remapped(&mut self, image: &mut Image) -> Result<(Vec<Color>, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
         let mut buf = Vec::with_capacity(len);
         unsafe {
             buf.set_len(len); // Creates uninitialized buffer
             match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, buf.as_mut_ptr(), buf.len()) {
-                LIQ_OK => Some((self.palette(), buf)),
-                _ => None,
+                LIQ_OK => Ok((self.palette(), buf)),
+                err => Err(err),
             }
         }
     }
@@ -235,15 +235,15 @@ fn takes_rgba() {
     liq.new_image(&img, 1, 1, 0.0).unwrap();
     liq.new_image(&img, 4, 2, 0.0).unwrap();
     liq.new_image(&img, 8, 1, 0.0).unwrap();
-    assert!(liq.new_image(&img, 9, 1, 0.0).is_none());
-    assert!(liq.new_image(&img, 4, 3, 0.0).is_none());
+    assert!(liq.new_image(&img, 9, 1, 0.0).is_err());
+    assert!(liq.new_image(&img, 4, 3, 0.0).is_err());
 
     #[allow(dead_code)]
     #[derive(Copy, Clone)]
     struct RGB {r:u8, g:u8, b:u8};
     let badimg = vec![RGB {r:0, g:0, b:0}; 8];
-    assert!(liq.new_image(&badimg, 1, 1, 0.0).is_none());
-    assert!(liq.new_image(&badimg, 100, 100, 0.0).is_none());
+    assert!(liq.new_image(&badimg, 1, 1, 0.0).is_err());
+    assert!(liq.new_image(&badimg, 100, 100, 0.0).is_err());
 }
 
 #[test]
