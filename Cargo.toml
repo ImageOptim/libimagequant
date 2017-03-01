@@ -14,5 +14,3 @@ version = "2.8.0"
 [lib]
 name = "imagequant"
 
-[dependencies]
-libc = "0.2"

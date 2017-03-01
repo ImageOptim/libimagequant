@@ -1,4 +1,4 @@
-use libc::{c_int, size_t};
+use std::os::raw::c_int;
 use std::fmt;
 
 #[allow(non_camel_case_types)]
@@ -94,7 +94,7 @@ extern "C" {
 
     pub fn liq_get_palette(result: &mut liq_result) -> *const liq_palette;
 
-    pub fn liq_write_remapped_image(result: &mut liq_result, input_image: &liq_image, buffer: *mut u8, buffer_size: size_t) -> liq_error;
+    pub fn liq_write_remapped_image(result: &mut liq_result, input_image: &liq_image, buffer: *mut u8, buffer_size: usize) -> liq_error;
     pub fn liq_write_remapped_image_rows(result: &mut liq_result, input_image: &liq_image, row_pointers: *const *mut u8) -> liq_error;
 
     pub fn liq_get_quantization_error(result: &liq_result) -> f64;

@@ -1,16 +1,10 @@
-#![crate_type = "lib"]
-#![allow(improper_ctypes)]
+/// https://pngquant.org/lib/
 
-/// http://pngquant.org/lib/
-
-extern crate libc;
 pub mod ffi;
 
 pub use ffi::liq_error;
 pub use ffi::liq_error::*;
-use libc::{c_int, size_t};
-use std::option::Option;
-use std::vec::Vec;
+use std::os::raw::c_int;
 use std::fmt;
 use std::mem;
 use std::ptr;
@@ -228,11 +222,11 @@ impl QuantizationResult {
     }
 
     pub fn remapped(&mut self, image: &mut Image) -> Option<(Vec<Color>, Vec<u8>)> {
+        let len = image.width() * image.height();
+        let mut buf = Vec::with_capacity(len);
         unsafe {
-            let len = image.width() * image.height();
-            let mut buf = Vec::with_capacity(len);
             buf.set_len(len); // Creates uninitialized buffer
-            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, buf.as_mut_ptr(), buf.len() as size_t) {
+            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, buf.as_mut_ptr(), buf.len()) {
                 LIQ_OK => Some((self.palette(), buf)),
                 _ => None,
             }
