@@ -1,16 +1,13 @@
-use std::os::raw::{c_int, c_uint};
+#![allow(non_camel_case_types)]
+
+use std::os::raw::{c_int, c_uint, c_char, c_void};
 use std::error;
 use std::fmt;
 use std::error::Error;
-use std::os::raw::{c_char, c_void};
 
-#[allow(non_camel_case_types)]
 pub enum liq_attr {}
-#[allow(non_camel_case_types)]
 pub enum liq_image {}
-#[allow(non_camel_case_types)]
 pub enum liq_result {}
-#[allow(non_camel_case_types)]
 pub enum liq_histogram {}
 
 #[repr(C)]
@@ -20,29 +17,26 @@ pub enum liq_error {
     LIQ_QUALITY_TOO_LOW = 99,
     LIQ_VALUE_OUT_OF_RANGE = 100,
     LIQ_OUT_OF_MEMORY,
-    LIQ_NOT_READY,
+    LIQ_ABORTED,
     LIQ_BITMAP_NOT_AVAILABLE,
     LIQ_BUFFER_TOO_SMALL,
     LIQ_INVALID_POINTER,
+    LIQ_UNSUPPORTED,
 }
 
-#[allow(non_camel_case_types)]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub enum liq_ownership {
     LIQ_OWN_ROWS = 4,
     LIQ_OWN_PIXELS = 8,
-    LIQ_OWN_QUALITY_MAP = 16,
 }
 
-#[allow(non_camel_case_types)]
 #[repr(C)]
 pub struct liq_palette {
     pub count: c_int,
     pub entries: [super::Color; 256],
 }
 
-#[allow(non_camel_case_types)]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct liq_histogram_entry {
@@ -57,10 +51,11 @@ impl error::Error for liq_error {
             liq_error::LIQ_QUALITY_TOO_LOW => "LIQ_QUALITY_TOO_LOW",
             liq_error::LIQ_VALUE_OUT_OF_RANGE => "VALUE_OUT_OF_RANGE",
             liq_error::LIQ_OUT_OF_MEMORY => "OUT_OF_MEMORY",
-            liq_error::LIQ_NOT_READY => "NOT_READY",
+            liq_error::LIQ_ABORTED => "LIQ_ABORTED",
             liq_error::LIQ_BITMAP_NOT_AVAILABLE => "BITMAP_NOT_AVAILABLE",
             liq_error::LIQ_BUFFER_TOO_SMALL => "BUFFER_TOO_SMALL",
             liq_error::LIQ_INVALID_POINTER => "INVALID_POINTER",
+            liq_error::LIQ_UNSUPPORTED => "LIQ_UNSUPPORTED",
         }
     }
 }
