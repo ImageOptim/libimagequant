@@ -1,5 +1,7 @@
 use std::os::raw::c_int;
+use std::error;
 use std::fmt;
+use std::error::Error;
 
 #[allow(non_camel_case_types)]
 pub enum liq_attr {}
@@ -11,7 +13,7 @@ pub enum liq_result {}
 pub enum liq_histogram {}
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum liq_error {
     LIQ_OK = 0,
     LIQ_QUALITY_TOO_LOW = 99,
@@ -40,9 +42,9 @@ pub struct liq_palette {
     pub entries: [super::Color; 256],
 }
 
-impl fmt::Debug for liq_error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match *self {
+impl error::Error for liq_error {
+    fn description(&self) -> &str {
+        match *self {
             liq_error::LIQ_OK => "OK",
             liq_error::LIQ_QUALITY_TOO_LOW => "LIQ_QUALITY_TOO_LOW",
             liq_error::LIQ_VALUE_OUT_OF_RANGE => "VALUE_OUT_OF_RANGE",
@@ -51,7 +53,13 @@ impl fmt::Debug for liq_error {
             liq_error::LIQ_BITMAP_NOT_AVAILABLE => "BITMAP_NOT_AVAILABLE",
             liq_error::LIQ_BUFFER_TOO_SMALL => "BUFFER_TOO_SMALL",
             liq_error::LIQ_INVALID_POINTER => "INVALID_POINTER",
-        })
+        }
+    }
+}
+
+impl fmt::Display for liq_error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
     }
 }
 
