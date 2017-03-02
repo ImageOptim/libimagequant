@@ -105,7 +105,7 @@ extern "C" {
     pub fn liq_image_destroy(img: &mut liq_image);
 
     pub fn liq_histogram_create(attr: &liq_attr) -> *mut liq_histogram;
-    pub fn liq_histogram_add_image(hist: &mut liq_histogram, attr: &liq_attr, image: &liq_image) -> liq_error;
+    pub fn liq_histogram_add_image(hist: &mut liq_histogram, attr: &liq_attr, image: &mut liq_image) -> liq_error;
     pub fn liq_histogram_add_colors(hist: &mut liq_histogram, attr: &liq_attr, entries: *const liq_histogram_entry, num_entries: c_int, gamma: f64) -> liq_error;
     pub fn liq_histogram_destroy(hist: &mut liq_histogram);
 
@@ -117,11 +117,9 @@ extern "C" {
     pub fn liq_set_output_gamma(res: &mut liq_result, gamma: f64) -> liq_error;
     pub fn liq_get_output_gamma(result: &liq_result) -> f64;
 
-
-    pub fn liq_write_remapped_image(result: &mut liq_result, input_image: &liq_image, buffer: *mut u8, buffer_size: usize) -> liq_error;
-    pub fn liq_write_remapped_image_rows(result: &mut liq_result, input_image: &liq_image, row_pointers: *const *mut u8) -> liq_error;
-
     pub fn liq_get_palette(result: &mut liq_result) -> &liq_palette;
+    pub fn liq_write_remapped_image(result: &mut liq_result, input_image: &mut liq_image, buffer: *mut u8, buffer_size: usize) -> liq_error;
+    pub fn liq_write_remapped_image_rows(result: &mut liq_result, input_image: &mut liq_image, row_pointers: *const *mut u8) -> liq_error;
     pub fn liq_get_quantization_error(result: &liq_result) -> f64;
     pub fn liq_get_quantization_quality(result: &liq_result) -> c_int;
 

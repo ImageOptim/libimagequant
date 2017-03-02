@@ -176,11 +176,11 @@ impl<'a> Image<'a> {
         }
     }
 
-    pub fn width(&mut self) -> usize {
+    pub fn width(&self) -> usize {
         unsafe { ffi::liq_image_get_width(&*self.handle) as usize }
     }
 
-    pub fn height(&mut self) -> usize {
+    pub fn height(&self) -> usize {
         unsafe { ffi::liq_image_get_height(&*self.handle) as usize }
     }
 }
