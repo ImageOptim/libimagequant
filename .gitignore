@@ -10,3 +10,13 @@ config.mk
 *.dSYM
 org/pngquant/*.class
 org/pngquant/*.h
+target/
+msvc-dist/org/
+msvc-dist/*.md
+msvc-dist/Makefile*
+msvc-dist/*.cs
+msvc-dist/*.xml
+msvc-dist/CHANGELOG
+msvc-dist/COPYRIGHT
+msvc-dist/configure
+msvc-dist/.gitignore

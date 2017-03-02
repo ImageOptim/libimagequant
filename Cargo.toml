@@ -1,0 +1,28 @@
+[package]
+authors = ["Kornel Lesiński <kornel@geekhood.net>"]
+build = "rust/build.rs"
+homepage = "https://pngquant.org/lib"
+include = ["COPYRIGHT", "rust/*", "*.c", "*.h", "README.md", "Cargo.toml"]
+license = "GPL-3.0+"
+links = "imagequant"
+name = "imagequant-sys"
+readme = "README.md"
+repository = "https://github.com/ImageOptim/libimagequant"
+version = "0.1.0"
+description = "Statically linked C part of imagequant library powering tools such as pngquant.\n\nThis library is dual-licensed like pngquant: either GPL or a commercial license. See website for details: https://pngquant.org"
+
+[build-dependencies]
+gcc = "0.3.43"
+
+[dependencies]
+rgb = "0.5.8"
+
+[features]
+default = ["sse"]
+sse = []
+
+[lib]
+crate-type = ["cdylib", "rlib", "staticlib"]
+name = "imagequant_sys"
+path = "rust/libimagequant.rs"
+doctest = false

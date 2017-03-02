@@ -68,7 +68,7 @@ $(JAVACLASSES): %.class: %.java
 $(JAVAHEADERS): %.h: %.class
 	javah -o $@ $(subst /,., $(patsubst %.class,%,$<)) && touch $@
 
-dist: $(TARFILE)
+dist: $(TARFILE) cargo
 
 $(TARFILE): $(DISTFILES)
 	rm -rf $(TARFILE) $(TARNAME)
@@ -77,6 +77,11 @@ $(TARFILE): $(DISTFILES)
 	tar -cjf $(TARFILE) --numeric-owner --exclude='._*' $(TARNAME)
 	rm -rf $(TARNAME)
 	-shasum $(TARFILE)
+
+cargo:
+	rm -rf msvc-dist
+	git clone . -b msvc msvc-dist
+	cargo test
 
 clean:
 	rm -f $(OBJS) $(SHAREDOBJS) $(SHAREDLIB).$(SOVER) $(SHAREDLIB) $(STATICLIB) $(TARFILE) $(DLL) '$(DLLIMP)' '$(DLLDEF)'
@@ -90,5 +95,5 @@ ifeq ($(filter %clean %distclean, $(MAKECMDGOALS)), )
 	./configure
 endif
 
-.PHONY: all static shared clean dist distclean dll java
+.PHONY: all static shared clean dist distclean dll java cargo
 .DELETE_ON_ERROR:

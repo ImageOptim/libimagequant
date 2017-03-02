@@ -33,8 +33,7 @@ Alternatively you can compile the library with your program simply by including 
 
     gcc -std=c99 -O3 -DNDEBUG libimagequant/*.c yourprogram.c
 
-In [Rust](https://github.com/pornel/libimagequant-rust),
-if using Cargo, add [`imagequant`](https://crates.io/crates/imagequant/) to dependencies.
+In [Rust](https://www.rust-lang.org/) you can use Cargo to build the library. Add [`imagequant`](https://crates.io/crates/imagequant) to dependencies of Rust programs, or `cargo build` [`imagequant-sys`](https://crates.io/crates/imagequant-sys) to build `libimagequant.a` for any language.
 
 To build Java JNI interface, ensure `JAVA_HOME` is set to your JDK directory, and run:
 
