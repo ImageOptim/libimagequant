@@ -170,13 +170,10 @@ LIQ_NONNULL static void liq_verbose_printf(const liq_attr *context, const char *
 {
     if (context->log_callback) {
         va_list va;
-        va_start(va, fmt);
-        int required_space = vsnprintf(NULL, 0, fmt, va)+1; // +\0
-        va_end(va);
 
-        char buf[required_space];
+        char buf[1000];
         va_start(va, fmt);
-        vsnprintf(buf, required_space, fmt, va);
+        vsnprintf(buf, 1000, fmt, va);
         va_end(va);
 
         context->log_callback(context, buf, context->log_callback_user_info);
@@ -210,8 +207,13 @@ LIQ_NONNULL static bool liq_remap_progress(const liq_remapping_result *quant, co
 #if USE_SSE
 inline static bool is_sse_available()
 {
-#if (defined(__x86_64__) || defined(__amd64))
+#if (defined(__x86_64__) || defined(__amd64) || defined(_WIN64))
     return true;
+#elif _MSC_VER
+    int info[4];
+    __cpuid(info, 1);
+    /* bool is implemented as a built-in type of size 1 in MSVC */
+    return info[3] & (1<<26) ? true : false;
 #else
     int a,b,c,d;
         cpuid(1, a, b, c, d);
@@ -744,7 +746,9 @@ LIQ_NONNULL static const rgba_pixel *liq_image_get_row_rgba(liq_image *img, unsi
 LIQ_NONNULL static void convert_row_to_f(liq_image *img, f_pixel *row_f_pixels, const unsigned int row, const float gamma_lut[])
 {
     assert(row_f_pixels);
+#ifndef _MSC_VER
     assert(!USE_SSE || 0 == ((uintptr_t)row_f_pixels & 15));
+#endif
 
     const rgba_pixel *const row_pixels = liq_image_get_row_rgba(img, row);
 
@@ -1181,12 +1185,16 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     struct nearest_map *const n = nearest_init(map);
 
     const unsigned int max_threads = omp_get_max_threads();
-    kmeans_state average_color[(KMEANS_CACHE_LINE_GAP+map->colors) * max_threads];
+    kmeans_state *average_color = malloc((KMEANS_CACHE_LINE_GAP+map->colors) * max_threads * sizeof(kmeans_state));
+    if (!average_color) {
+        return -1;
+    }
     kmeans_init(map, max_threads, average_color);
 
+    int row;
     #pragma omp parallel for if (rows*cols > 3000) \
         schedule(static) default(none) shared(average_color) reduction(+:remapping_error)
-    for(int row = 0; row < rows; ++row) {
+    for(row = 0; row < rows; ++row) {
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
         unsigned int last_match=0;
         for(unsigned int col = 0; col < cols; ++col) {
@@ -1202,6 +1210,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
 
     nearest_free(n);
 
+    free(average_color);
     return remapping_error / (input_image->width * input_image->height);
 }
 
@@ -1958,12 +1967,17 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image(liq_result *result, li
         return LIQ_BUFFER_TOO_SMALL;
     }
 
-    unsigned char *rows[input_image->height];
+    unsigned char **rows = malloc(input_image->height * sizeof(unsigned char *));
+    if (!rows) {
+        return LIQ_OUT_OF_MEMORY;
+    }
     unsigned char *buffer_bytes = buffer;
     for(unsigned int i=0; i < input_image->height; i++) {
         rows[i] = &buffer_bytes[input_image->width * i];
     }
-    return liq_write_remapped_image_rows(result, input_image, rows);
+    liq_error error = liq_write_remapped_image_rows(result, input_image, rows);
+    free(rows);
+    return error;
 }
 
 LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image_rows(liq_result *quant, liq_image *input_image, unsigned char **row_pointers)
