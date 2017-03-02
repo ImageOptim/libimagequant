@@ -109,4 +109,7 @@ extern "C" {
     pub fn liq_get_quantization_quality(result: &liq_result) -> c_int;
 
     pub fn liq_result_destroy(res: &mut liq_result);
+    pub fn liq_get_remapping_error(result: &liq_result) -> f64;
+    pub fn liq_get_remapping_quality(result: &liq_result) -> c_int;
+    pub fn liq_version() -> c_int;
 }
