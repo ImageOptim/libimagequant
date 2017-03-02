@@ -98,6 +98,8 @@ extern "C" {
     pub fn liq_set_log_flush_callback(arg1: &mut liq_attr, arg2: liq_log_flush_callback_function, user_info: *mut c_void);
     pub fn liq_attr_set_progress_callback(arg1: &mut liq_attr, arg2: liq_progress_callback_function, user_info: *mut c_void);
     pub fn liq_result_set_progress_callback(arg1: &mut liq_result, arg2: liq_progress_callback_function, user_info: *mut c_void);
+    pub fn liq_image_create_custom(attr: &liq_attr, row_callback: liq_image_get_rgba_row_callback, user_info: *mut c_void, width: c_int, height: c_int, gamma: f64) -> *mut liq_image;
+    pub fn liq_image_add_fixed_color(img: &mut liq_image, color: super::Color) -> liq_error;
     pub fn liq_image_get_width(img: &liq_image) -> c_int;
     pub fn liq_image_get_height(img: &liq_image) -> c_int;
     pub fn liq_image_destroy(img: &mut liq_image);
