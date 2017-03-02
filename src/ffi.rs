@@ -66,6 +66,13 @@ impl fmt::Display for liq_error {
     }
 }
 
+pub type liq_log_callback_function = Option<unsafe extern "C" fn(arg1: &liq_attr, message: *const c_char, user_info: *mut c_void)>;
+pub type liq_log_flush_callback_function = Option<unsafe extern "C" fn(arg1: &liq_attr, user_info: *mut c_void)>;
+pub type liq_progress_callback_function = Option<unsafe extern "C" fn(progress_percent: f32, user_info: *mut c_void) -> c_int>;
+pub type liq_image_get_rgba_row_callback = Option<unsafe extern "C" fn(row_out: &mut super::Color,
+                                                                                        row: c_int,
+                                                                                        width: c_int,
+                                                                                        user_info: *mut c_void)>;
 #[link(name="imagequant", kind="static")]
 extern "C" {
 
@@ -87,6 +94,10 @@ extern "C" {
     pub fn liq_image_create_rgba_rows(attr: &liq_attr, rows: *const *const u8, width: c_int, height: c_int, gamma: f64) -> *mut liq_image;
     pub fn liq_image_create_rgba(attr: &liq_attr, bitmap: *const u8, width: c_int, height: c_int, gamma: f64) -> *mut liq_image;
 
+    pub fn liq_set_log_callback(arg1: &mut liq_attr, arg2: liq_log_callback_function, user_info: *mut c_void);
+    pub fn liq_set_log_flush_callback(arg1: &mut liq_attr, arg2: liq_log_flush_callback_function, user_info: *mut c_void);
+    pub fn liq_attr_set_progress_callback(arg1: &mut liq_attr, arg2: liq_progress_callback_function, user_info: *mut c_void);
+    pub fn liq_result_set_progress_callback(arg1: &mut liq_result, arg2: liq_progress_callback_function, user_info: *mut c_void);
     pub fn liq_image_get_width(img: &liq_image) -> c_int;
     pub fn liq_image_get_height(img: &liq_image) -> c_int;
     pub fn liq_image_destroy(img: &mut liq_image);
