@@ -1,31 +1,15 @@
 /// https://pngquant.org/lib/
 
+extern crate rgb;
 pub mod ffi;
 
 pub use ffi::liq_error;
 pub use ffi::liq_error::*;
 use std::os::raw::c_int;
-use std::fmt;
 use std::mem;
 use std::ptr;
 
-#[repr(C)]
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub struct Color {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-    pub a: u8,
-}
-
-impl fmt::Debug for Color {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.a {
-            255 => write!(f, "#{:02x}{:02x}{:02x}", self.r, self.g, self.b),
-            _ => write!(f, "rgba({},{},{},{})", self.r, self.g, self.b, self.a),
-        }
-    }
-}
+pub type Color = rgb::RGBA8;
 
 pub struct Attributes {
     handle: *mut ffi::liq_attr,
