@@ -96,15 +96,15 @@ extern "C" {
     pub fn liq_histogram_quantize(input_hist: &liq_histogram, options: &liq_attr, result_output: &mut *mut liq_result) -> liq_error;
     pub fn liq_image_quantize(input_image: &liq_image, options: &liq_attr, result_output: &mut *mut liq_result) -> liq_error;
 
-    pub fn liq_set_dithering_level(res: &liq_result, dither_level: f32) -> liq_error;
-    pub fn liq_set_output_gamma(res: &liq_result, gamma: f64) -> liq_error;
+    pub fn liq_set_dithering_level(res: &mut liq_result, dither_level: f32) -> liq_error;
+    pub fn liq_set_output_gamma(res: &mut liq_result, gamma: f64) -> liq_error;
     pub fn liq_get_output_gamma(result: &liq_result) -> f64;
 
-    pub fn liq_get_palette(result: &mut liq_result) -> *const liq_palette;
 
     pub fn liq_write_remapped_image(result: &mut liq_result, input_image: &liq_image, buffer: *mut u8, buffer_size: usize) -> liq_error;
     pub fn liq_write_remapped_image_rows(result: &mut liq_result, input_image: &liq_image, row_pointers: *const *mut u8) -> liq_error;
 
+    pub fn liq_get_palette(result: &mut liq_result) -> &liq_palette;
     pub fn liq_get_quantization_error(result: &liq_result) -> f64;
     pub fn liq_get_quantization_quality(result: &liq_result) -> c_int;
 
