@@ -282,7 +282,7 @@ inline static double color_weight(f_pixel median, hist_item h)
 }
 
 static void set_colormap_from_boxes(colormap *map, struct box* bv, unsigned int boxes, hist_item *achv);
-static void adjust_histogram(hist_item *achv, const colormap *map, const struct box* bv, unsigned int boxes);
+static void adjust_histogram(hist_item *achv, const struct box* bv, unsigned int boxes);
 
 static double box_error(const struct box *box, const hist_item achv[])
 {
@@ -406,7 +406,7 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
     colormap *map = pam_colormap(boxes, malloc, free);
     set_colormap_from_boxes(map, bv, boxes, achv);
 
-    adjust_histogram(achv, map, bv, boxes);
+    adjust_histogram(achv, bv, boxes);
 
     return map;
 }
@@ -433,7 +433,7 @@ static void set_colormap_from_boxes(colormap *map, struct box* bv, unsigned int 
 }
 
 /* increase histogram popularity by difference from the final color (this is used as part of feedback loop) */
-static void adjust_histogram(hist_item *achv, const colormap *map, const struct box* bv, unsigned int boxes)
+static void adjust_histogram(hist_item *achv, const struct box* bv, unsigned int boxes)
 {
     for(unsigned int bi = 0; bi < boxes; ++bi) {
         for(unsigned int i=bv[bi].ind; i < bv[bi].ind+bv[bi].colors; i++) {
