@@ -69,12 +69,12 @@ typedef struct liq_histogram_entry {
 
 LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_create(void);
 LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_create_with_allocator(void* (*malloc)(size_t), void (*free)(void*));
-LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_copy(liq_attr *orig) LIQ_NONNULL;
+LIQ_EXPORT LIQ_USERESULT liq_attr* liq_attr_copy(const liq_attr *orig) LIQ_NONNULL;
 LIQ_EXPORT void liq_attr_destroy(liq_attr *attr) LIQ_NONNULL;
 
-LIQ_EXPORT LIQ_USERESULT liq_histogram* liq_histogram_create(liq_attr* attr);
-LIQ_EXPORT liq_error liq_histogram_add_image(liq_histogram *hist, liq_attr *attr, liq_image* image) LIQ_NONNULL;
-LIQ_EXPORT liq_error liq_histogram_add_colors(liq_histogram *hist, liq_attr *attr, liq_histogram_entry entries[], int num_entries, double gamma) LIQ_NONNULL;
+LIQ_EXPORT LIQ_USERESULT liq_histogram* liq_histogram_create(const liq_attr* attr);
+LIQ_EXPORT liq_error liq_histogram_add_image(liq_histogram *hist, const liq_attr *attr, liq_image* image) LIQ_NONNULL;
+LIQ_EXPORT liq_error liq_histogram_add_colors(liq_histogram *hist, const liq_attr *attr, const liq_histogram_entry entries[], int num_entries, double gamma) LIQ_NONNULL;
 LIQ_EXPORT void liq_histogram_destroy(liq_histogram *hist) LIQ_NONNULL;
 
 LIQ_EXPORT liq_error liq_set_max_colors(liq_attr* attr, int colors) LIQ_NONNULL;
@@ -124,10 +124,10 @@ LIQ_EXPORT LIQ_USERESULT const liq_palette *liq_get_palette(liq_result *result) 
 LIQ_EXPORT liq_error liq_write_remapped_image(liq_result *result, liq_image *input_image, void *buffer, size_t buffer_size) LIQ_NONNULL;
 LIQ_EXPORT liq_error liq_write_remapped_image_rows(liq_result *result, liq_image *input_image, unsigned char **row_pointers) LIQ_NONNULL;
 
-LIQ_EXPORT double liq_get_quantization_error(liq_result *result) LIQ_NONNULL;
-LIQ_EXPORT int liq_get_quantization_quality(liq_result *result) LIQ_NONNULL;
-LIQ_EXPORT double liq_get_remapping_error(liq_result *result) LIQ_NONNULL;
-LIQ_EXPORT int liq_get_remapping_quality(liq_result *result) LIQ_NONNULL;
+LIQ_EXPORT double liq_get_quantization_error(const liq_result *result) LIQ_NONNULL;
+LIQ_EXPORT int liq_get_quantization_quality(const liq_result *result) LIQ_NONNULL;
+LIQ_EXPORT double liq_get_remapping_error(const liq_result *result) LIQ_NONNULL;
+LIQ_EXPORT int liq_get_remapping_quality(const liq_result *result) LIQ_NONNULL;
 
 LIQ_EXPORT void liq_result_destroy(liq_result *) LIQ_NONNULL;
 

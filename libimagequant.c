@@ -460,7 +460,7 @@ LIQ_EXPORT LIQ_NONNULL void liq_attr_destroy(liq_attr *attr)
     attr->free(attr);
 }
 
-LIQ_EXPORT LIQ_NONNULL liq_attr* liq_attr_copy(liq_attr *orig)
+LIQ_EXPORT LIQ_NONNULL liq_attr* liq_attr_copy(const liq_attr *orig)
 {
     if (!CHECK_STRUCT_TYPE(orig, liq_attr)) {
         return NULL;
@@ -852,7 +852,7 @@ LIQ_EXPORT LIQ_NONNULL void liq_image_destroy(liq_image *input_image)
     input_image->free(input_image);
 }
 
-LIQ_EXPORT liq_histogram* liq_histogram_create(liq_attr* attr)
+LIQ_EXPORT liq_histogram* liq_histogram_create(const liq_attr* attr)
 {
     if (!CHECK_STRUCT_TYPE(attr, liq_attr)) {
         return NULL;
@@ -1010,7 +1010,7 @@ LIQ_EXPORT LIQ_NONNULL void liq_result_destroy(liq_result *res)
 }
 
 
-LIQ_EXPORT LIQ_NONNULL double liq_get_quantization_error(liq_result *result) {
+LIQ_EXPORT LIQ_NONNULL double liq_get_quantization_error(const liq_result *result) {
     if (!CHECK_STRUCT_TYPE(result, liq_result)) return -1;
 
     if (result->palette_error >= 0) {
@@ -1020,7 +1020,7 @@ LIQ_EXPORT LIQ_NONNULL double liq_get_quantization_error(liq_result *result) {
     return -1;
 }
 
-LIQ_EXPORT LIQ_NONNULL double liq_get_remapping_error(liq_result *result) {
+LIQ_EXPORT LIQ_NONNULL double liq_get_remapping_error(const liq_result *result) {
     if (!CHECK_STRUCT_TYPE(result, liq_result)) return -1;
 
     if (result->remapping && result->remapping->palette_error >= 0) {
@@ -1030,7 +1030,7 @@ LIQ_EXPORT LIQ_NONNULL double liq_get_remapping_error(liq_result *result) {
     return -1;
 }
 
-LIQ_EXPORT LIQ_NONNULL int liq_get_quantization_quality(liq_result *result) {
+LIQ_EXPORT LIQ_NONNULL int liq_get_quantization_quality(const liq_result *result) {
     if (!CHECK_STRUCT_TYPE(result, liq_result)) return -1;
 
     if (result->palette_error >= 0) {
@@ -1040,7 +1040,7 @@ LIQ_EXPORT LIQ_NONNULL int liq_get_quantization_quality(liq_result *result) {
     return -1;
 }
 
-LIQ_EXPORT LIQ_NONNULL int liq_get_remapping_quality(liq_result *result) {
+LIQ_EXPORT LIQ_NONNULL int liq_get_remapping_quality(const liq_result *result) {
     if (!CHECK_STRUCT_TYPE(result, liq_result)) return -1;
 
     if (result->remapping && result->remapping->palette_error >= 0) {
@@ -1402,7 +1402,7 @@ LIQ_NONNULL static void remove_fixed_colors_from_histogram(histogram *hist, cons
     }
 }
 
-LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_colors(liq_histogram *input_hist, liq_attr *options, liq_histogram_entry entries[], int num_entries, double gamma)
+LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_colors(liq_histogram *input_hist, const liq_attr *options, const liq_histogram_entry entries[], int num_entries, double gamma)
 {
     if (!CHECK_STRUCT_TYPE(options, liq_attr)) return LIQ_INVALID_POINTER;
     if (!CHECK_STRUCT_TYPE(input_hist, liq_histogram)) return LIQ_INVALID_POINTER;
@@ -1453,7 +1453,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_colors(liq_histogram *input_h
     return LIQ_OK;
 }
 
-LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hist, liq_attr *options, liq_image *input_image)
+LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hist, const liq_attr *options, liq_image *input_image)
 {
     if (!CHECK_STRUCT_TYPE(options, liq_attr)) return LIQ_INVALID_POINTER;
     if (!CHECK_STRUCT_TYPE(input_hist, liq_histogram)) return LIQ_INVALID_POINTER;
