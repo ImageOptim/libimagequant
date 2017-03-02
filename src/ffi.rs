@@ -1,7 +1,8 @@
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_uint};
 use std::error;
 use std::fmt;
 use std::error::Error;
+use std::os::raw::{c_char, c_void};
 
 #[allow(non_camel_case_types)]
 pub enum liq_attr {}
@@ -34,12 +35,19 @@ pub enum liq_ownership {
     LIQ_OWN_QUALITY_MAP = 16,
 }
 
-
 #[allow(non_camel_case_types)]
 #[repr(C)]
 pub struct liq_palette {
     pub count: c_int,
     pub entries: [super::Color; 256],
+}
+
+#[allow(non_camel_case_types)]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct liq_histogram_entry {
+    pub color: super::Color,
+    pub count: c_uint,
 }
 
 impl error::Error for liq_error {
@@ -90,6 +98,7 @@ extern "C" {
 
     pub fn liq_histogram_create(attr: &liq_attr) -> *mut liq_histogram;
     pub fn liq_histogram_add_image(hist: &mut liq_histogram, attr: &liq_attr, image: &liq_image) -> liq_error;
+    pub fn liq_histogram_add_colors(hist: &mut liq_histogram, attr: &liq_attr, entries: *const liq_histogram_entry, num_entries: c_int, gamma: f64) -> liq_error;
     pub fn liq_histogram_destroy(hist: &mut liq_histogram);
 
     pub fn liq_quantize_image(options: &liq_attr, input_image: &liq_image) -> *mut liq_result;

@@ -10,6 +10,7 @@ use std::mem;
 use std::ptr;
 
 pub type Color = rgb::RGBA8;
+pub type HistogramEntry = ffi::liq_histogram_entry;
 
 pub struct Attributes {
     handle: *mut ffi::liq_attr,
@@ -133,9 +134,13 @@ impl<'a> Histogram<'a> {
         }
     }
 
-    pub fn add_image(&mut self, image: &Image) -> liq_error {
+    pub fn add_image(&mut self, image: &mut Image) -> liq_error {
+        unsafe { ffi::liq_histogram_add_image(&mut *self.handle, &*self.attr.handle, &mut *image.handle) }
+    }
+
+    pub fn add_colors(&mut self, colors: &[HistogramEntry], gamma: f64) -> liq_error {
         unsafe {
-            ffi::liq_histogram_add_image(&mut *self.handle, &*self.attr.handle, &*image.handle)
+            ffi::liq_histogram_add_colors(&mut *self.handle, &*self.attr.handle, colors.as_ptr(), colors.len() as c_int, gamma)
         }
     }
 
@@ -247,16 +252,21 @@ fn histogram() {
     let mut hist = attr.new_histogram();
 
     let bitmap1 = vec![0u8; 4];
-    let image1 = attr.new_image(&bitmap1[..], 1, 1, 0.0).unwrap();
-    hist.add_image(&image1);
+    let mut image1 = attr.new_image(&bitmap1[..], 1, 1, 0.0).unwrap();
+    hist.add_image(&mut image1);
 
     let bitmap2 = vec![255u8; 4];
-    let image2 = attr.new_image(&bitmap2[..], 1, 1, 0.0).unwrap();
-    hist.add_image(&image2);
+    let mut image2 = attr.new_image(&bitmap2[..], 1, 1, 0.0).unwrap();
+    hist.add_image(&mut image2);
+
+    hist.add_colors(&[HistogramEntry{
+        color: rgb::RGBA8::new(255,128,255,128),
+        count: 10,
+    }], 0.0);
 
     let mut res = hist.quantize().unwrap();
     let pal = res.palette();
-    assert_eq!(2, pal.len());
+    assert_eq!(3, pal.len());
 }
 
 #[test]

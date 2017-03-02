@@ -9,7 +9,7 @@ authors = [ "Kornel <kornel@pngquant.org>" ]
 categories = [ "external-ffi-bindings", "multimedia::images" ]
 
 build = "build.rs"
-version = "2.8.2"
+version = "2.9.0"
 
 [dependencies]
 rgb = "0.5.5"
