@@ -40,8 +40,12 @@ $(STATICLIB): $(OBJS)
 $(SHAREDOBJS):
 	$(CC) -fPIC $(CFLAGS) -c $(@:.lo=.c) -o $@
 
-$(SHAREDLIB): $(SHAREDOBJS)
+libimagequant.so: $(SHAREDOBJS)
 	$(CC) -shared -Wl,-soname,$(SHAREDLIB).$(SOVER) -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
+	ln -fs $(SHAREDLIB).$(SOVER) $(SHAREDLIB)
+
+libimagequant.dylib: $(SHAREDOBJS)
+	$(CC) -shared -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
 	ln -fs $(SHAREDLIB).$(SOVER) $(SHAREDLIB)
 
 $(OBJS): $(wildcard *.h) config.mk
