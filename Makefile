@@ -5,9 +5,12 @@ SHAREDLIB=libimagequant.$(SOLIBSUFFIX)
 SOVER=0
 
 JNILIB=libimagequant.jnilib
-DLL=libimagequant.dll
-DLLIMP=libimagequant_dll.a
-DLLDEF=libimagequant_dll.def
+DLL=imagequant.dll
+DLLIMP=imagequant_dll.a
+DLLDEF=imagequant_dll.def
+JNIDLL=libimagequant.dll
+JNIDLLIMP=libimagequant_dll.a
+JNIDLLDEF=libimagequant_dll.def
 
 OBJS = pam.o mediancut.o blur.o mempool.o kmeans.o nearest.o libimagequant.o
 SHAREDOBJS = $(subst .o,.lo,$(OBJS))
@@ -31,6 +34,9 @@ dll:
 
 java: $(JNILIB)
 
+java-dll:
+	$(MAKE) CFLAGSADD="-DIMAGEQUANT_EXPORTS" $(JNIDLL)
+
 $(DLL) $(DLLIMP): $(OBJS)
 	$(CC) -fPIC -shared -o $(DLL) $^ $(LDFLAGS) -Wl,--out-implib,$(DLLIMP),--output-def,$(DLLDEF)
 
@@ -40,14 +46,21 @@ $(STATICLIB): $(OBJS)
 $(SHAREDOBJS):
 	$(CC) -fPIC $(CFLAGS) -c $(@:.lo=.c) -o $@
 
-$(SHAREDLIB): $(SHAREDOBJS)
+libimagequant.so: $(SHAREDOBJS)
 	$(CC) -shared -Wl,-soname,$(SHAREDLIB).$(SOVER) -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
+	ln -fs $(SHAREDLIB).$(SOVER) $(SHAREDLIB)
+
+libimagequant.dylib: $(SHAREDOBJS)
+	$(CC) -shared -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
 	ln -fs $(SHAREDLIB).$(SOVER) $(SHAREDLIB)
 
 $(OBJS): $(wildcard *.h) config.mk
 
 $(JNILIB): $(JAVAHEADERS) $(STATICLIB) org/pngquant/PngQuant.c
 	$(CC) -g $(CFLAGS) $(LDFLAGS) $(JAVAINCLUDE) -shared -o $@ $(STATICLIB) org/pngquant/PngQuant.c
+
+$(JNIDLL) $(JNIDLLIMP): $(JAVAHEADERS) $(OBJS) org/pngquant/PngQuant.c
+	$(CC) -fPIC -shared -I. $(JAVAINCLUDE) -o $(JNIDLL) $^ $(LDFLAGS) -Wl,--out-implib,$(JNIDLLIMP),--output-def,$(JNIDLLDEF)
 
 $(JAVACLASSES): %.class: %.java
 	javac $<

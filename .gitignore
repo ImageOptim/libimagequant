@@ -5,6 +5,7 @@ config.mk
 *.so.0
 *.bz2
 *.dylib
+*.dylib.0
 *.jnilib
 *.dSYM
 org/pngquant/*.class

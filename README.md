@@ -36,12 +36,14 @@ Alternatively you can compile the library with your program simply by including 
 In [Rust](https://github.com/pornel/libimagequant-rust),
 if using Cargo, add [`imagequant`](https://crates.io/crates/imagequant/) to dependencies.
 
-To build Java JNI interface run:
+To build Java JNI interface, ensure `JAVA_HOME` is set to your JDK directory, and run:
 
     # export JAVA_HOME=$(locate include/jni.h) # you may need to set JAVA_HOME first
     make java
 
 It will create `libimagequant.jnilib` and classes in `org/pngquant/`.
+
+On Windows run `make java-dll` and it'll create `libimagequant.dll` instead.
 
 ### Compiling on Windows/Visual Studio
 
