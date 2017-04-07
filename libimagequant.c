@@ -641,7 +641,7 @@ LIQ_NONNULL static bool check_image_size(const liq_attr *attr, const int width, 
         return false;
     }
 
-    if (width > INT_MAX/sizeof(rgba_pixel)/height || width > INT_MAX/16/sizeof(f_pixel) || height > INT_MAX/sizeof(size_t)) {
+    if (width > (int)(INT_MAX/sizeof(rgba_pixel)/height) || width > (int)(INT_MAX/16/sizeof(f_pixel)) || height > (int)(INT_MAX/sizeof(size_t))) {
         liq_log_error(attr, "image too large");
         return false;
     }
@@ -1391,8 +1391,8 @@ LIQ_NONNULL static void remove_fixed_colors_from_histogram(histogram *hist, cons
 {
     const float max_difference = MAX(target_mse/2.0, 2.0/256.0/256.0);
     if (fixed_colors_count) {
-        for(int j=0; j < hist->size; j++) {
-            for(unsigned int i=0; i < fixed_colors_count; i++) {
+        for(unsigned int j=0; j < hist->size; j++) {
+            for(int i=0; i < fixed_colors_count; i++) {
                 if (colordifference(hist->achv[j].acolor, fixed_colors[i]) < max_difference) {
                     hist->achv[j] = hist->achv[--hist->size]; // remove color from histogram by overwriting with the last entry
                     j--; break; // continue searching histogram
@@ -1486,7 +1486,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hi
 
     // Usual solution is to start from scratch when limit is exceeded, but that's not possible if it's not
     // the first image added
-    const unsigned int max_histogram_entries = input_hist->had_image_added ? ~0 : options->max_histogram_entries;
+    const unsigned int max_histogram_entries = input_hist->had_image_added ? ~0u : options->max_histogram_entries;
     do {
         if (!input_hist->acht) {
             input_hist->acht = pam_allocacolorhash(max_histogram_entries, rows*cols, input_hist->ignorebits, options->malloc, options->free);
@@ -1722,10 +1722,10 @@ static colormap *add_fixed_colors_to_palette(colormap *palette, const int max_co
 {
     if (!fixed_colors_count) return palette;
 
-    colormap *newpal = pam_colormap(MIN(max_colors, (palette ? palette->colors : 0) + fixed_colors_count), malloc, free);
+    colormap *newpal = pam_colormap(MIN(max_colors, (palette ? (int)palette->colors : 0) + fixed_colors_count), malloc, free);
     unsigned int i=0;
     if (palette && fixed_colors_count < max_colors) {
-        unsigned int palette_max = MIN(palette->colors, max_colors - fixed_colors_count);
+        unsigned int palette_max = MIN((int)palette->colors, max_colors - fixed_colors_count);
         for(; i < palette_max; i++) {
             newpal->palette[i] = palette->palette[i];
         }
