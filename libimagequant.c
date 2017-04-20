@@ -1369,7 +1369,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             if (fs_direction > 0) {
                 if (col >= cols) break;
             } else {
-                if (col <= 0) break;
+                if (col < 0) break;
             }
         } while(1);
 
