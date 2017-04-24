@@ -1,4 +1,4 @@
-#[libimagequant](http://pngquant.org/lib/) bindings for [Rust](http://www.rust-lang.org/)
+# [libimagequant](http://pngquant.org/lib/) bindings for [Rust](http://www.rust-lang.org/)
 
 Imagequant library converts RGBA images to 8-bit indexed images with palette, *including* alpha component.
 It's ideal for generating tiny PNG images (although [image I/O](https://github.com/pornel/lodepng-rust) isn't handled by the library itself).
