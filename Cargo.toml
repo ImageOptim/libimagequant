@@ -8,7 +8,7 @@ authors = [ "Kornel <kornel@pngquant.org>" ]
 categories = [ "external-ffi-bindings", "multimedia::images" ]
 name = "imagequant"
 repository = "https://github.com/pornel/libimagequant-rust.git"
-version = "2.9.1"
+version = "2.9.2"
 
 [build-dependencies]
 gcc = "0.3.45"
