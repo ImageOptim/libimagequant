@@ -7,16 +7,26 @@ fn main() {
         panic!("Download failed");
     }
 
-    let mut out_dir: PathBuf = env::var_os("OUT_DIR").unwrap().into();
-    out_dir.push("lib");
+    let mut liq_dir: PathBuf = env::var_os("OUT_DIR").unwrap().into();
+    liq_dir.push("lib");
 
-    gcc::compile_library("libimagequant.a", &[
-        &out_dir.join("blur.c").to_str().unwrap(),
-        &out_dir.join("kmeans.c").to_str().unwrap(),
-        &out_dir.join("libimagequant.c").to_str().unwrap(),
-        &out_dir.join("mediancut.c").to_str().unwrap(),
-        &out_dir.join("mempool.c").to_str().unwrap(),
-        &out_dir.join("nearest.c").to_str().unwrap(),
-        &out_dir.join("pam.c").to_str().unwrap(),
-    ]);
+	let mut cfg = gcc::Config::new();
+    if cfg!(target_arch = "x86_64") || cfg!(target_arch = "x86") {
+        cfg.flag("-msse").define("USE_SSE", Some("1"));
+    }
+    if env::var("PROFILE").map(|x|x != "debug").unwrap_or(true)  {
+        cfg.define("NDEBUG", Some("1"));
+    }
+    cfg
+        .flag("-std=c99")
+        .flag("-ffast-math")
+        .file(&liq_dir.join("blur.c").to_str().unwrap())
+    	.file(&liq_dir.join("kmeans.c").to_str().unwrap())
+        .file(&liq_dir.join("libimagequant.c").to_str().unwrap())
+    	.file(&liq_dir.join("mediancut.c").to_str().unwrap())
+        .file(&liq_dir.join("mempool.c").to_str().unwrap())
+    	.file(&liq_dir.join("nearest.c").to_str().unwrap())
+        .file(&liq_dir.join("pam.c").to_str().unwrap())
+		.include(liq_dir)
+        .compile("libimagequant.a");
 }
