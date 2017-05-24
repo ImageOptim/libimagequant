@@ -1270,12 +1270,11 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
     const colormap_item *acolormap = map->palette;
 
     /* Initialize Floyd-Steinberg error vectors. */
-    f_pixel *restrict thiserr, *restrict nexterr;
-    const size_t errsize = (cols + 2) * sizeof(*thiserr) * 2;
-    thiserr = input_image->malloc(errsize); // +2 saves from checking out of bounds access
+    const size_t errwidth = cols+2;
+    f_pixel *restrict thiserr = input_image->malloc(errwidth * sizeof(thiserr[0]) * 2); // +2 saves from checking out of bounds access
     if (!thiserr) return false;
-    memset(thiserr, 0, errsize);
-    nexterr = thiserr + (cols + 2);
+    f_pixel *restrict nexterr = thiserr + errwidth;
+    memset(thiserr, 0, errwidth * sizeof(thiserr[0]));
 
     bool ok = true;
     struct nearest_map *const n = nearest_init(map);
@@ -1297,7 +1296,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             break;
         }
 
-        memset(nexterr, 0, (cols + 2) * sizeof(*nexterr));
+        memset(nexterr, 0, errwidth * sizeof(nexterr[0]));
 
         int col = (fs_direction > 0) ? 0 : (cols - 1);
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
@@ -1379,7 +1378,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             if (fs_direction > 0) {
                 if (col >= cols) break;
             } else {
-                if (col <= 0) break;
+                if (col < 0) break;
             }
         } while(1);
 
