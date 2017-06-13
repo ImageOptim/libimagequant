@@ -7,14 +7,15 @@ license = "GPL-3.0"
 authors = [ "Kornel <kornel@pngquant.org>" ]
 categories = [ "external-ffi-bindings", "multimedia::images" ]
 name = "imagequant"
+include = ["src/*", "examples/*", "build.rs", "vendor/lib/*", "COPYRIGHT", "Cargo.toml", "README.md"]
 repository = "https://github.com/pornel/libimagequant-rust.git"
 version = "2.10.0"
 
 [build-dependencies]
-gcc = "0.3.45"
+gcc = "0.3.50"
 
 [dependencies]
-rgb = "0.5.7"
+rgb = "0.5.8"
 
 [lib]
 name = "imagequant"

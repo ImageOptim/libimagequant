@@ -1,14 +1,8 @@
 extern crate gcc;
 use std::env;
-use std::path::PathBuf;
 
 fn main() {
-    if !std::process::Command::new("make").status().unwrap().success() {
-        panic!("Download failed");
-    }
-
-    let mut liq_dir: PathBuf = env::var_os("OUT_DIR").unwrap().into();
-    liq_dir.push("lib");
+    assert!(std::path::Path::new("vendor/lib").exists(), "{}", env::current_dir().unwrap().display());
 
 	let mut cfg = gcc::Config::new();
     if cfg!(target_arch = "x86_64") || cfg!(target_arch = "x86") {
@@ -20,13 +14,13 @@ fn main() {
     cfg
         .flag("-std=c99")
         .flag("-ffast-math")
-        .file(&liq_dir.join("blur.c").to_str().unwrap())
-    	.file(&liq_dir.join("kmeans.c").to_str().unwrap())
-        .file(&liq_dir.join("libimagequant.c").to_str().unwrap())
-    	.file(&liq_dir.join("mediancut.c").to_str().unwrap())
-        .file(&liq_dir.join("mempool.c").to_str().unwrap())
-    	.file(&liq_dir.join("nearest.c").to_str().unwrap())
-        .file(&liq_dir.join("pam.c").to_str().unwrap())
-		.include(liq_dir)
+        .file("vendor/lib/blur.c")
+    	.file("vendor/lib/kmeans.c")
+        .file("vendor/lib/libimagequant.c")
+    	.file("vendor/lib/mediancut.c")
+        .file("vendor/lib/mempool.c")
+    	.file("vendor/lib/nearest.c")
+        .file("vendor/lib/pam.c")
+		.include("vendor/lib")
         .compile("libimagequant.a");
 }
