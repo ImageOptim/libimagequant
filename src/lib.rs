@@ -222,6 +222,11 @@ impl QuantizationResult {
     }
 }
 
+unsafe impl Send for Attributes {}
+unsafe impl Send for QuantizationResult {}
+unsafe impl<'a> Send for Image<'a> {}
+unsafe impl<'a> Send for Histogram<'a> {}
+
 #[test]
 fn takes_rgba() {
     let liq = Attributes::new();
@@ -303,4 +308,13 @@ fn poke_it() {
     assert_eq!(100, res.quantization_quality());
     assert_eq!(Color{r:255,g:255,b:255,a:255}, palette[0]);
     assert_eq!(Color{r:0x55,g:0x66,b:0x77,a:255}, palette[1]);
+}
+
+#[test]
+fn thread() {
+    let liq = Attributes::new();
+    std::thread::spawn(move || {
+        let b = vec![0u8;4];
+        liq.new_image(&b, 1, 1, 0.).unwrap();
+    }).join().unwrap();
 }
