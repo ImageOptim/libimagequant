@@ -1,4 +1,10 @@
-/// https://pngquant.org/lib/
+//! https://pngquant.org/lib/
+//!
+//! Converts RGBA images to 8-bit with alpha channel.
+//!
+//! This is based on imagequant library, which generates very high quality images.
+//!
+//! See `examples/` directory for example code.
 
 extern crate imagequant_sys as ffi;
 
@@ -8,22 +14,27 @@ use std::os::raw::c_int;
 use std::mem;
 use std::ptr;
 
+/// 8-bit RGBA. This is the only color format used by the library.
 pub type Color = ffi::liq_color;
 pub type HistogramEntry = ffi::liq_histogram_entry;
 
+/// Settings for the conversion proces. Start here.
 pub struct Attributes {
     handle: *mut ffi::liq_attr,
 }
 
+/// Describes image dimensions for the library.
 pub struct Image<'a> {
     handle: *mut ffi::liq_image,
     _marker: std::marker::PhantomData<&'a [u8]>,
 }
 
+/// Palette inside.
 pub struct QuantizationResult {
     handle: *mut ffi::liq_result,
 }
 
+/// Generate one shared palette for multiple images.
 pub struct Histogram<'a> {
     attr: &'a Attributes,
     handle: *mut ffi::liq_histogram,
@@ -74,18 +85,31 @@ impl Attributes {
         Attributes { handle: handle }
     }
 
+    /// It's better to use `set_quality()`
     pub fn set_max_colors(&mut self, value: i32) -> liq_error {
         unsafe { ffi::liq_set_max_colors(&mut *self.handle, value) }
     }
 
+    /// Number of least significant bits to ignore.
+    ///
+    /// Useful for generating palettes for VGA, 15-bit textures, or other retro platforms.
     pub fn set_min_posterization(&mut self, value: i32) -> liq_error {
         unsafe { ffi::liq_set_min_posterization(&mut *self.handle, value) }
     }
 
+    /// Range 0-100, roughly like JPEG.
+    ///
+    /// If minimum quality can't be met, quantization will fail.
+    ///
+    /// Default is min 0, max 100.
     pub fn set_quality(&mut self, min: u32, max: u32) -> liq_error {
         unsafe { ffi::liq_set_quality(&mut *self.handle, min as c_int, max as c_int) }
     }
 
+    /// 1-10.
+    ///
+    /// Faster speeds generate images of lower quality, but may be useful
+    /// for real-time generation of images.
     pub fn set_speed(&mut self, value: i32) -> liq_error {
         unsafe { ffi::liq_set_speed(&mut *self.handle, value) }
     }
@@ -102,6 +126,9 @@ impl Attributes {
         unsafe { ffi::liq_get_max_colors(&*self.handle) }
     }
 
+    /// Describe dimensions of a slice of RGBA pixels
+    ///
+    /// Use 0.0 for gamma if the image is sRGB (most images are).
     pub fn new_image<'a, RGBA: Copy>(&self, bitmap: &'a [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'a>, liq_error> {
         Image::new(self, bitmap, width, height, gamma)
     }
@@ -110,6 +137,7 @@ impl Attributes {
         Histogram::new(&self)
     }
 
+    /// Generate palette for the image
     pub fn quantize(&mut self, image: &Image) -> Result<QuantizationResult, liq_error> {
         unsafe {
             let mut h = ptr::null_mut();
@@ -137,12 +165,14 @@ impl<'a> Histogram<'a> {
         unsafe { ffi::liq_histogram_add_image(&mut *self.handle, &*self.attr.handle, &mut *image.handle) }
     }
 
+    /// Don't mix with `add_image()`
     pub fn add_colors(&mut self, colors: &[HistogramEntry], gamma: f64) -> liq_error {
         unsafe {
             ffi::liq_histogram_add_colors(&mut *self.handle, &*self.attr.handle, colors.as_ptr(), colors.len() as c_int, gamma)
         }
     }
 
+    /// Generate palette for all images/colors added to the histogram
     pub fn quantize(&mut self) -> Result<QuantizationResult, liq_error> {
         unsafe {
             let mut h = ptr::null_mut();
@@ -155,6 +185,9 @@ impl<'a> Histogram<'a> {
 }
 
 impl<'a> Image<'a> {
+    /// Describe dimensions of a slice of RGBA pixels
+    ///
+    /// Use 0.0 for gamma if the image is sRGB (most images are).
     pub fn new<T: Copy>(attr: &Attributes, bitmap: &'a [T], width: usize, height: usize, gamma: f64) -> Result<Self,liq_error> {
         match mem::size_of::<T>() {
             1 | 4 => {}
@@ -185,10 +218,12 @@ impl<'a> Image<'a> {
 }
 
 impl QuantizationResult {
+    /// Set to 1.0 to get nice smooth image
     pub fn set_dithering_level(&mut self, value: f32) -> liq_error {
         unsafe { ffi::liq_set_dithering_level(&mut *self.handle, value) }
     }
 
+    /// The default is sRGB gamma (~1/2.2)
     pub fn set_output_gamma(&mut self, value: f64) -> liq_error {
         unsafe { ffi::liq_set_output_gamma(&mut *self.handle, value) }
     }
@@ -197,10 +232,14 @@ impl QuantizationResult {
         unsafe { ffi::liq_get_output_gamma(&*self.handle) }
     }
 
+    /// Number 0-100 guessing how nice the input image will look if remapped to this palette
     pub fn quantization_quality(&mut self) -> i32 {
         unsafe { ffi::liq_get_quantization_quality(&*self.handle) as i32 }
     }
 
+    /// Final palette
+    ///
+    /// It's slighly better if you get palette from the `remapped()` call instead
     pub fn palette(&mut self) -> Vec<Color> {
         unsafe {
             let ref pal = *ffi::liq_get_palette(&mut *self.handle);
@@ -208,6 +247,9 @@ impl QuantizationResult {
         }
     }
 
+    /// Remap image
+    ///
+    /// Returns palette and 1-byte-per-pixel uncompresed bitmap
     pub fn remapped(&mut self, image: &mut Image) -> Result<(Vec<Color>, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
         let mut buf = Vec::with_capacity(len);
