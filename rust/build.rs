@@ -5,6 +5,7 @@ extern crate gcc;
 
 use std::env;
 use std::path::PathBuf;
+use std::fs::canonicalize;
 
 fn main() {
     let mut cc = gcc::Config::new();
@@ -22,6 +23,7 @@ fn main() {
     let has_msvc_files = PathBuf::from("msvc-dist/libimagequant.c").exists();
 
     if outdated_c_compiler && has_msvc_files {
+        println!("cargo:include={}", canonicalize("msvc-dist").unwrap().display());
         cc.file("msvc-dist/libimagequant.c")
             .file("msvc-dist/nearest.c")
             .file("msvc-dist/kmeans.c")
@@ -32,6 +34,7 @@ fn main() {
     } else {
         // This is so that I don't forget to publish MSVC version as well
         assert!(has_msvc_files || outdated_c_compiler);
+        println!("cargo:include={}", canonicalize(".").unwrap().display());
         cc.flag("-std=c99");
         cc.file("libimagequant.c")
             .file("nearest.c")

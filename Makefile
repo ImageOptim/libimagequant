@@ -81,6 +81,7 @@ $(TARFILE): $(DISTFILES)
 cargo:
 	rm -rf msvc-dist
 	git clone . -b msvc msvc-dist
+	rm -rf msvc-dist/Cargo.toml msvc-dist/org
 	cargo test
 
 clean:
