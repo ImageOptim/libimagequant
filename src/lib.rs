@@ -1,7 +1,6 @@
 /// https://pngquant.org/lib/
 
-extern crate rgb;
-pub mod ffi;
+extern crate imagequant_sys as ffi;
 
 pub use ffi::liq_error;
 pub use ffi::liq_error::*;
@@ -9,7 +8,7 @@ use std::os::raw::c_int;
 use std::mem;
 use std::ptr;
 
-pub type Color = rgb::RGBA8;
+pub type Color = ffi::liq_color;
 pub type HistogramEntry = ffi::liq_histogram_entry;
 
 pub struct Attributes {
@@ -265,7 +264,7 @@ fn histogram() {
     hist.add_image(&mut image2);
 
     hist.add_colors(&[HistogramEntry{
-        color: rgb::RGBA8::new(255,128,255,128),
+        color: Color::new(255,128,255,128),
         count: 10,
     }], 0.0);
 

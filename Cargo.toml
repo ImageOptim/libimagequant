@@ -1,21 +1,21 @@
 [package]
-build = "build.rs"
+categories = ["multimedia::images"]
 description = "Convert 24/32-bit images to 8-bit palette with alpha channel. Bindings for libimagequant that powers pngquant lossy PNG compressor."
 documentation = "https://pngquant.org/lib/"
+include = ["src/*", "examples/*", "COPYRIGHT", "Cargo.toml", "README.md"]
 keywords = ["quantization", "palette", "image", "pngquant", "compression"]
-license = "GPL-3.0"
 authors = [ "Kornel <kornel@pngquant.org>" ]
-categories = [ "external-ffi-bindings", "multimedia::images" ]
+license = "GPL-3.0+"
 name = "imagequant"
-include = ["src/*", "examples/*", "build.rs", "vendor/lib/*", "COPYRIGHT", "Cargo.toml", "README.md"]
 repository = "https://github.com/pornel/libimagequant-rust.git"
-version = "2.10.0"
-
-[build-dependencies]
-gcc = "0.3.50"
+version = "2.11.0"
 
 [dependencies]
-rgb = "0.5.8"
+imagequant-sys = "0.1.0"
+
+[features]
+default = ["sse"]
+sse = ["imagequant-sys/sse"]
 
 [lib]
 name = "imagequant"
