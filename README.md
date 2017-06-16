@@ -50,7 +50,7 @@ On Windows run `make java-dll` and it'll create `libimagequant.dll` instead.
 The library can be compiled with any C compiler that has at least basic support for C99 (GCC, clang, ICC, C++ Builder, even Tiny C Compiler), but Visual Studio 2012 and older are not up to date with the 1999 C standard. There are 2 options for using `libimagequant` on Windows:
 
  * Use Visual Studio **2013** (MSVC 18) and an [MSVC-compatible branch of the library](https://github.com/ImageOptim/libimagequant/tree/msvc)
- * Or use GCC from [MinGW](http://www.mingw.org). Use GCC to build `libimagequant.a` (using the instructions above for Unix) and add it along with `libgcc.a` (shipped with the MinGW compiler) to your VC project.
+ * Or use GCC from [MinGW](http://www.mingw.org) or [MSYS2](http://www.msys2.org/). Use GCC to build `libimagequant.a` (using the instructions above for Unix) and add it along with `libgcc.a` (shipped with the MinGW compiler) to your VC project.
 
 ## Overview
 
