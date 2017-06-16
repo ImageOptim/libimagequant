@@ -18,7 +18,10 @@ fn main() {
         cc.define("USE_SSE", Some("1"));
     }
 
-    if env::var("TARGET").unwrap().contains("windows-msvc") {
+    let outdated_c_compiler = env::var("TARGET").unwrap().contains("windows-msvc");
+    let has_msvc_files = PathBuf::from("msvc-dist/libimagequant.c").exists();
+
+    if outdated_c_compiler && has_msvc_files {
         cc.file("msvc-dist/libimagequant.c")
             .file("msvc-dist/nearest.c")
             .file("msvc-dist/kmeans.c")
@@ -28,7 +31,7 @@ fn main() {
             .file("msvc-dist/blur.c");
     } else {
         // This is so that I don't forget to publish MSVC version as well
-        assert!(PathBuf::from("msvc-dist/libimagequant.c").exists());
+        assert!(has_msvc_files || outdated_c_compiler);
         cc.flag("-std=c99");
         cc.file("libimagequant.c")
             .file("nearest.c")
