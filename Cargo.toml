@@ -1,6 +1,7 @@
 [package]
-authors = ["Kornel Lesiński <kornel@geekhood.net>"]
+authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 build = "rust/build.rs"
+categories = ["external-ffi-bindings"]
 homepage = "https://pngquant.org/lib"
 include = ["COPYRIGHT", "rust/*", "*.c", "*.h", "README.md", "Cargo.toml"]
 license = "GPL-3.0+"
@@ -8,7 +9,7 @@ links = "imagequant"
 name = "imagequant-sys"
 readme = "README.md"
 repository = "https://github.com/ImageOptim/libimagequant"
-version = "0.1.0"
+version = "0.1.1"
 description = "Statically linked C part of imagequant library powering tools such as pngquant.\n\nThis library is dual-licensed like pngquant: either GPL or a commercial license. See website for details: https://pngquant.org"
 
 [build-dependencies]
