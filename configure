@@ -59,6 +59,9 @@ for i in "$@"; do
     --quiet)
         QUIET=1
         ;;
+    '')
+        # allows a bash quirk
+        ;;
     --with-openmp)
         OPENMP=1
         ;;
@@ -76,7 +79,7 @@ for i in "$@"; do
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS ${i#*=}"
         ;;
     *)
-        echo "warning: unknown switch ${i%%=*} (see $0 --help for the list)"
+        echo "warning: unknown switch '${i%%=*}' (see $0 --help for the list)"
         ;;
     esac
 done
