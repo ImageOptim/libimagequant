@@ -1,3 +1,5 @@
+# libimagequant is a pure C library.
+# Rust/Cargo is entirely optional. You can also use ./configure && make
 [package]
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 build = "rust/build.rs"
