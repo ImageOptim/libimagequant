@@ -540,7 +540,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_add_fixed_color(liq_image *img, liq_c
     return LIQ_OK;
 }
 
-LIQ_NONNULL static liq_error liq_histogram_add_fixed_color_internal(liq_histogram *hist, f_pixel color)
+LIQ_NONNULL liq_error liq_histogram_add_fixed_color(liq_histogram *hist, f_pixel color)
 {
     if (hist->fixed_colors_count > 255) return LIQ_UNSUPPORTED;
 
@@ -1467,7 +1467,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hi
     input_hist->gamma = input_image->gamma;
 
     for(int i = 0; i < input_image->fixed_colors_count; i++) {
-        liq_error res = liq_histogram_add_fixed_color_internal(input_hist, input_image->fixed_colors[i]);
+        liq_error res = liq_histogram_add_fixed_color(input_hist, input_image->fixed_colors[i]);
         if (res != LIQ_OK) {
             return res;
         }
