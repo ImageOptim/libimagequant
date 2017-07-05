@@ -33,7 +33,9 @@ fn main() {
             .file("msvc-dist/blur.c");
     } else {
         // This is so that I don't forget to publish MSVC version as well
-        assert!(has_msvc_files || outdated_c_compiler);
+        if !has_msvc_files {
+            println!("cargo:warning=msvc-dist/ directory not present. MSVC builds may fail");
+        }
         println!("cargo:include={}", canonicalize(".").unwrap().display());
         cc.flag("-std=c99");
         cc.file("libimagequant.c")
