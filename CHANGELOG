@@ -1,3 +1,8 @@
+version 2.10
+-----------
+ - supports building with Rust/Cargo
+ - new liq_histogram_add_fixed_color()
+
 version 2.9
 -----------
  - new liq_histogram_add_colors()

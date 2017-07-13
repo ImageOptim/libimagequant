@@ -195,6 +195,7 @@ extern "C" {
     pub fn liq_histogram_create(attr: &liq_attr) -> *mut liq_histogram;
     pub fn liq_histogram_add_image(hist: &mut liq_histogram, attr: &liq_attr, image: &mut liq_image) -> liq_error;
     pub fn liq_histogram_add_colors(hist: &mut liq_histogram, attr: &liq_attr, entries: *const liq_histogram_entry, num_entries: c_int, gamma: f64) -> liq_error;
+    pub fn liq_histogram_add_fixed_color(hist: &mut liq_histogram, color: liq_color) -> liq_error;
     pub fn liq_histogram_destroy(hist: &mut liq_histogram);
 
     /// Performs quantization (palette generation) based on settings in `attr` (from `liq_attr_create()`) and pixels of the image.

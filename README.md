@@ -33,11 +33,11 @@ Alternatively you can compile the library with your program simply by including 
 
     gcc -std=c99 -O3 -DNDEBUG libimagequant/*.c yourprogram.c
 
-### Rust
+### Building for use in Rust programs
 
-In [Rust](https://www.rust-lang.org/) you can use Cargo to build the library. Add [`imagequant`](https://crates.io/crates/imagequant) to dependencies of Rust programs, or `cargo build` [`imagequant-sys`](https://crates.io/crates/imagequant-sys) to build `libimagequant.a` for any language.
+In [Rust](https://www.rust-lang.org/) you can use Cargo to build the library. Add [`imagequant`](https://crates.io/crates/imagequant) to dependencies of the Rust program. You can also use `cargo build` in [`imagequant-sys`](https://crates.io/crates/imagequant-sys) to build `libimagequant.a` for any C-compatible language.
 
-### Java JNI
+### Building for Java JNI
 
 To build Java JNI interface, ensure `JAVA_HOME` is set to your JDK directory, and run:
 
@@ -529,6 +529,7 @@ If the input is invalid, these all return -1.
 ---
 
     liq_error liq_image_add_fixed_color(liq_image* img, liq_color color);
+    liq_error liq_histogram_add_fixed_color(liq_histogram *hist, liq_color color);
 
 Reserves a color in the output palette created from this image. It behaves as if the given color was used in the image and was very important.
 
