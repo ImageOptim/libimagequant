@@ -43,7 +43,9 @@ pub struct Histogram<'a> {
 impl Drop for Attributes {
     fn drop(&mut self) {
         unsafe {
-            ffi::liq_attr_destroy(&mut *self.handle);
+            if !self.handle.is_null() {
+                ffi::liq_attr_destroy(&mut *self.handle);
+            }
         }
     }
 }

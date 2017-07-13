@@ -9,10 +9,10 @@ authors = [ "Kornel <kornel@pngquant.org>" ]
 license = "GPL-3.0+"
 name = "imagequant"
 repository = "https://github.com/pornel/libimagequant-rust.git"
-version = "2.11.0"
+version = "2.11.1"
 
 [dependencies]
-imagequant-sys = "0.1.0"
+imagequant-sys = "2.10.0"
 
 [features]
 default = ["sse"]
