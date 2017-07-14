@@ -102,6 +102,25 @@ impl fmt::Display for liq_error {
     }
 }
 
+impl liq_error {
+    #[inline]
+    pub fn is_ok(&self) -> bool {
+        *self == liq_error::LIQ_OK
+    }
+
+    pub fn is_err(&self) -> bool {
+        !self.is_ok()
+    }
+
+    pub fn unwrap(&self) {
+        assert!(self.is_ok(), "{}", self);
+    }
+
+    pub fn expect(&self, msg: &str) {
+        assert!(self.is_ok(), "{}", msg);
+    }
+}
+
 pub type liq_log_callback_function = Option<unsafe extern "C" fn(arg1: &liq_attr, message: *const c_char, user_info: *mut c_void)>;
 pub type liq_log_flush_callback_function = Option<unsafe extern "C" fn(arg1: &liq_attr, user_info: *mut c_void)>;
 pub type liq_progress_callback_function = Option<unsafe extern "C" fn(progress_percent: f32, user_info: *mut c_void) -> c_int>;
