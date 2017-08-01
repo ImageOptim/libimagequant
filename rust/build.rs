@@ -16,6 +16,7 @@ fn main() {
 
     if cfg!(target_arch="x86_64") ||
        (cfg!(target_arch="x86") && cfg!(feature = "sse")) {
+        cc.flag("-msse");
         cc.define("USE_SSE", Some("1"));
     }
 
