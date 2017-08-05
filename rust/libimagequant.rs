@@ -231,7 +231,7 @@ extern "C" {
     /// It's valid to call this method before remapping, if you don't plan to remap any images or want to use same palette for multiple images.
     ///
     /// `liq_palette->count` contains number of colors (up to 256), `liq_palette->entries[n]` contains RGBA value for nth palette color.
-    pub fn liq_get_palette(result: &mut liq_result) -> &liq_palette;
+    pub fn liq_get_palette<'a>(result: &'a mut liq_result) -> &'a liq_palette;
     /// Remaps the image to palette and writes its pixels to the given buffer, 1 pixel per byte.
     ///
     /// The buffer must be large enough to fit the entire image, i.e. width×height bytes large. For safety, pass the size of the buffer as `buffer_size`.
