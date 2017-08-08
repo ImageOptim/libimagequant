@@ -264,8 +264,18 @@ extern "C" {
 }
 
 #[test]
-fn links() {
+fn links_and_runs() {
+    use std::ptr;
     unsafe {
         assert!(liq_version() >= 20901);
+        let attr = liq_attr_create();
+        assert!(!attr.is_null());
+        let hist = liq_histogram_create(&*attr);
+        assert!(!hist.is_null());
+        let mut res = ptr::null_mut();
+        liq_histogram_quantize(&*hist, &*attr, &mut res);
+        assert!(res.is_null());
+        liq_histogram_destroy(&mut *hist);
+        liq_attr_destroy(&mut *attr);
     }
 }
