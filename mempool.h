@@ -4,10 +4,10 @@
 #include <stddef.h>
 
 struct mempool;
-typedef struct mempool *mempool;
+typedef struct mempool *mempoolptr;
 
-LIQ_PRIVATE void* mempool_create(mempool *mptr, const unsigned int size, unsigned int capacity, void* (*malloc)(size_t), void (*free)(void*));
-LIQ_PRIVATE void* mempool_alloc(mempool *mptr, const unsigned int size, const unsigned int capacity);
-LIQ_PRIVATE void mempool_destroy(mempool m);
+LIQ_PRIVATE void* mempool_create(mempoolptr *mptr, const unsigned int size, unsigned int capacity, void* (*malloc)(size_t), void (*free)(void*));
+LIQ_PRIVATE void* mempool_alloc(mempoolptr *mptr, const unsigned int size, const unsigned int capacity);
+LIQ_PRIVATE void mempool_destroy(mempoolptr m);
 
 #endif

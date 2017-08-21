@@ -32,7 +32,7 @@ struct mempool {
     void (*free)(void*);
     struct mempool *next;
 };
-LIQ_PRIVATE void* mempool_create(mempool *mptr, const unsigned int size, unsigned int max_size, void* (*malloc)(size_t), void (*free)(void*))
+LIQ_PRIVATE void* mempool_create(mempoolptr *mptr, const unsigned int size, unsigned int max_size, void* (*malloc)(size_t), void (*free)(void*))
 {
     if (*mptr && ((*mptr)->used+size) <= (*mptr)->size) {
         unsigned int prevused = (*mptr)->used;
@@ -40,7 +40,7 @@ LIQ_PRIVATE void* mempool_create(mempool *mptr, const unsigned int size, unsigne
         return ((char*)(*mptr)) + prevused;
     }
 
-    mempool old = *mptr;
+    mempoolptr old = *mptr;
     if (!max_size) max_size = (1<<17);
     max_size = size+ALIGN_MASK > max_size ? size+ALIGN_MASK : max_size;
 
@@ -60,7 +60,7 @@ LIQ_PRIVATE void* mempool_create(mempool *mptr, const unsigned int size, unsigne
     return mempool_alloc(mptr, size, size);
 }
 
-LIQ_PRIVATE void* mempool_alloc(mempool *mptr, const unsigned int size, const unsigned int max_size)
+LIQ_PRIVATE void* mempool_alloc(mempoolptr *mptr, const unsigned int size, const unsigned int max_size)
 {
     if (((*mptr)->used+size) <= (*mptr)->size) {
         unsigned int prevused = (*mptr)->used;
@@ -71,10 +71,10 @@ LIQ_PRIVATE void* mempool_alloc(mempool *mptr, const unsigned int size, const un
     return mempool_create(mptr, size, max_size, (*mptr)->malloc, (*mptr)->free);
 }
 
-LIQ_PRIVATE void mempool_destroy(mempool m)
+LIQ_PRIVATE void mempool_destroy(mempoolptr m)
 {
     while (m) {
-        mempool next = m->next;
+        mempoolptr next = m->next;
         m->free(m);
         m = next;
     }
