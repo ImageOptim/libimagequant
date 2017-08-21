@@ -56,7 +56,7 @@ static int vp_compare_distance(const void *ap, const void *bp) {
     return a > b ? 1 : -1;
 }
 
-static void vp_sort_indexes_by_distance(const f_pixel vantage_point, vp_sort_tmp *indexes, int num_indexes, const colormap_item items[]) {
+static void vp_sort_indexes_by_distance(const f_pixel vantage_point, vp_sort_tmp indexes[], int num_indexes, const colormap_item items[]) {
     for(int i=0; i < num_indexes; i++) {
         indexes[i].distance_squared = colordifference(vantage_point, items[indexes[i].idx].acolor);
     }
@@ -66,7 +66,7 @@ static void vp_sort_indexes_by_distance(const f_pixel vantage_point, vp_sort_tmp
 /*
  * Usually it should pick farthest point, but picking most popular point seems to make search quicker anyway
  */
-static int vp_find_best_vantage_point_index(vp_sort_tmp *indexes, int num_indexes, const colormap_item items[]) {
+static int vp_find_best_vantage_point_index(vp_sort_tmp indexes[], int num_indexes, const colormap_item items[]) {
     int best = 0;
     float best_popularity = items[indexes[0].idx].popularity;
     for(int i = 1; i < num_indexes; i++) {
@@ -78,7 +78,7 @@ static int vp_find_best_vantage_point_index(vp_sort_tmp *indexes, int num_indexe
     return best;
 }
 
-static vp_node *vp_create_node(mempoolptr *m, vp_sort_tmp *indexes, int num_indexes, const colormap_item items[]) {
+static vp_node *vp_create_node(mempoolptr *m, vp_sort_tmp indexes[], int num_indexes, const colormap_item items[]) {
     if (num_indexes <= 0) {
         return NULL;
     }

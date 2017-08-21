@@ -141,7 +141,7 @@ inline static unsigned int qsort_partition(hist_item *const base, const unsigned
 }
 
 /** quick select algorithm */
-static void hist_item_sort_range(hist_item *base, unsigned int len, unsigned int sort_start)
+static void hist_item_sort_range(hist_item base[], unsigned int len, unsigned int sort_start)
 {
     for(;;) {
         const unsigned int l = qsort_partition(base, len), r = l+1;
@@ -157,7 +157,7 @@ static void hist_item_sort_range(hist_item *base, unsigned int len, unsigned int
 }
 
 /** sorts array to make sum of weights lower than halfvar one side, returns edge between <halfvar and >halfvar parts of the set */
-static hist_item *hist_item_sort_halfvar(hist_item *base, unsigned int len, double *const lowervar, const double halfvar)
+static hist_item *hist_item_sort_halfvar(hist_item base[], unsigned int len, double *const lowervar, const double halfvar)
 {
     do {
         const unsigned int l = qsort_partition(base, len), r = l+1;
@@ -251,7 +251,7 @@ static f_pixel get_median(const struct box *b, hist_item achv[])
 /*
  ** Find the best splittable box. -1 if no boxes are splittable.
  */
-static int best_splittable_box(struct box* bv, unsigned int boxes, const double max_mse)
+static int best_splittable_box(struct box bv[], unsigned int boxes, const double max_mse)
 {
     int bi=-1; double maxsum=0;
     for(unsigned int i=0; i < boxes; i++) {
@@ -281,8 +281,8 @@ inline static double color_weight(f_pixel median, hist_item h)
     return sqrt(diff) * (sqrt(1.0+h.adjusted_weight)-1.0);
 }
 
-static void set_colormap_from_boxes(colormap *map, struct box* bv, unsigned int boxes, hist_item *achv);
-static void adjust_histogram(hist_item *achv, const struct box* bv, unsigned int boxes);
+static void set_colormap_from_boxes(colormap *map, struct box bv[], unsigned int boxes, hist_item *achv);
+static void adjust_histogram(hist_item *achv, const struct box bv[], unsigned int boxes);
 
 static double box_error(const struct box *box, const hist_item achv[])
 {
