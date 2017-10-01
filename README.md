@@ -68,6 +68,7 @@ The basic flow is:
 Please note that libimagequant only handles raw uncompressed arrays of pixels in memory and is completely independent of any file format.
 
 <p>
+    /* See example.c for the full code! */
 
     #include "libimagequant.h"
 
@@ -101,6 +102,8 @@ There are 3 ways to create image object for quantization:
   * `liq_image_create_custom()` for RGB, ABGR, YUV and all other formats that can be converted on-the-fly to RGBA (you have to supply the conversion function).
 
 Note that "image" here means raw uncompressed pixels. If you have a compressed image file, such as PNG, you must use another library (e.g. libpng or lodepng) to decode it first.
+
+You'll find full example code in "example.c" file in the library source directory.
 
 ## Functions
 

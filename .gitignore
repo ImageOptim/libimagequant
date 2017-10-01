@@ -20,3 +20,6 @@ msvc-dist/CHANGELOG
 msvc-dist/COPYRIGHT
 msvc-dist/configure
 msvc-dist/.gitignore
+quantized_example.png
+example
+lodepng.?

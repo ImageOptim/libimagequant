@@ -84,6 +84,15 @@ cargo:
 	rm -rf msvc-dist/Cargo.toml msvc-dist/org
 	cargo test
 
+example: example.c lodepng.h lodepng.c $(STATICLIB)
+	$(CC) -g $(CFLAGS) example.c $(STATICLIB) -o example
+
+lodepng.h:
+	curl -o lodepng.h -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h
+
+lodepng.c:
+	curl -o lodepng.c -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp
+
 clean:
 	rm -f $(OBJS) $(SHAREDOBJS) $(SHAREDLIB).$(SOVER) $(SHAREDLIB) $(STATICLIB) $(TARFILE) $(DLL) '$(DLLIMP)' '$(DLLDEF)'
 	rm -f $(JAVAHEADERS) $(JAVACLASSES) $(JNILIB)
