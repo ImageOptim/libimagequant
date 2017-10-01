@@ -85,7 +85,7 @@ cargo:
 	cargo test
 
 example: example.c lodepng.h lodepng.c $(STATICLIB)
-	$(CC) -g $(CFLAGS) example.c $(STATICLIB) -o example
+	$(CC) -g $(CFLAGS) -Wall example.c $(STATICLIB) -o example
 
 lodepng.h:
 	curl -o lodepng.h -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h
@@ -95,7 +95,7 @@ lodepng.c:
 
 clean:
 	rm -f $(OBJS) $(SHAREDOBJS) $(SHAREDLIB).$(SOVER) $(SHAREDLIB) $(STATICLIB) $(TARFILE) $(DLL) '$(DLLIMP)' '$(DLLDEF)'
-	rm -f $(JAVAHEADERS) $(JAVACLASSES) $(JNILIB)
+	rm -f $(JAVAHEADERS) $(JAVACLASSES) $(JNILIB) example
 
 distclean: clean
 	rm -f config.mk
