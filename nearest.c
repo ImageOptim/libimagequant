@@ -149,7 +149,7 @@ LIQ_PRIVATE struct nearest_map *nearest_init(const colormap *map) {
             .exclude = i,
         };
         vp_search_node(root, &map->palette[i].acolor, &best);
-        handle->nearest_other_color_dist[i] = best.distance * best.distance / 4.0; // half of squared distance
+        handle->nearest_other_color_dist[i] = best.distance * best.distance / 4.f; // half of squared distance
     }
 
     return handle;

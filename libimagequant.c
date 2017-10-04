@@ -1876,7 +1876,7 @@ static colormap *add_fixed_colors_to_palette(colormap *palette, const int max_co
 
 LIQ_NONNULL static void adjust_histogram_callback(hist_item *item, float diff)
 {
-    item->adjusted_weight = (item->perceptual_weight + 2.0 * item->adjusted_weight) * (0.5 + diff);
+    item->adjusted_weight = (item->perceptual_weight + 2.f * item->adjusted_weight) * (0.5f + diff);
 }
 
 /**
@@ -2159,7 +2159,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image_rows(liq_result *quant
         // remapping above was the last chance to do K-Means iteration, hence the final palette is set after remapping
         set_rounded_palette(&result->int_palette, result->palette, result->gamma, quant->min_posterization_output);
 
-        if (!remap_to_palette_floyd(input_image, row_pointers, result, MAX(remapping_error*2.4, 8.f/256.f), generate_dither_map)) {
+        if (!remap_to_palette_floyd(input_image, row_pointers, result, MAX(remapping_error*2.4f, 8.f/256.f), generate_dither_map)) {
             return LIQ_ABORTED;
         }
     }
