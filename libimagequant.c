@@ -400,7 +400,7 @@ LIQ_EXPORT LIQ_NONNULL int liq_get_min_opacity(const liq_attr *attr)
 {
     if (!CHECK_STRUCT_TYPE(attr, liq_attr)) return -1;
 
-    return MIN(255, 256.0 * attr->min_opaque_val);
+    return MIN(255.f, 256.f * attr->min_opaque_val);
 }
 
 LIQ_EXPORT LIQ_NONNULL void liq_set_last_index_transparent(liq_attr* attr, int is_last)
@@ -1077,7 +1077,7 @@ LIQ_NONNULL static void sort_palette(colormap *map, const liq_attr *options)
     */
     if (options->last_index_transparent) {
         for(unsigned int i=0; i < map->colors; i++) {
-            if (map->palette[i].acolor.a < 1.0/256.0) {
+            if (map->palette[i].acolor.a < 1.f/256.f) {
                 const unsigned int old = i, transparent_dest = map->colors-1;
 
                 SWAP_PALETTE(map, transparent_dest, old);
@@ -1100,7 +1100,7 @@ LIQ_NONNULL static void sort_palette(colormap *map, const liq_attr *options)
     /* move transparent colors to the beginning to shrink trns chunk */
     unsigned int num_transparent = 0;
     for(unsigned int i = 0; i < non_fixed_colors; i++) {
-        if (map->palette[i].acolor.a < 255.0/256.0) {
+        if (map->palette[i].acolor.a < 255.f/256.f) {
             // current transparent color is swapped with earlier opaque one
             if (i != num_transparent) {
                 SWAP_PALETTE(map, num_transparent, i);
@@ -1226,14 +1226,14 @@ inline static f_pixel get_dithered_pixel(const float dither_level, const float m
     else { if (px.b + sb < max_underflow) ratio = MIN(ratio, (max_underflow-px.b)/sb); }
 
     float a = px.a + sa;
-         if (a > 1.0) { a = 1.0; }
+         if (a > 1.f) { a = 1.f; }
     else if (a < 0)   { a = 0; }
 
      // If dithering error is crazy high, don't propagate it that much
      // This prevents crazy geen pixels popping out of the blue (or red or black! ;)
      const float dither_error = sr*sr + sg*sg + sb*sb + sa*sa;
      if (dither_error > max_dither_error) {
-         ratio *= 0.8;
+         ratio *= 0.8f;
      } else if (dither_error < 2.f/256.f/256.f) {
         // don't dither areas that don't have noticeable error — makes file smaller
         return px;
@@ -1272,12 +1272,12 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
 
     // response to this value is non-linear and without it any value < 0.8 would give almost no dithering
     float base_dithering_level = quant->dither_level;
-    base_dithering_level = 1.0 - (1.0-base_dithering_level)*(1.0-base_dithering_level);
+    base_dithering_level = 1.f - (1.f-base_dithering_level)*(1.f-base_dithering_level);
 
     if (dither_map) {
-        base_dithering_level *= 1.0/255.0; // convert byte to float
+        base_dithering_level *= 1.f/255.f; // convert byte to float
     }
-    base_dithering_level *= 15.0/16.0; // prevent small errors from accumulating
+    base_dithering_level *= 15.f/16.f; // prevent small errors from accumulating
 
     int fs_direction = 1;
     unsigned int last_match=0;
@@ -1314,10 +1314,10 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             // If dithering error is crazy high, don't propagate it that much
             // This prevents crazy geen pixels popping out of the blue (or red or black! ;)
             if (err.r*err.r + err.g*err.g + err.b*err.b + err.a*err.a > max_dither_error) {
-                err.r *= 0.75;
-                err.g *= 0.75;
-                err.b *= 0.75;
-                err.a *= 0.75;
+                err.r *= 0.75f;
+                err.g *= 0.75f;
+                err.b *= 0.75f;
+                err.a *= 0.75f;
             }
 
             /* Propagate Floyd-Steinberg error terms. */
@@ -1388,7 +1388,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
 /* fixed colors are always included in the palette, so it would be wasteful to duplicate them in palette from histogram */
 LIQ_NONNULL static void remove_fixed_colors_from_histogram(histogram *hist, const int fixed_colors_count, const f_pixel fixed_colors[], const float target_mse)
 {
-    const float max_difference = MAX(target_mse/2.0, 2.0/256.0/256.0);
+    const float max_difference = MAX(target_mse/2.f, 2.f/256.f/256.f);
     if (fixed_colors_count) {
         for(int j=0; j < hist->size; j++) {
             for(unsigned int i=0; i < fixed_colors_count; i++) {

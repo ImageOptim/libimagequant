@@ -85,7 +85,7 @@ typedef struct {
     float a, r, g, b;
 } SSE_ALIGN f_pixel;
 
-static const double internal_gamma = 0.5499;
+static const float internal_gamma = 0.5499f;
 
 LIQ_PRIVATE void to_f_set_gamma(float gamma_lut[], const double gamma);
 
