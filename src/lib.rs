@@ -99,6 +99,10 @@ impl Attributes {
         unsafe { ffi::liq_set_min_posterization(&mut *self.handle, value) }
     }
 
+    pub fn min_posterization(&mut self) -> i32 {
+        unsafe { ffi::liq_get_min_posterization(&*self.handle) }
+    }
+
     /// Range 0-100, roughly like JPEG.
     ///
     /// If minimum quality can't be met, quantization will fail.
@@ -106,6 +110,14 @@ impl Attributes {
     /// Default is min 0, max 100.
     pub fn set_quality(&mut self, min: u32, max: u32) -> liq_error {
         unsafe { ffi::liq_set_quality(&mut *self.handle, min as c_int, max as c_int) }
+    }
+
+    /// Reads values set with `set_quality`
+    pub fn quality(&mut self) -> (u32, u32) {
+        unsafe {
+            (ffi::liq_get_min_quality(&mut *self.handle) as u32,
+             ffi::liq_get_max_quality(&mut *self.handle) as u32)
+        }
     }
 
     /// 1-10.
@@ -156,6 +168,9 @@ pub fn new() -> Attributes {
 }
 
 impl<'a> Histogram<'a> {
+    /// Creates histogram object that will be used to collect color statistics from multiple images.
+    ///
+    /// All options should be set on `attr` before the histogram object is created. Options changed later may not have effect.
     pub fn new(attr: &'a Attributes) -> Self {
         Histogram {
             attr: attr,
@@ -163,18 +178,26 @@ impl<'a> Histogram<'a> {
         }
     }
 
+    /// "Learns" colors from the image, which will be later used to generate the palette.
+    ///
+    /// Fixed colors added to the image are also added to the histogram. If total number of fixed colors exceeds 256, this function will fail with `LIQ_BUFFER_TOO_SMALL`.
     pub fn add_image(&mut self, image: &mut Image) -> liq_error {
         unsafe { ffi::liq_histogram_add_image(&mut *self.handle, &*self.attr.handle, &mut *image.handle) }
     }
 
-    /// Don't mix with `add_image()`
+    /// Alternative to `add_image()`. Intead of counting colors in an image, it directly takes an array of colors and their counts.
+    ///
+    /// This function is only useful if you already have a histogram of the image from another source.
     pub fn add_colors(&mut self, colors: &[HistogramEntry], gamma: f64) -> liq_error {
         unsafe {
             ffi::liq_histogram_add_colors(&mut *self.handle, &*self.attr.handle, colors.as_ptr(), colors.len() as c_int, gamma)
         }
     }
 
-    /// Generate palette for all images/colors added to the histogram
+    /// Generate palette for all images/colors added to the histogram.
+    ///
+    /// Palette generated using this function won't be improved during remapping.
+    /// If you're generating palette for only one image, it's better not to use the `Histogram`.
     pub fn quantize(&mut self) -> Result<QuantizationResult, liq_error> {
         unsafe {
             let mut h = ptr::null_mut();
@@ -187,16 +210,18 @@ impl<'a> Histogram<'a> {
 }
 
 impl<'a> Image<'a> {
-    /// Describe dimensions of a slice of RGBA pixels
+    /// Describe dimensions of a slice of RGBA pixels.
     ///
-    /// Use 0.0 for gamma if the image is sRGB (most images are).
-    pub fn new<T: Copy>(attr: &Attributes, bitmap: &'a [T], width: usize, height: usize, gamma: f64) -> Result<Self,liq_error> {
-        match mem::size_of::<T>() {
+    /// `bitmap` must be either `&[u8]` or a slice with one element per pixel (`&[RGBA]`).
+    ///
+    /// Use `0.` for gamma if the image is sRGB (most images are).
+    pub fn new<PixelType: Copy>(attr: &Attributes, bitmap: &'a [PixelType], width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
+        match mem::size_of::<PixelType>() {
             1 | 4 => {}
             _ => return Err(LIQ_UNSUPPORTED),
         }
-        if bitmap.len() * mem::size_of::<T>() < width*height*4 {
-            println!("Buffer length is {}x{} bytes, which is not enough for {}x{}x4 RGBA bytes", bitmap.len(), mem::size_of::<T>(), width, height);
+        if bitmap.len() * mem::size_of::<PixelType>() < width*height*4 {
+            eprintln!("Buffer length is {}x{} bytes, which is not enough for {}x{}x4 RGBA bytes", bitmap.len(), mem::size_of::<PixelType>(), width, height);
             return Err(LIQ_BUFFER_TOO_SMALL);
         }
         unsafe {
@@ -216,6 +241,19 @@ impl<'a> Image<'a> {
 
     pub fn height(&self) -> usize {
         unsafe { ffi::liq_image_get_height(&*self.handle) as usize }
+    }
+
+    /// Reserves a color in the output palette created from this image. It behaves as if the given color was used in the image and was very important.
+    ///
+    /// RGB values of liq_color are assumed to have the same gamma as the image.
+    ///
+    /// It must be called before the image is quantized.
+    ///
+    /// Returns error if more than 256 colors are added. If image is quantized to fewer colors than the number of fixed colors added, then excess fixed colors will be ignored.
+    pub fn add_fixed_color(&mut self, color: ffi::liq_color) -> liq_error {
+        unsafe {
+            ffi::liq_image_add_fixed_color(&mut *self.handle, color)
+        }
     }
 }
 
@@ -237,6 +275,14 @@ impl QuantizationResult {
     /// Number 0-100 guessing how nice the input image will look if remapped to this palette
     pub fn quantization_quality(&mut self) -> i32 {
         unsafe { ffi::liq_get_quantization_quality(&*self.handle) as i32 }
+    }
+
+    /// Approximate mean square error of the palette
+    pub fn quantization_error(&mut self) -> Option<f64> {
+        match unsafe { ffi::liq_get_quantization_error(&*self.handle) } {
+            x if x < 0. => None,
+            x => Some(x),
+        }
     }
 
     /// Final palette
@@ -331,6 +377,9 @@ fn poke_it() {
     let mut liq = Attributes::new();
     liq.set_speed(5);
     liq.set_quality(70, 99);
+    liq.set_min_posterization(1);
+    assert_eq!(1, liq.min_posterization());
+    liq.set_min_posterization(0);
 
     // Describe the bitmap
     let ref mut img = liq.new_image(&fakebitmap[..], width, height, 0.0).unwrap();
