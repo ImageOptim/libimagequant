@@ -112,6 +112,14 @@ impl liq_error {
         !self.is_ok()
     }
 
+    #[inline]
+    pub fn ok(&self) -> Result<(), liq_error> {
+        match *self {
+            liq_error::LIQ_OK => Ok(()),
+            e => Err(e),
+        }
+    }
+
     pub fn unwrap(&self) {
         assert!(self.is_ok(), "{}", self);
     }
@@ -187,6 +195,12 @@ extern "C" {
     pub fn liq_attr_set_progress_callback(arg1: &mut liq_attr, arg2: liq_progress_callback_function, user_info: *mut c_void);
     pub fn liq_result_set_progress_callback(arg1: &mut liq_result, arg2: liq_progress_callback_function, user_info: *mut c_void);
     pub fn liq_image_create_custom(attr: &liq_attr, row_callback: liq_image_get_rgba_row_callback, user_info: *mut c_void, width: c_int, height: c_int, gamma: f64) -> *mut liq_image;
+    /// Remap assuming the image will be always presented exactly on top of this background.
+    ///
+    /// Takes ownership of the background image (i.e. do NOT use it afterwards, do NOT call liq_image_destroy on it).
+    ///
+    /// The background must have the same size. The foreground image must have a transparent color.
+    pub fn liq_image_set_background(img: &mut liq_image, background: *mut liq_image) -> liq_error;
     pub fn liq_image_add_fixed_color(img: &mut liq_image, color: liq_color) -> liq_error;
     pub fn liq_image_get_width(img: &liq_image) -> c_int;
     pub fn liq_image_get_height(img: &liq_image) -> c_int;

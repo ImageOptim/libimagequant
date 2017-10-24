@@ -397,6 +397,18 @@ Returns `LIQ_VALUE_OUT_OF_RANGE` if invalid flags are specified or the image obj
 
 ----
 
+    liq_error liq_image_set_background(liq_image *image, liq_image *background_image);
+
+Analyze and remap this image with assumption that it will be always presented exactly on top of this background.
+
+When this image is remapped to a palette with a fully transparent color (use `liq_image_add_fixed_color()` to ensure this) pixels that are better represented by the background than the palette will be made transparent. This function can be used to improve quality of animated GIFs by setting previous animation frame as the background.
+
+This function takes full ownership of the background image, so you should **not** free the background object. It will be freed automatically together with the foreground image.
+
+Returns `LIQ_BUFFER_TOO_SMALL` if the background image has a different size than the foreground.
+
+----
+
     liq_error liq_write_remapped_image_rows(liq_result *result, liq_image *input_image, unsigned char **row_pointers);
 
 Similar to `liq_write_remapped_image()`. Writes remapped image, at 1 byte per pixel, to each row pointed by `row_pointers` array. The array must have at least as many elements as height of the image, and each row must have at least as many bytes as width of the image. Rows must not overlap.
