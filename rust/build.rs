@@ -1,14 +1,15 @@
 //! This is a build script for Cargo https://crates.io/
 //! It produces a static library that can be used by C or Rust.
 
-extern crate gcc;
+extern crate cc;
 
 use std::env;
 use std::path::PathBuf;
 use std::fs::canonicalize;
 
 fn main() {
-    let mut cc = gcc::Config::new();
+    let mut cc = cc::Build::new();
+    cc.warnings(false);
 
     if env::var("PROFILE").map(|p|p != "debug").unwrap_or(true) {
         cc.define("NDEBUG", Some("1"));

@@ -12,11 +12,11 @@ links = "imagequant"
 name = "imagequant-sys"
 readme = "README.md"
 repository = "https://github.com/ImageOptim/libimagequant"
-version = "2.10.3"
+version = "2.11.0"
 description = "Statically linked C part of imagequant library powering tools such as pngquant.\n\nThis library is dual-licensed like pngquant: either GPL or a commercial license. See website for details: https://pngquant.org"
 
 [build-dependencies]
-gcc = "=0.3.51"
+cc = "1.0.1"
 
 [dependencies]
 rgb = "0.7"
