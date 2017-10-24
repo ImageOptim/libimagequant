@@ -238,7 +238,7 @@ typedef struct colormap {
 
 struct acolorhist_arr_item {
     union rgba_as_int color;
-    float perceptual_weight;
+    unsigned int perceptual_weight;
 };
 
 struct acolorhist_arr_head {
@@ -260,7 +260,7 @@ LIQ_PRIVATE void pam_freeacolorhash(struct acolorhash_table *acht);
 LIQ_PRIVATE struct acolorhash_table *pam_allocacolorhash(unsigned int maxcolors, unsigned int surface, unsigned int ignorebits, void* (*malloc)(size_t), void (*free)(void*));
 LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table *acht, const double gamma, void* (*malloc)(size_t), void (*free)(void*));
 LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba_pixel *const pixels[], unsigned int cols, unsigned int rows, const unsigned char *importance_map);
-LIQ_PRIVATE bool pam_add_to_hash(struct acolorhash_table *acht, unsigned int hash, float boost, union rgba_as_int px, unsigned int row, unsigned int rows);
+LIQ_PRIVATE bool pam_add_to_hash(struct acolorhash_table *acht, unsigned int hash, unsigned int boost, union rgba_as_int px, unsigned int row, unsigned int rows);
 
 LIQ_PRIVATE void pam_freeacolorhist(histogram *h);
 

@@ -632,6 +632,22 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_memory_ownership(liq_image *img, 
 }
 
 LIQ_NONNULL static void liq_image_free_maps(liq_image *input_image);
+LIQ_NONNULL static void liq_image_free_importance_map(liq_image *input_image);
+
+LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_importance_map(liq_image *img, unsigned char importance_map[], size_t buffer_size) {
+    if (!CHECK_STRUCT_TYPE(img, liq_image)) return LIQ_INVALID_POINTER;
+    if (!CHECK_USER_POINTER(importance_map)) return LIQ_INVALID_POINTER;
+
+    const size_t required_size = img->width * img->height;
+    if (buffer_size < required_size) {
+        return LIQ_BUFFER_TOO_SMALL;
+    }
+
+    liq_image_free_importance_map(img);
+    img->importance_map = importance_map;
+
+    return LIQ_OK;
+}
 
 LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_background(liq_image *img, liq_image *background)
 {
@@ -1692,11 +1708,11 @@ LIQ_NONNULL static void contrast_maps(liq_image *image)
             z = 1.f - MAX(z,MIN(horiz,vert));
             z *= z; // noise is amplified
             z *= z;
-
-            z *= 256.f;
-            noise[j*cols+i] = z < 256 ? z : 255;
-            z = (1.f-edge)*256.f;
-            edges[j*cols+i] = z > 0 ? (z < 256 ? z : 255) : 0;
+            // 85 is about 1/3rd of weight (not 0, because noisy pixels still need to be included, just not as precisely).
+            const unsigned int z_int = 85 + (unsigned int)(z * 171.f);
+            noise[j*cols+i] = MIN(z_int, 255);
+            const int e_int = 255 - (int)(edge * 256.f);
+            edges[j*cols+i] = e_int > 0 ? MIN(e_int, 255) : 0;
         }
     }
 

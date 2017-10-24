@@ -409,6 +409,18 @@ Returns `LIQ_BUFFER_TOO_SMALL` if the background image has a different size than
 
 ----
 
+    liq_error liq_image_set_importance_map(liq_image *image, unsigned char map[], size_t buffer_size);
+
+Impotance map controls which areas of the image get more palette colors. Pixels corresponding to 0 values in the map are completely ignored. The higher the value the more weight is placed on the given pixel, giving it higher chance of influencing the final palette.
+
+The map is one byte per pixel and must have the same size as the image (width×height bytes). `buffer_size` argument is used to double-check that.
+
+The map is owned by the image and will be freed automatically when the image is freed. If a custom allocator has been set using `liq_attr_create_with_allocator()`, the `map` must be allocated using the same allocator.
+
+Returns `LIQ_INVALID_POINTER` if any pointer is `NULL`, and `LIQ_BUFFER_TOO_SMALL` if the `buffer_size` does not match the image size.
+
+----
+
     liq_error liq_write_remapped_image_rows(liq_result *result, liq_image *input_image, unsigned char **row_pointers);
 
 Similar to `liq_write_remapped_image()`. Writes remapped image, at 1 byte per pixel, to each row pointed by `row_pointers` array. The array must have at least as many elements as height of the image, and each row must have at least as many bytes as width of the image. Rows must not overlap.

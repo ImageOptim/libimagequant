@@ -108,6 +108,7 @@ LIQ_EXPORT LIQ_USERESULT liq_image *liq_image_create_custom(const liq_attr *attr
 
 LIQ_EXPORT liq_error liq_image_set_memory_ownership(liq_image *image, int ownership_flags) LIQ_NONNULL;
 LIQ_EXPORT liq_error liq_image_set_background(liq_image *img, liq_image *background_image) LIQ_NONNULL;
+LIQ_EXPORT liq_error liq_image_set_importance_map(liq_image *img, unsigned char buffer[], size_t buffer_size) LIQ_NONNULL;
 LIQ_EXPORT liq_error liq_image_add_fixed_color(liq_image *img, liq_color color) LIQ_NONNULL;
 LIQ_EXPORT LIQ_USERESULT int liq_image_get_width(const liq_image *img) LIQ_NONNULL;
 LIQ_EXPORT LIQ_USERESULT int liq_image_get_height(const liq_image *img) LIQ_NONNULL;
