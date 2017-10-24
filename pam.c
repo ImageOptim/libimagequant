@@ -36,7 +36,7 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
         float boost=1.0;
         for(unsigned int col = 0; col < cols; ++col) {
             if (importance_map) {
-                boost = 0.5f+ (float)*importance_map++/255.f;
+                boost = 0.5f + (1.f/255.f) * (float)*importance_map++;
             }
 
             // RGBA color is casted to long for easier hasing/comparisons

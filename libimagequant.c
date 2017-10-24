@@ -100,7 +100,7 @@ struct liq_image {
     rgba_pixel **rows;
     double gamma;
     unsigned int width, height;
-    unsigned char *noise, *edges, *dither_map;
+    unsigned char *importance_map, *edges, *dither_map;
     rgba_pixel *pixels, *temp_row;
     f_pixel *temp_f_row;
     liq_image_get_rgba_row_callback *row_callback;
@@ -818,23 +818,34 @@ LIQ_NONNULL static void liq_image_free_rgba_source(liq_image *input_image)
     }
 }
 
+LIQ_NONNULL static void liq_image_free_importance_map(liq_image *input_image) {
+    if (input_image->importance_map) {
+        input_image->free(input_image->importance_map);
+        input_image->importance_map = NULL;
+    }
+}
+
+LIQ_NONNULL static void liq_image_free_maps(liq_image *input_image) {
+    liq_image_free_importance_map(input_image);
+
+    if (input_image->edges) {
+        input_image->free(input_image->edges);
+        input_image->edges = NULL;
+    }
+
+    if (input_image->dither_map) {
+        input_image->free(input_image->dither_map);
+        input_image->dither_map = NULL;
+    }
+}
+
 LIQ_EXPORT LIQ_NONNULL void liq_image_destroy(liq_image *input_image)
 {
     if (!CHECK_STRUCT_TYPE(input_image, liq_image)) return;
 
     liq_image_free_rgba_source(input_image);
 
-    if (input_image->noise) {
-        input_image->free(input_image->noise);
-    }
-
-    if (input_image->edges) {
-        input_image->free(input_image->edges);
-    }
-
-    if (input_image->dither_map) {
-        input_image->free(input_image->dither_map);
-    }
+    liq_image_free_maps(input_image);
 
     if (input_image->f_pixels) {
         input_image->free(input_image->f_pixels);
@@ -1460,7 +1471,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hi
 
     const unsigned int cols = input_image->width, rows = input_image->height;
 
-    if (!input_image->noise && options->use_contrast_maps) {
+    if (!input_image->importance_map && options->use_contrast_maps) {
         contrast_maps(input_image);
     }
 
@@ -1497,11 +1508,11 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hi
         for(unsigned int row=0; row < rows; row++) {
             bool added_ok;
             if (all_rows_at_once) {
-                added_ok = pam_computeacolorhash(input_hist->acht, (const rgba_pixel *const *)input_image->rows, cols, rows, input_image->noise);
+                added_ok = pam_computeacolorhash(input_hist->acht, (const rgba_pixel *const *)input_image->rows, cols, rows, input_image->importance_map);
                 if (added_ok) break;
             } else {
                 const rgba_pixel* rows_p[1] = { liq_image_get_row_rgba(input_image, row) };
-                added_ok = pam_computeacolorhash(input_hist->acht, rows_p, cols, 1, input_image->noise ? &input_image->noise[row * cols] : NULL);
+                added_ok = pam_computeacolorhash(input_hist->acht, rows_p, cols, 1, input_image->importance_map ? &input_image->importance_map[row * cols] : NULL);
             }
             if (!added_ok) {
                 input_hist->ignorebits++;
@@ -1516,10 +1527,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hi
 
     input_hist->had_image_added = true;
 
-    if (input_image->noise) {
-        input_image->free(input_image->noise);
-        input_image->noise = NULL;
-    }
+    liq_image_free_importance_map(input_image);
 
     if (input_image->free_pixels && input_image->f_pixels) {
         liq_image_free_rgba_source(input_image); // bow can free the RGBA source if copy has been made in f_pixels
@@ -1577,7 +1585,7 @@ LIQ_NONNULL static void modify_alpha(liq_image *input_image, rgba_pixel *const r
 
 /**
  Builds two maps:
-    noise - approximation of areas with high-frequency noise, except straight edges. 1=flat, 0=noisy.
+    importance_map - approximation of areas with high-frequency noise, except straight edges. 1=flat, 0=noisy.
     edges - noise map including all edges
  */
 LIQ_NONNULL static void contrast_maps(liq_image *image)
@@ -1587,8 +1595,8 @@ LIQ_NONNULL static void contrast_maps(liq_image *image)
         return;
     }
 
-    unsigned char *restrict noise = image->noise ? image->noise : image->malloc(cols*rows);
-    image->noise = NULL;
+    unsigned char *restrict noise = image->importance_map ? image->importance_map : image->malloc(cols*rows);
+    image->importance_map = NULL;
     unsigned char *restrict edges = image->edges ? image->edges : image->malloc(cols*rows);
     image->edges = NULL;
 
@@ -1662,7 +1670,7 @@ LIQ_NONNULL static void contrast_maps(liq_image *image)
 
     image->free(tmp);
 
-    image->noise = noise;
+    image->importance_map = noise;
     image->edges = edges;
 }
 
