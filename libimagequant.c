@@ -634,13 +634,24 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_memory_ownership(liq_image *img, 
 LIQ_NONNULL static void liq_image_free_maps(liq_image *input_image);
 LIQ_NONNULL static void liq_image_free_importance_map(liq_image *input_image);
 
-LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_importance_map(liq_image *img, unsigned char importance_map[], size_t buffer_size) {
+LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_importance_map(liq_image *img, unsigned char importance_map[], size_t buffer_size, enum liq_ownership ownership) {
     if (!CHECK_STRUCT_TYPE(img, liq_image)) return LIQ_INVALID_POINTER;
     if (!CHECK_USER_POINTER(importance_map)) return LIQ_INVALID_POINTER;
 
     const size_t required_size = img->width * img->height;
     if (buffer_size < required_size) {
         return LIQ_BUFFER_TOO_SMALL;
+    }
+
+    if (ownership == LIQ_COPY_PIXELS) {
+        unsigned char *tmp = img->malloc(required_size);
+        if (!tmp) {
+            return LIQ_OUT_OF_MEMORY;
+        }
+        memcpy(tmp, importance_map, required_size);
+        importance_map = tmp;
+    } else if (ownership != LIQ_OWN_PIXELS) {
+        return LIQ_UNSUPPORTED;
     }
 
     liq_image_free_importance_map(img);
