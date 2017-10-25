@@ -255,6 +255,25 @@ impl<'a> Image<'a> {
             ffi::liq_image_add_fixed_color(&mut *self.handle, color)
         }
     }
+
+    /// Remap pixels assuming they will be displayed on this background.
+    ///
+    /// Pixels that match the background color will be made transparent if there's a fully transparent color available in the palette.
+    ///
+    /// The background image's pixels must outlive this image
+    pub fn set_background<'own, 'bg: 'own>(&'own mut self, background: Image<'bg>) -> Result<(), liq_error> {
+        unsafe {
+            ffi::liq_image_set_background(&mut *self.handle, background.handle).ok()?;
+            mem::forget(background); // liq_image_set_background took ownership, don't free it here
+        };
+        Ok(())
+    }
+
+    pub fn set_importance_map(&mut self, map: &[u8]) -> Result<(), liq_error> {
+        unsafe {
+            ffi::liq_image_set_importance_map(&mut *self.handle, map.as_ptr() as *mut _, map.len(), ffi::liq_ownership::LIQ_COPY_PIXELS).ok()
+        }
+    }
 }
 
 impl QuantizationResult {
@@ -400,6 +419,20 @@ fn poke_it() {
     assert_eq!(100, res.quantization_quality());
     assert_eq!(Color{r:255,g:255,b:255,a:255}, palette[0]);
     assert_eq!(Color{r:0x55,g:0x66,b:0x77,a:255}, palette[1]);
+}
+
+#[test]
+fn set_importance_map() {
+    use ffi::liq_color as RGBA;
+    let mut liq = new();
+    let bitmap = &[RGBA::new(255,0,0,255), RGBA::new(0u8,0,255,255)];
+    let ref mut img = liq.new_image(&bitmap[..], 2, 1, 0.).unwrap();
+    let map = &[255,0];
+    img.set_importance_map(map).unwrap();
+    let mut res = liq.quantize(img).unwrap();
+    let pal = res.palette();
+    assert_eq!(1, pal.len());
+    assert_eq!(bitmap[0], pal[0]);
 }
 
 #[test]
