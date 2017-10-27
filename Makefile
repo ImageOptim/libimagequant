@@ -81,7 +81,7 @@ $(TARFILE): $(DISTFILES)
 cargo:
 	rm -rf msvc-dist
 	git clone . -b msvc msvc-dist
-	rm -rf msvc-dist/Cargo.toml msvc-dist/org
+	rm -rf msvc-dist/Cargo.toml msvc-dist/org msvc-dist/rust msvc-dist/README.md msvc-dist/COPYRIGHT
 	cargo test
 
 example: example.c lodepng.h lodepng.c $(STATICLIB)
