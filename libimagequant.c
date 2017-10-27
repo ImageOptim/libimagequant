@@ -1259,7 +1259,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
         schedule(static) default(none) shared(average_color) reduction(+:remapping_error)
     for(int row = 0; row < rows; ++row) {
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
-        const f_pixel *const bg_pixels = input_image->background && acolormap[transparent_index].acolor.a == 0 ? liq_image_get_row_f(input_image->background, row) : NULL;
+        const f_pixel *const bg_pixels = input_image->background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(input_image->background, row) : NULL;
 
         unsigned int last_match=0;
         for(unsigned int col = 0; col < cols; ++col) {
@@ -1369,7 +1369,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
 
         int col = (fs_direction > 0) ? 0 : (cols - 1);
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
-        const f_pixel *const bg_pixels = input_image->background && acolormap[transparent_index].acolor.a == 0 ? liq_image_get_row_f(input_image->background, row) : NULL;
+        const f_pixel *const bg_pixels = input_image->background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(input_image->background, row) : NULL;
 
         do {
             float dither_level = base_dithering_level;
@@ -1768,7 +1768,7 @@ LIQ_NONNULL static void update_dither_map(liq_image *input_image, unsigned char 
 
         for(unsigned int col=1; col < width; col++) {
             const unsigned char px = row_pointers[row][col];
-            if (input_image->background && map->palette[px].acolor.a == 0) {
+            if (input_image->background && map->palette[px].acolor.a < 1.f/256.f) {
                 // Transparency may or may not create an edge. When there's an explicit background set, assume no edge.
                 continue;
             }
