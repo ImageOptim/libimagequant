@@ -635,6 +635,12 @@ Returns `LIQ_QUALITY_TOO_LOW` if the palette is worse than limit set in `liq_set
 
 Palette generated using this function won't be improved during remapping. If you're generating palette for only one image, it's better to use `liq_image_quantize()`.
 
+## Working with GIF
+
+The library can generate palettes for GIF images. To ensure correct transparency is used you need to preprocess the image yourself and replace alpha values other than 0 or 255 with one of these.
+
+For animated GIFs see `liq_image_set_background()` which remaps images for GIF's "keep" frame disposal method. See [gif.ski](https://gif.ski).
+
 ## Multithreading
 
 The library is stateless and doesn't use any global or thread-local storage. It doesn't use any locks.
