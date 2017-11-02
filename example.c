@@ -21,6 +21,8 @@ On "manually":
    gcc -O3 example.c libimagequant.a -o example
    ./example truecolor_file.png
 
+
+This example code can be freely copied under CC0 (public domain) license.
 */
 
 #include "lodepng.h" // Get it from https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h

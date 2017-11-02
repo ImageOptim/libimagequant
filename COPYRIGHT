@@ -2,11 +2,11 @@
 libimagequant is derived from code by Jef Poskanzer and Greg Roelofs
 licensed under pngquant's original license (at the end of this file),
 and contains extensive changes and additions by Kornel Lesiński
-licensed under GPL v3.
+licensed under GPL v3 or later.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-libimagequant © 2009-2016 by Kornel Lesiński.
+libimagequant © 2009-2017 by Kornel Lesiński.
 
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007

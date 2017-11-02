@@ -1,3 +1,9 @@
+/*
+This is an example demonstrating use of libimagequant from C#.
+
+This example code can be freely copied under CC0 (public domain) license.
+*/
+
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
