@@ -15,6 +15,10 @@ fn main() {
         cc.define("NDEBUG", Some("1"));
     }
 
+    if cfg!(feature = "openmp") {
+        cc.flag("-fopenmp");
+    }
+
     if cfg!(target_arch="x86_64") ||
        (cfg!(target_arch="x86") && cfg!(feature = "sse")) {
         cc.flag("-msse");

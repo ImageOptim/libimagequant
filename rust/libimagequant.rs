@@ -35,6 +35,9 @@
 #![allow(non_camel_case_types)]
 extern crate rgb;
 
+#[cfg(feature = "openmp")]
+extern crate openmp_sys;
+
 use std::os::raw::{c_int, c_uint, c_char, c_void};
 use std::error;
 use std::fmt;
