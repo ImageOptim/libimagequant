@@ -193,11 +193,15 @@ static double prepare_sort(struct box *b, hist_item achv[])
 
     qsort(channels, 4, sizeof(channels[0]), comparevariance);
 
-    for(unsigned int i=0; i < b->colors; i++) {
-        const float *chans = (const float *)&achv[b->ind + i].acolor;
+    const unsigned int ind1 = b->ind;
+    const unsigned int colors = b->colors;
+    #pragma omp parallel for if (colors > 25000) \
+        schedule(static) default(none) shared(achv, channels)
+    for(unsigned int i=0; i < colors; i++) {
+        const float *chans = (const float *)&achv[ind1 + i].acolor;
         // Only the first channel really matters. When trying median cut many times
         // with different histogram weights, I don't want sort randomness to influence outcome.
-        achv[b->ind + i].tmp.sort_value = ((unsigned int)(chans[channels[0].chan]*65535.0)<<16) |
+        achv[ind1 + i].tmp.sort_value = ((unsigned int)(chans[channels[0].chan]*65535.0)<<16) |
                                        (unsigned int)((chans[channels[2].chan] + chans[channels[1].chan]/2.0 + chans[channels[3].chan]/4.0)*65535.0);
     }
 
@@ -206,6 +210,8 @@ static double prepare_sort(struct box *b, hist_item achv[])
     // box will be split to make color_weight of each side even
     const unsigned int ind = b->ind, end = ind+b->colors;
     double totalvar = 0;
+    #pragma omp parallel for if (end - ind > 15000) \
+        schedule(static) default(shared) reduction(+:totalvar)
     for(unsigned int j=ind; j < end; j++) totalvar += (achv[j].color_weight = color_weight(median, achv[j]));
     return totalvar / 2.0;
 }
@@ -303,8 +309,11 @@ static void box_init(struct box *box, const hist_item *achv, const unsigned int 
     box->colors = colors;
     box->sum = sum;
     box->total_error = -1;
+
     box->color = averagepixels(colors, &achv[ind]);
+    #pragma omp task if (colors > 5000)
     box->variance = box_variance(achv, box);
+    #pragma omp task if (colors > 8000)
     box->max_error = box_max_error(achv, box);
 }
 
@@ -317,66 +326,77 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
 {
     hist_item *achv = hist->achv;
     struct box bv[newcolors];
+    unsigned int boxes = 1;
 
     /*
      ** Set up the initial box.
      */
+    #pragma omp parallel
+    #pragma omp single
+    {
         double sum = 0;
-    for(unsigned int i=0; i < hist->size; i++) {
+        for(unsigned int i=0; i < hist->size; i++) {
             sum += achv[i].adjusted_weight;
         }
-    box_init(&bv[0], achv, 0, hist->size, sum);
+        #pragma omp taskgroup
+        {
+            box_init(&bv[0], achv, 0, hist->size, sum);
+        }
 
-    unsigned int boxes = 1;
-
-    /*
-     ** Main loop: split boxes until we have enough.
-     */
-    while (boxes < newcolors) {
-
-        // first splits boxes that exceed quality limit (to have colors for things like odd green pixel),
-        // later raises the limit to allow large smooth areas/gradients get colors.
-        const double current_max_mse = max_mse + (boxes/(double)newcolors)*16.0*max_mse;
-        const int bi = best_splittable_box(bv, boxes, current_max_mse);
-        if (bi < 0)
-            break;        /* ran out of colors! */
-
-        unsigned int indx = bv[bi].ind;
-        unsigned int clrs = bv[bi].colors;
 
         /*
-         Classic implementation tries to get even number of colors or pixels in each subdivision.
-
-         Here, instead of popularity I use (sqrt(popularity)*variance) metric.
-         Each subdivision balances number of pixels (popular colors) and low variance -
-         boxes can be large if they have similar colors. Later boxes with high variance
-         will be more likely to be split.
-
-         Median used as expected value gives much better results than mean.
+         ** Main loop: split boxes until we have enough.
          */
+        while (boxes < newcolors) {
 
-        const double halfvar = prepare_sort(&bv[bi], achv);
-        double lowervar=0;
+            // first splits boxes that exceed quality limit (to have colors for things like odd green pixel),
+            // later raises the limit to allow large smooth areas/gradients get colors.
+            const double current_max_mse = max_mse + (boxes/(double)newcolors)*16.0*max_mse;
+            const int bi = best_splittable_box(bv, boxes, current_max_mse);
+            if (bi < 0)
+                break;        /* ran out of colors! */
 
-        // hist_item_sort_halfvar sorts and sums lowervar at the same time
-        // returns item to break at …minus one, which does smell like an off-by-one error.
-        hist_item *break_p = hist_item_sort_halfvar(&achv[indx], clrs, &lowervar, halfvar);
-        unsigned int break_at = MIN(clrs-1, break_p - &achv[indx] + 1);
+            unsigned int indx = bv[bi].ind;
+            unsigned int clrs = bv[bi].colors;
 
-        /*
-         ** Split the box.
-         */
-        double sm = bv[bi].sum;
-        double lowersum = 0;
-        for(unsigned int i=0; i < break_at; i++) lowersum += achv[indx + i].adjusted_weight;
+            /*
+             Classic implementation tries to get even number of colors or pixels in each subdivision.
 
-        box_init(&bv[bi], achv, bv[bi].ind, break_at, lowersum);
-        box_init(&bv[boxes], achv, indx + break_at, clrs - break_at, sm - lowersum);
+             Here, instead of popularity I use (sqrt(popularity)*variance) metric.
+             Each subdivision balances number of pixels (popular colors) and low variance -
+             boxes can be large if they have similar colors. Later boxes with high variance
+             will be more likely to be split.
 
-        ++boxes;
+             Median used as expected value gives much better results than mean.
+             */
 
-        if (total_box_error_below_target(target_mse, bv, boxes, hist)) {
-            break;
+            const double halfvar = prepare_sort(&bv[bi], achv);
+            double lowervar=0;
+
+            // hist_item_sort_halfvar sorts and sums lowervar at the same time
+            // returns item to break at …minus one, which does smell like an off-by-one error.
+            hist_item *break_p = hist_item_sort_halfvar(&achv[indx], clrs, &lowervar, halfvar);
+            unsigned int break_at = MIN(clrs-1, break_p - &achv[indx] + 1);
+
+            /*
+             ** Split the box.
+             */
+            double sm = bv[bi].sum;
+            double lowersum = 0;
+            for(unsigned int i=0; i < break_at; i++) lowersum += achv[indx + i].adjusted_weight;
+
+            #pragma omp taskgroup
+            {
+                #pragma omp task if (break_at > 2000)
+                box_init(&bv[bi], achv, bv[bi].ind, break_at, lowersum);
+                box_init(&bv[boxes], achv, indx + break_at, clrs - break_at, sm - lowersum);
+            }
+
+            ++boxes;
+
+            if (total_box_error_below_target(target_mse, bv, boxes, hist)) {
+                break;
+            }
         }
     }
 
@@ -423,6 +443,8 @@ static f_pixel averagepixels(unsigned int clrs, const hist_item achv[])
 {
     double r = 0, g = 0, b = 0, a = 0, sum = 0;
 
+    #pragma omp parallel for if (clrs > 25000) \
+        schedule(static) default(shared) reduction(+:a) reduction(+:r) reduction(+:g) reduction(+:b) reduction(+:sum)
     for(unsigned int i = 0; i < clrs; i++) {
         const f_pixel px = achv[i].acolor;
         const double weight = achv[i].adjusted_weight;
