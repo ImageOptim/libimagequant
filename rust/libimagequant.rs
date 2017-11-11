@@ -193,6 +193,8 @@ extern "C" {
     ///
     /// Returns `NULL` on failure, e.g. if `pixels` is `NULL` or `width`/`height` is <= 0.
     pub fn liq_image_create_rgba(attr: &liq_attr, bitmap: *const u8, width: c_int, height: c_int, gamma: f64) -> *mut liq_image;
+    /// unsafe: It will crash if the owned memory wasn't allocated using `libc::malloc()` (or whatever allocator C side is using)
+    pub fn liq_image_set_memory_ownership(image: &liq_image, own: liq_ownership) -> liq_error;
 
     pub fn liq_set_log_callback(arg1: &mut liq_attr, arg2: liq_log_callback_function, user_info: *mut c_void);
     pub fn liq_set_log_flush_callback(arg1: &mut liq_attr, arg2: liq_log_flush_callback_function, user_info: *mut c_void);

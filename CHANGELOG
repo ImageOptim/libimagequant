@@ -2,6 +2,7 @@ version 2.11
 ------------
  - new liq_image_set_background() for high-quality remapping of GIF frames
  - new liq_image_set_importance_map() for controlling which parts of the image get more palette colors
+ - improved OpenMP support
 
 version 2.10
 -----------
