@@ -7,6 +7,7 @@
 //! See `examples/` directory for example code.
 
 extern crate imagequant_sys as ffi;
+extern crate libc;
 
 pub use ffi::liq_error;
 pub use ffi::liq_error::*;
@@ -26,6 +27,7 @@ pub struct Attributes {
 /// Describes image dimensions for the library.
 pub struct Image<'a> {
     handle: *mut ffi::liq_image,
+    /// Holds row pointers for images with stride
     _marker: std::marker::PhantomData<&'a [u8]>,
 }
 
@@ -147,6 +149,11 @@ impl Attributes {
         Image::new(self, bitmap, width, height, gamma)
     }
 
+    /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
+    pub fn new_image_stride<'a, RGBA: Copy>(&self, bitmap: &'a [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'a>, liq_error> {
+        Image::new_stride(self, bitmap, width, height, stride, gamma)
+    }
+
     pub fn new_histogram(&self) -> Histogram {
         Histogram::new(&self)
     }
@@ -215,22 +222,42 @@ impl<'a> Image<'a> {
     /// `bitmap` must be either `&[u8]` or a slice with one element per pixel (`&[RGBA]`).
     ///
     /// Use `0.` for gamma if the image is sRGB (most images are).
+    #[inline]
     pub fn new<PixelType: Copy>(attr: &Attributes, bitmap: &'a [PixelType], width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
-        match mem::size_of::<PixelType>() {
+        Self::new_stride(attr, bitmap, width, height, width, gamma)
+    }
+
+    /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
+    pub fn new_stride<PixelType: Copy>(attr: &Attributes, bitmap: &'a [PixelType], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, liq_error> {
+        let bytes_per_pixel = mem::size_of::<PixelType>();
+        match bytes_per_pixel {
             1 | 4 => {}
             _ => return Err(LIQ_UNSUPPORTED),
         }
-        if bitmap.len() * mem::size_of::<PixelType>() < width*height*4 {
-            eprintln!("Buffer length is {}x{} bytes, which is not enough for {}x{}x4 RGBA bytes", bitmap.len(), mem::size_of::<PixelType>(), width, height);
+        if bitmap.len() * bytes_per_pixel < (stride * height + width - stride) * 4 {
+            eprintln!("Buffer length is {}×{} bytes, which is not enough for {}×{}×4 RGBA bytes", bitmap.len(), bytes_per_pixel, stride, height);
             return Err(LIQ_BUFFER_TOO_SMALL);
         }
         unsafe {
-            match ffi::liq_image_create_rgba(&*attr.handle, mem::transmute(bitmap.as_ptr()), width as c_int, height as c_int, gamma) {
-                h if !h.is_null() => Ok(Image {
-                    handle: h,
-                    _marker: std::marker::PhantomData,
-                }),
-                _ => Err(LIQ_INVALID_POINTER),
+            let mut byte_ptr = bitmap.as_ptr() as *const u8;
+            let stride_bytes = (stride * bytes_per_pixel) as isize;
+            let rows = libc::malloc(mem::size_of::<*const u8>() * height) as *mut *const u8;
+            for y in 0..height as isize {
+                *rows.offset(y) = byte_ptr;
+                byte_ptr = byte_ptr.offset(stride_bytes);
+            }
+
+            match ffi::liq_image_create_rgba_rows(&*attr.handle, rows, width as c_int, height as c_int, gamma) {
+                h if !h.is_null() && ffi::liq_image_set_memory_ownership(&*h, ffi::liq_ownership::LIQ_OWN_ROWS).is_ok() => {
+                    Ok(Image {
+                        handle: h,
+                        _marker: std::marker::PhantomData,
+                    })
+                },
+                _ => {
+                    libc::free(rows as *mut _);
+                    Err(LIQ_INVALID_POINTER)
+                }
             }
         }
     }
@@ -263,16 +290,20 @@ impl<'a> Image<'a> {
     /// The background image's pixels must outlive this image
     pub fn set_background<'own, 'bg: 'own>(&'own mut self, background: Image<'bg>) -> Result<(), liq_error> {
         unsafe {
-            ffi::liq_image_set_background(&mut *self.handle, background.handle).ok()?;
-            mem::forget(background); // liq_image_set_background took ownership, don't free it here
-        };
-        Ok(())
+            ffi::liq_image_set_background(&mut *self.handle, background.into_raw()).ok()
+        }
     }
 
     pub fn set_importance_map(&mut self, map: &[u8]) -> Result<(), liq_error> {
         unsafe {
             ffi::liq_image_set_importance_map(&mut *self.handle, map.as_ptr() as *mut _, map.len(), ffi::liq_ownership::LIQ_COPY_PIXELS).ok()
         }
+    }
+
+    fn into_raw(mut self) -> *mut ffi::liq_image {
+        let handle = self.handle;
+        self.handle = ptr::null_mut();
+        handle
     }
 }
 
