@@ -124,6 +124,15 @@ impl liq_error {
         }
     }
 
+    #[inline]
+    pub fn ok_or<E>(self, err: E) -> Result<(), E> {
+        if self.is_ok() {
+            Ok(())
+        } else {
+            Err(err)
+        }
+    }
+
     pub fn unwrap(&self) {
         assert!(self.is_ok(), "{}", self);
     }
