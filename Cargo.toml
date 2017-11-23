@@ -32,7 +32,7 @@ openmp-static = ["openmp", "openmp-sys/static"]
 sse = []
 
 [lib]
-crate-type = ["cdylib", "rlib", "staticlib"]
+crate-type = ["cdylib", "staticlib", "lib"]
 name = "imagequant_sys"
 path = "rust/libimagequant.rs"
 doctest = false
