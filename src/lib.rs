@@ -85,7 +85,7 @@ impl Clone for Attributes {
 impl Attributes {
     pub fn new() -> Self {
         let handle = unsafe { ffi::liq_attr_create() };
-        assert!(!handle.is_null());
+        assert!(!handle.is_null(), "SSE-capable CPU is required for this build.");
         Attributes { handle: handle }
     }
 
