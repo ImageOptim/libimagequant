@@ -145,10 +145,8 @@ impl liq_error {
 pub type liq_log_callback_function = Option<unsafe extern "C" fn(arg1: &liq_attr, message: *const c_char, user_info: *mut c_void)>;
 pub type liq_log_flush_callback_function = Option<unsafe extern "C" fn(arg1: &liq_attr, user_info: *mut c_void)>;
 pub type liq_progress_callback_function = Option<unsafe extern "C" fn(progress_percent: f32, user_info: *mut c_void) -> c_int>;
-pub type liq_image_get_rgba_row_callback = Option<unsafe extern "C" fn(row_out: &mut liq_color,
-                                                                                        row: c_int,
-                                                                                        width: c_int,
-                                                                                        user_info: *mut c_void)>;
+pub type liq_image_get_rgba_row_callback = unsafe extern "C" fn(row_out: *mut liq_color, row: c_int, width: c_int, user_info: *mut c_void);
+
 #[link(name="imagequant", kind="static")]
 extern "C" {
 
