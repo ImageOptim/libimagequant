@@ -13,6 +13,7 @@ pub use ffi::liq_error;
 pub use ffi::liq_error::*;
 use std::os::raw::c_int;
 use std::mem;
+use std::marker;
 use std::ptr;
 
 /// 8-bit RGBA. This is the only color format used by the library.
@@ -28,7 +29,7 @@ pub struct Attributes {
 pub struct Image<'a> {
     handle: *mut ffi::liq_image,
     /// Holds row pointers for images with stride
-    _marker: std::marker::PhantomData<&'a [u8]>,
+    _marker: marker::PhantomData<&'a [u8]>,
 }
 
 /// Palette inside.
@@ -216,19 +217,19 @@ impl<'a> Histogram<'a> {
     }
 }
 
-impl<'a> Image<'a> {
+impl<'bitmap> Image<'bitmap> {
     /// Describe dimensions of a slice of RGBA pixels.
     ///
     /// `bitmap` must be either `&[u8]` or a slice with one element per pixel (`&[RGBA]`).
     ///
     /// Use `0.` for gamma if the image is sRGB (most images are).
     #[inline]
-    pub fn new<PixelType: Copy>(attr: &Attributes, bitmap: &'a [PixelType], width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
+    pub fn new<PixelType: Copy>(attr: &Attributes, bitmap: &'bitmap [PixelType], width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
         Self::new_stride(attr, bitmap, width, height, width, gamma)
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
-    pub fn new_stride<PixelType: Copy>(attr: &Attributes, bitmap: &'a [PixelType], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, liq_error> {
+    pub fn new_stride<PixelType: Copy>(attr: &Attributes, bitmap: &'bitmap [PixelType], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, liq_error> {
         let bytes_per_pixel = mem::size_of::<PixelType>();
         match bytes_per_pixel {
             1 | 4 => {}
@@ -239,19 +240,12 @@ impl<'a> Image<'a> {
             return Err(LIQ_BUFFER_TOO_SMALL);
         }
         unsafe {
-            let mut byte_ptr = bitmap.as_ptr() as *const u8;
-            let stride_bytes = (stride * bytes_per_pixel) as isize;
-            let rows = libc::malloc(mem::size_of::<*const u8>() * height) as *mut *const u8;
-            for y in 0..height as isize {
-                *rows.offset(y) = byte_ptr;
-                byte_ptr = byte_ptr.offset(stride_bytes);
-            }
-
+            let rows = Self::malloc_image_rows(bitmap, stride, height, bytes_per_pixel);
             match ffi::liq_image_create_rgba_rows(&*attr.handle, rows, width as c_int, height as c_int, gamma) {
                 h if !h.is_null() && ffi::liq_image_set_memory_ownership(&*h, ffi::liq_ownership::LIQ_OWN_ROWS).is_ok() => {
                     Ok(Image {
                         handle: h,
-                        _marker: std::marker::PhantomData,
+                        _marker: marker::PhantomData,
                     })
                 },
                 _ => {
@@ -260,6 +254,19 @@ impl<'a> Image<'a> {
                 }
             }
         }
+    }
+
+    /// For arbitrary stride libimagequant requires rows. It's most convenient if they're allocated using libc,
+    /// so they can be owned and freed automatically by the C library.
+    unsafe fn malloc_image_rows<PixelType: Copy>(bitmap: &'bitmap [PixelType], stride: usize, height: usize, bytes_per_pixel: usize) -> *mut *const u8 {
+        let mut byte_ptr = bitmap.as_ptr() as *const u8;
+        let stride_bytes = (stride * bytes_per_pixel) as isize;
+        let rows = libc::malloc(mem::size_of::<*const u8>() * height) as *mut *const u8;
+        for y in 0..height as isize {
+            *rows.offset(y) = byte_ptr;
+            byte_ptr = byte_ptr.offset(stride_bytes);
+        }
+        rows
     }
 
     pub fn width(&self) -> usize {
@@ -363,7 +370,7 @@ impl QuantizationResult {
 
 unsafe impl Send for Attributes {}
 unsafe impl Send for QuantizationResult {}
-unsafe impl<'a> Send for Image<'a> {}
+unsafe impl<'bitmap> Send for Image<'bitmap> {}
 unsafe impl<'a> Send for Histogram<'a> {}
 
 #[test]
