@@ -21,7 +21,9 @@
 
 #ifdef _OPENMP
 #include <omp.h>
+#define LIQ_TEMP_ROW_WIDTH(img_width) (((img_width) | 15) + 1) /* keep alignment & leave space between rows to avoid cache line contention */
 #else
+#define LIQ_TEMP_ROW_WIDTH(img_width) (img_width)
 #define omp_get_max_threads() 1
 #define omp_get_thread_num() 0
 #endif
@@ -529,7 +531,7 @@ LIQ_NONNULL liq_error liq_histogram_add_fixed_color(liq_histogram *hist, f_pixel
 
 LIQ_NONNULL static bool liq_image_use_low_memory(liq_image *img)
 {
-    img->temp_f_row = img->malloc(sizeof(img->f_pixels[0]) * img->width * omp_get_max_threads());
+    img->temp_f_row = img->malloc(sizeof(img->f_pixels[0]) * LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_max_threads());
     return img->temp_f_row != NULL;
 }
 
@@ -565,7 +567,7 @@ static liq_image *liq_image_create_internal(const liq_attr *attr, rgba_pixel* ro
     };
 
     if (!rows || attr->min_opaque_val < 1.f) {
-        img->temp_row = attr->malloc(sizeof(img->temp_row[0]) * width * omp_get_max_threads());
+        img->temp_row = attr->malloc(sizeof(img->temp_row[0]) * LIQ_TEMP_ROW_WIDTH(width) * omp_get_max_threads());
         if (!img->temp_row) return NULL;
     }
 
@@ -760,7 +762,7 @@ LIQ_NONNULL static const rgba_pixel *liq_image_get_row_rgba(liq_image *img, unsi
     }
 
     assert(img->temp_row);
-    rgba_pixel *temp_row = img->temp_row + img->width * omp_get_thread_num();
+    rgba_pixel *temp_row = img->temp_row + LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_thread_num();
     if (img->rows) {
         memcpy(temp_row, img->rows[row], img->width * sizeof(temp_row[0]));
     } else {
@@ -789,7 +791,7 @@ LIQ_NONNULL static const f_pixel *liq_image_get_row_f(liq_image *img, unsigned i
         if (img->temp_f_row) {
             float gamma_lut[256];
             to_f_set_gamma(gamma_lut, img->gamma);
-            f_pixel *row_for_thread = img->temp_f_row + img->width * omp_get_thread_num();
+            f_pixel *row_for_thread = img->temp_f_row + LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_thread_num();
             convert_row_to_f(img, row_for_thread, row, gamma_lut);
             return row_for_thread;
         }
