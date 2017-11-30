@@ -521,7 +521,7 @@ fn callback_test() {
             }
             *user_data += 1;
         }
-        let mut img = Image::new_unsafe_fn(&a, 123, 5, 0., get_row, &mut called).unwrap();
+        let mut img = Image::new_unsafe_fn(&a, get_row, &mut called, 123, 5, 0.).unwrap();
         a.quantize(&mut img).unwrap()
     };
     assert!(called > 5 && called < 50);
