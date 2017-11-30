@@ -217,6 +217,13 @@ impl<'a> Histogram<'a> {
     }
 }
 
+/// Generate image row on the fly
+///
+/// `output_row` is an array `width` RGBA elements wide.
+/// `y` is the row (0-indexed) to write to the `output_row`
+/// `user_data` is the data given to `Image::new_unsafe_fn()`
+pub type ConvertRowUnsafeFn<UserData> = unsafe extern "C" fn(output_row: *mut Color, y: c_int, width: c_int, user_data: *mut UserData);
+
 impl<'bitmap> Image<'bitmap> {
     /// Describe dimensions of a slice of RGBA pixels.
     ///
@@ -226,6 +233,24 @@ impl<'bitmap> Image<'bitmap> {
     #[inline]
     pub fn new<PixelType: Copy>(attr: &Attributes, bitmap: &'bitmap [PixelType], width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
         Self::new_stride(attr, bitmap, width, height, width, gamma)
+    }
+
+    /// Generate rows on demand using a callback function.
+    ///
+    /// The callback function must be cheap (e.g. just byte-swap pixels).
+    /// It will be called multiple times per row. May be called in any order from any thread.
+    ///
+    /// The user data must be compatible with a primitive pointer
+    /// (i.e. not a slice, not a Trait object. `Box` it if you must).
+    pub fn new_unsafe_fn<CustomData: Send + Sync + 'bitmap>(attr: &Attributes, convert_row_fn: ConvertRowUnsafeFn<CustomData>, user_data: *mut CustomData, width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
+        unsafe {
+            match ffi::liq_image_create_custom(&*attr.handle, mem::transmute(convert_row_fn), user_data as *mut _, width as c_int, height as c_int, gamma) {
+                handle if !handle.is_null() => Ok(Image {handle, _marker: marker::PhantomData}),
+                _ => {
+                    Err(LIQ_INVALID_POINTER)
+                }
+            }
+        }
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
@@ -480,4 +505,25 @@ fn thread() {
         let b = vec![0u8;4];
         liq.new_image(&b, 1, 1, 0.).unwrap();
     }).join().unwrap();
+}
+
+#[test]
+fn callback_test() {
+    let mut called = 0;
+    let mut res = {
+        let mut a = new();
+        unsafe extern "C" fn get_row(output_row: *mut Color, y: c_int, width: c_int, user_data: *mut i32) {
+            assert!(y >= 0 && y < 5);
+            assert_eq!(123, width);
+            for i in 0..width as isize {
+                let n = i as u8;
+                *output_row.offset(i as isize) = Color::new(n,n,n,n);
+            }
+            *user_data += 1;
+        }
+        let mut img = Image::new_unsafe_fn(&a, 123, 5, 0., get_row, &mut called).unwrap();
+        a.quantize(&mut img).unwrap()
+    };
+    assert!(called > 5 && called < 50);
+    assert_eq!(123, res.palette().len());
 }
