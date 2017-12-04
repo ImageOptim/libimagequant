@@ -6,6 +6,7 @@
 //!
 //! See `examples/` directory for example code.
 #![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
+#![warn(missing_docs)]
 
 extern crate imagequant_sys as ffi;
 extern crate libc;
@@ -19,6 +20,10 @@ use std::ptr;
 
 /// 8-bit RGBA. This is the only color format used by the library.
 pub type Color = ffi::liq_color;
+
+/// Number of pixels in a given color
+///
+/// Used if you're building histogram manually. Otherwise see `add_image()`
 pub type HistogramEntry = ffi::liq_histogram_entry;
 
 /// Settings for the conversion proces. Start here.
@@ -85,6 +90,9 @@ impl Clone for Attributes {
 }
 
 impl Attributes {
+    /// New handle for library configuration
+    ///
+    /// See also `new_image()`
     pub fn new() -> Self {
         let handle = unsafe { ffi::liq_attr_create() };
         assert!(!handle.is_null(), "SSE-capable CPU is required for this build.");
@@ -103,6 +111,7 @@ impl Attributes {
         unsafe { ffi::liq_set_min_posterization(&mut *self.handle, value) }
     }
 
+    /// Returns number of bits of precision truncated
     pub fn min_posterization(&mut self) -> i32 {
         unsafe { ffi::liq_get_min_posterization(&*self.handle) }
     }
@@ -132,14 +141,19 @@ impl Attributes {
         unsafe { ffi::liq_set_speed(&mut *self.handle, value) }
     }
 
+    /// Move transparent color to the last entry in the palette
+    ///
+    /// This is less efficient for PNG, but required by some broken software
     pub fn set_last_index_transparent(&mut self, value: bool) -> () {
         unsafe { ffi::liq_set_last_index_transparent(&mut *self.handle, value as c_int) }
     }
 
+    /// Return currently set speed/quality trade-off setting
     pub fn speed(&mut self) -> i32 {
         unsafe { ffi::liq_get_speed(&*self.handle) }
     }
 
+    /// Return max number of colors set
     pub fn max_colors(&mut self) -> i32 {
         unsafe { ffi::liq_get_max_colors(&*self.handle) }
     }
@@ -156,6 +170,9 @@ impl Attributes {
         Image::new_stride(self, bitmap, width, height, stride, gamma)
     }
 
+    /// Create new histogram
+    ///
+    /// Use to make one palette suitable for many images
     pub fn new_histogram(&self) -> Histogram {
         Histogram::new(&self)
     }
@@ -172,6 +189,7 @@ impl Attributes {
     }
 }
 
+/// Start here: creates new handle for library configuration
 pub fn new() -> Attributes {
     Attributes::new()
 }
@@ -295,10 +313,12 @@ impl<'bitmap> Image<'bitmap> {
         rows
     }
 
+    /// Width of the image in pixels
     pub fn width(&self) -> usize {
         unsafe { ffi::liq_image_get_width(&*self.handle) as usize }
     }
 
+    /// Height of the image in pixels
     pub fn height(&self) -> usize {
         unsafe { ffi::liq_image_get_height(&*self.handle) as usize }
     }
@@ -327,6 +347,9 @@ impl<'bitmap> Image<'bitmap> {
         }
     }
 
+    /// Set which pixels are more important (and more likely to get a palette entry)
+    ///
+    /// The map must be `width`×`height` pixels large. Higher numbers = more important.
     pub fn set_importance_map(&mut self, map: &[u8]) -> Result<(), liq_error> {
         unsafe {
             ffi::liq_image_set_importance_map(&mut *self.handle, map.as_ptr() as *mut _, map.len(), ffi::liq_ownership::LIQ_COPY_PIXELS).ok()
@@ -351,6 +374,9 @@ impl QuantizationResult {
         unsafe { ffi::liq_set_output_gamma(&mut *self.handle, value) }
     }
 
+    /// Approximate gamma correction value used for the output
+    ///
+    /// Colors are converted from input gamma to this gamma
     pub fn output_gamma(&mut self) -> f64 {
         unsafe { ffi::liq_get_output_gamma(&*self.handle) }
     }
