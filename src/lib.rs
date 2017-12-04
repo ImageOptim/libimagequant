@@ -5,6 +5,7 @@
 //! This is based on imagequant library, which generates very high quality images.
 //!
 //! See `examples/` directory for example code.
+#![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
 
 extern crate imagequant_sys as ffi;
 extern crate libc;
