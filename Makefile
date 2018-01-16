@@ -30,12 +30,12 @@ static: $(STATICLIB)
 shared: $(SHAREDLIB)
 
 dll:
-	$(MAKE) CFLAGSADD="-DIMAGEQUANT_EXPORTS" $(DLL)
+	$(MAKE) CFLAGS="-DIMAGEQUANT_EXPORTS" $(DLL)
 
 java: $(JNILIB)
 
 java-dll:
-	$(MAKE) CFLAGSADD="-DIMAGEQUANT_EXPORTS" $(JNIDLL)
+	$(MAKE) CFLAGS="-DIMAGEQUANT_EXPORTS" $(JNIDLL)
 
 $(DLL) $(DLLIMP): $(OBJS)
 	$(CC) -fPIC -shared -o $(DLL) $^ $(LDFLAGS) -Wl,--out-implib,$(DLLIMP),--output-def,$(DLLDEF)
