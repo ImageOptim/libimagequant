@@ -383,7 +383,7 @@ impl QuantizationResult {
     }
 
     /// Number 0-100 guessing how nice the input image will look if remapped to this palette
-    pub fn quantization_quality(&mut self) -> i32 {
+    pub fn quantization_quality(&self) -> i32 {
         unsafe { ffi::liq_get_quantization_quality(&*self.handle) as i32 }
     }
 
