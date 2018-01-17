@@ -17,6 +17,7 @@ use std::os::raw::c_int;
 use std::mem;
 use std::marker;
 use std::ptr;
+use std::fmt;
 
 /// 8-bit RGBA. This is the only color format used by the library.
 pub type Color = ffi::liq_color;
@@ -387,7 +388,7 @@ impl QuantizationResult {
     }
 
     /// Approximate mean square error of the palette
-    pub fn quantization_error(&mut self) -> Option<f64> {
+    pub fn quantization_error(&self) -> Option<f64> {
         match unsafe { ffi::liq_get_quantization_error(&*self.handle) } {
             x if x < 0. => None,
             x => Some(x),
@@ -417,6 +418,12 @@ impl QuantizationResult {
                 err => Err(err),
             }
         }
+    }
+}
+
+impl fmt::Debug for QuantizationResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "QuantizationResult(q={})", self.quantization_quality())
     }
 }
 
