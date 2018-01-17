@@ -23,6 +23,3 @@ openmp = ["imagequant-sys/openmp"]
 
 [lib]
 name = "imagequant"
-
-[package.metadata.deb]
-features = ["openmp"]
