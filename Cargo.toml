@@ -9,8 +9,8 @@ authors = [ "Kornel <kornel@pngquant.org>" ]
 license = "GPL-3.0+"
 name = "imagequant"
 readme = "README.md"
-repository = "https://github.com/pornel/libimagequant-rust.git"
-version = "2.11.7"
+repository = "https://github.com/kornelski/libimagequant-rust.git"
+version = "2.11.8"
 
 [dependencies]
 imagequant-sys = "2.11.4"
