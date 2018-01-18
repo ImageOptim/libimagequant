@@ -1227,6 +1227,9 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     if (!liq_image_get_row_f_init(input_image)) {
         return -1;
     }
+    if (input_image->background && !liq_image_get_row_f_init(input_image->background)) {
+        return -1;
+    }
 
     const colormap_item *acolormap = map->palette;
 
