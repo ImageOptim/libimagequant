@@ -388,7 +388,7 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
             #pragma omp taskgroup
             {
                 #pragma omp task if (break_at > 2000)
-                box_init(&bv[bi], achv, bv[bi].ind, break_at, lowersum);
+                box_init(&bv[bi], achv, indx, break_at, lowersum);
                 box_init(&bv[boxes], achv, indx + break_at, clrs - break_at, sm - lowersum);
             }
 
