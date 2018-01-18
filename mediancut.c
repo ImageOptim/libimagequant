@@ -1,5 +1,5 @@
 /*
-** © 2009-2017 by Kornel Lesiński.
+** © 2009-2018 by Kornel Lesiński.
 ** © 1989, 1991 by Jef Poskanzer.
 ** © 1997, 2000, 2002 by Greg Roelofs; based on an idea by Stefan Schneider.
 **
