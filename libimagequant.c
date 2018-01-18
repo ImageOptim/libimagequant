@@ -142,6 +142,7 @@ static void modify_alpha(liq_image *input_image, rgba_pixel *const row_pixels) L
 static void contrast_maps(liq_image *image) LIQ_NONNULL;
 static liq_error finalize_histogram(liq_histogram *input_hist, liq_attr *options, histogram **hist_output) LIQ_NONNULL;
 static const rgba_pixel *liq_image_get_row_rgba(liq_image *input_image, unsigned int row) LIQ_NONNULL;
+static bool liq_image_get_row_f_init(liq_image *img) LIQ_NONNULL;
 static const f_pixel *liq_image_get_row_f(liq_image *input_image, unsigned int row) LIQ_NONNULL;
 static void liq_remapping_result_destroy(liq_remapping_result *result) LIQ_NONNULL;
 static liq_error pngquant_quantize(histogram *hist, const liq_attr *options, const int fixed_colors_count, const f_pixel fixed_colors[], const double gamma, bool fixed_result_colors, liq_result **) LIQ_NONNULL;
@@ -785,31 +786,33 @@ LIQ_NONNULL static void convert_row_to_f(liq_image *img, f_pixel *row_f_pixels, 
     }
 }
 
+LIQ_NONNULL static bool liq_image_get_row_f_init(liq_image *img)
+{
+    assert(omp_get_thread_num() == 0);
+    if (!liq_image_should_use_low_memory(img, false)) {
+        img->f_pixels = img->malloc(sizeof(img->f_pixels[0]) * img->width * img->height);
+    }
+    if (!img->f_pixels) {
+        return liq_image_use_low_memory(img);
+    }
+
+    float gamma_lut[256];
+    to_f_set_gamma(gamma_lut, img->gamma);
+    for(unsigned int i=0; i < img->height; i++) {
+        convert_row_to_f(img, &img->f_pixels[i*img->width], i, gamma_lut);
+    }
+    return true;
+}
+
 LIQ_NONNULL static const f_pixel *liq_image_get_row_f(liq_image *img, unsigned int row)
 {
     if (!img->f_pixels) {
-        if (img->temp_f_row) {
-            float gamma_lut[256];
-            to_f_set_gamma(gamma_lut, img->gamma);
-            f_pixel *row_for_thread = img->temp_f_row + LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_thread_num();
-            convert_row_to_f(img, row_for_thread, row, gamma_lut);
-            return row_for_thread;
-        }
-
-        assert(omp_get_thread_num() == 0);
-        if (!liq_image_should_use_low_memory(img, false)) {
-            img->f_pixels = img->malloc(sizeof(img->f_pixels[0]) * img->width * img->height);
-        }
-        if (!img->f_pixels) {
-            if (!liq_image_use_low_memory(img)) return NULL;
-            return liq_image_get_row_f(img, row);
-        }
-
+        assert(img->temp_f_row); // init should have done that
         float gamma_lut[256];
         to_f_set_gamma(gamma_lut, img->gamma);
-        for(unsigned int i=0; i < img->height; i++) {
-            convert_row_to_f(img, &img->f_pixels[i*img->width], i, gamma_lut);
-        }
+        f_pixel *row_for_thread = img->temp_f_row + LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_thread_num();
+        convert_row_to_f(img, row_for_thread, row, gamma_lut);
+        return row_for_thread;
     }
     return img->f_pixels + img->width * row;
 }
@@ -1221,7 +1224,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     const unsigned int cols = input_image->width;
     double remapping_error=0;
 
-    if (!liq_image_get_row_f(input_image, 0)) { // trigger lazy conversion
+    if (!liq_image_get_row_f_init(input_image)) {
         return -1;
     }
 
@@ -1316,6 +1319,10 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
 
     const colormap *map = quant->palette;
     const colormap_item *acolormap = map->palette;
+
+    if (!liq_image_get_row_f_init(input_image)) {
+        return false;
+    }
 
     /* Initialize Floyd-Steinberg error vectors. */
     const size_t errwidth = cols+2;
@@ -1657,7 +1664,7 @@ LIQ_NONNULL static void contrast_maps(liq_image *image)
 
     unsigned char *restrict tmp = image->malloc(cols*rows);
 
-    if (!noise || !edges || !tmp) {
+    if (!noise || !edges || !tmp || !liq_image_get_row_f_init(image)) {
         image->free(noise);
         image->free(edges);
         image->free(tmp);
