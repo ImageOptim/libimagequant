@@ -794,11 +794,18 @@ LIQ_NONNULL static void convert_row_to_f(liq_image *img, f_pixel *row_f_pixels, 
 LIQ_NONNULL static bool liq_image_get_row_f_init(liq_image *img)
 {
     assert(omp_get_thread_num() == 0);
+    if (img->f_pixels) {
+        return true;
+    }
     if (!liq_image_should_use_low_memory(img, false)) {
         img->f_pixels = img->malloc(sizeof(img->f_pixels[0]) * img->width * img->height);
     }
     if (!img->f_pixels) {
         return liq_image_use_low_memory(img);
+    }
+
+    if (!liq_image_has_rgba_pixels(img)) {
+        return false;
     }
 
     float gamma_lut[256];
