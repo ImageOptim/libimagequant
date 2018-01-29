@@ -23,7 +23,7 @@ rgb = "0.8.5"
 
 [dependencies.openmp-sys]
 optional = true
-version = "0.1.1"
+version = "0.1.2"
 
 [features]
 default = ["sse"]
