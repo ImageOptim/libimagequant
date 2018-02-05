@@ -16,7 +16,7 @@ fn main() {
     }
 
     if cfg!(feature = "openmp") {
-        cc.flag("-fopenmp");
+        cc.flag(&env::var("DEP_OPENMP_FLAG").unwrap());
     }
 
     if cfg!(target_arch="x86_64") ||
