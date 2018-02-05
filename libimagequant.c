@@ -1338,6 +1338,9 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
     if (!liq_image_get_row_f_init(input_image)) {
         return false;
     }
+    if (input_image->background && !liq_image_get_row_f_init(input_image->background)) {
+        return false;
+    }
 
     /* Initialize Floyd-Steinberg error vectors. */
     const size_t errwidth = cols+2;
