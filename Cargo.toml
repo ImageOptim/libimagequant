@@ -10,16 +10,17 @@ license = "GPL-3.0+"
 name = "imagequant"
 readme = "README.md"
 repository = "https://github.com/kornelski/libimagequant-rust.git"
-version = "2.11.8"
+version = "2.11.9"
 
 [dependencies]
-imagequant-sys = "2.11.4"
+imagequant-sys = "2.11.9"
 libc = "0.2.33"
 
 [features]
 default = ["sse"]
 sse = ["imagequant-sys/sse"]
 openmp = ["imagequant-sys/openmp"]
+openmp-static = ["openmp", "imagequant-sys/openmp-static"]
 
 [lib]
 name = "imagequant"
