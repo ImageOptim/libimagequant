@@ -22,6 +22,7 @@ JAVAINCLUDE = -I'$(JAVA_HOME)/include' -I'$(JAVA_HOME)/include/linux' -I'$(JAVA_
 DISTFILES = $(OBJS:.o=.c) *.h README.md CHANGELOG COPYRIGHT Makefile configure
 TARNAME = libimagequant-$(VERSION)
 TARFILE = $(TARNAME)-src.tar.bz2
+PKGCONFIG = imagequant.pc
 
 all: static
 
@@ -49,6 +50,8 @@ $(SHAREDOBJS):
 libimagequant.so: $(SHAREDOBJS)
 	$(CC) -shared -Wl,-soname,$(SHAREDLIB).$(SOVER) -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
 	ln -fs $(SHAREDLIB).$(SOVER) $(SHAREDLIB)
+	sed -i "s#^prefix=.*#prefix=$(PREFIX)#" $(PKGCONFIG)
+        sed -i "s#^Version:.*#Version: $(VERSION)#" $(PKGCONFIG)
 
 libimagequant.dylib: $(SHAREDOBJS)
 	$(CC) -shared -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
