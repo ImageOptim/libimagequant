@@ -55,6 +55,19 @@ The library can be compiled with any C compiler that has at least basic support 
  * Use Visual Studio **2015** and an [MSVC-compatible branch of the library](https://github.com/ImageOptim/libimagequant/tree/msvc)
  * Or use GCC from [MinGW](http://www.mingw.org) or [MSYS2](http://www.msys2.org/). Use GCC to build `libimagequant.a` (using the instructions above for Unix) and add it along with `libgcc.a` (shipped with the MinGW compiler) to your VC project.
 
+### Building as shared library
+
+To build on Unix-like systems run:
+
+    ./configure --prefix=/usr
+    make libimagequant.so
+
+To install on Unix-like systems run:
+
+    make install
+
+
+
 ## Overview
 
 The basic flow is:

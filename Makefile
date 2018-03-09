@@ -51,7 +51,7 @@ libimagequant.so: $(SHAREDOBJS)
 	$(CC) -shared -Wl,-soname,$(SHAREDLIB).$(SOVER) -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
 	ln -fs $(SHAREDLIB).$(SOVER) $(SHAREDLIB)
 	sed -i "s#^prefix=.*#prefix=$(PREFIX)#" $(PKGCONFIG)
-        sed -i "s#^Version:.*#Version: $(VERSION)#" $(PKGCONFIG)
+	sed -i "s#^Version:.*#Version: $(VERSION)#" $(PKGCONFIG)
 
 libimagequant.dylib: $(SHAREDOBJS)
 	$(CC) -shared -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
@@ -102,6 +102,12 @@ clean:
 
 distclean: clean
 	rm -f config.mk
+
+install:
+	install $(SHAREDLIB).$(SOVER) $(LIBDIR)/$(SHAREDLIB).$(SOVER)
+	cp -P $(SHAREDLIB) $(LIBDIR)/$(SHAREDLIB)
+	install imagequant.pc $(PKGCONFIGDIR)/imagequant.pc
+	install libimagequant.h  $(INCLUDEDIR)/libimagequant.h
 
 config.mk:
 ifeq ($(filter %clean %distclean, $(MAKECMDGOALS)), )
