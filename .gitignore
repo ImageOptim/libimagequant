@@ -3,6 +3,7 @@ config.mk
 *.o
 *.a
 *.so.0
+*.so
 *.bz2
 *.dylib
 *.dylib.0
