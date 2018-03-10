@@ -104,10 +104,19 @@ distclean: clean
 	rm -f config.mk
 
 install:
-	install $(SHAREDLIB).$(SOVER) $(LIBDIR)/$(SHAREDLIB).$(SOVER)
-	cp -P $(SHAREDLIB) $(LIBDIR)/$(SHAREDLIB)
-	install imagequant.pc $(PKGCONFIGDIR)/imagequant.pc
-	install libimagequant.h  $(INCLUDEDIR)/libimagequant.h
+	[ -d $(DESTDIR)$(LIBDIR) ] || mkdir -p $(DESTDIR)$(LIBDIR)
+	[ -d $(DESTDIR)$(PKGCONFIGDIR) ] || mkdir -p $(DESTDIR)$(PKGCONFIGDIR)
+	[ -d $(DESTDIR)$(INCLUDEDIR) ] || mkdir -p $(DESTDIR)$(INCLUDEDIR)
+	install $(SHAREDLIB).$(SOVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB).$(SOVER)
+	cp -P $(SHAREDLIB) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
+	install imagequant.pc $(DESTDIR)$(PKGCONFIGDIR)/imagequant.pc
+	install libimagequant.h $(DESTDIR)$(INCLUDEDIR)/libimagequant.h
+
+uninstall:
+	rm -f $(DESTDIR)$(LIBDIR)/$(SHAREDLIB).$(SOVER)
+	rm -f $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
+	rm -f $(DESTDIR)$(PKGCONFIGDIR)/imagequant.pc
+	rm -f $(DESTDIR)$(INCLUDEDIR)/libimagequant.h
 
 config.mk:
 ifeq ($(filter %clean %distclean, $(MAKECMDGOALS)), )
