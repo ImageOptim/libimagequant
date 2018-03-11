@@ -62,6 +62,12 @@
 #  define SSE_ALIGN
 #endif
 
+#ifndef _MSC_VER
+#define LIQ_ARRAY(type, var, count) type var[count]
+#else
+#define LIQ_ARRAY(type, var, count) type* var = (type*)_alloca(sizeof(type)*(count))
+#endif
+
 #if defined(__GNUC__) || defined (__llvm__)
 #define ALWAYS_INLINE __attribute__((always_inline)) inline
 #define NEVER_INLINE __attribute__ ((noinline))
