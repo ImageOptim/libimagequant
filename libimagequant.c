@@ -156,7 +156,7 @@ LIQ_NONNULL static void liq_verbose_printf(const liq_attr *context, const char *
         int required_space = vsnprintf(NULL, 0, fmt, va)+1; // +\0
         va_end(va);
 
-        char buf[required_space];
+        LIQ_ARRAY(char, buf, required_space);
         va_start(va, fmt);
         vsnprintf(buf, required_space, fmt, va);
         va_end(va);
@@ -1250,7 +1250,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
 
 
     const unsigned int max_threads = omp_get_max_threads();
-    kmeans_state average_color[(KMEANS_CACHE_LINE_GAP+map->colors) * max_threads];
+    LIQ_ARRAY(kmeans_state, average_color, (KMEANS_CACHE_LINE_GAP+map->colors) * max_threads);
     kmeans_init(map, max_threads, average_color);
 
     #pragma omp parallel for if (rows*cols > 3000) \
@@ -2049,7 +2049,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image(liq_result *result, li
         return LIQ_BUFFER_TOO_SMALL;
     }
 
-    unsigned char *rows[input_image->height];
+    LIQ_ARRAY(unsigned char *, rows, input_image->height);
     unsigned char *buffer_bytes = buffer;
     for(unsigned int i=0; i < input_image->height; i++) {
         rows[i] = &buffer_bytes[input_image->width * i];
