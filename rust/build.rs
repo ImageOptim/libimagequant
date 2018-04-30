@@ -9,6 +9,7 @@ use std::fs::canonicalize;
 
 fn main() {
     let mut cc = cc::Build::new();
+    let compiler = cc.get_compiler();
     cc.warnings(false);
 
     if env::var("PROFILE").map(|p|p != "debug").unwrap_or(true) {
@@ -19,9 +20,10 @@ fn main() {
         cc.flag(&env::var("DEP_OPENMP_FLAG").unwrap());
     }
 
-    if cfg!(target_arch="x86_64") ||
-       (cfg!(target_arch="x86") && cfg!(feature = "sse")) {
-        cc.flag("-msse");
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").expect("Needs CARGO_CFG_TARGET_ARCH");
+    if target_arch =="x86_64" ||
+       (target_arch == "x86" && cfg!(feature = "sse")) {
+        cc.flag(if compiler.is_like_msvc() {"/arch:SSE2"} else {"-msse"});
         cc.define("USE_SSE", Some("1"));
     }
 
@@ -43,7 +45,9 @@ fn main() {
             println!("cargo:warning=msvc-dist/ directory not present. MSVC builds may fail");
         }
         println!("cargo:include={}", canonicalize(".").unwrap().display());
-        cc.flag("-std=c99");
+        if !compiler.is_like_msvc() {
+            cc.flag("-std=c99");
+        }
         cc.file("libimagequant.c")
             .file("nearest.c")
             .file("kmeans.c")
