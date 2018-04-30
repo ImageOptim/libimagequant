@@ -156,19 +156,12 @@ LIQ_NONNULL static void liq_verbose_printf(const liq_attr *context, const char *
         int required_space = vsnprintf(NULL, 0, fmt, va)+1; // +\0
         va_end(va);
 
-#if defined(_MSC_VER)
-        char *buf = malloc(required_space);
-#else
-        char buf[required_space];
-#endif
+        LIQ_ARRAY(char, buf, required_space);
         va_start(va, fmt);
         vsnprintf(buf, required_space, fmt, va);
         va_end(va);
 
         context->log_callback(context, buf, context->log_callback_user_info);
-#if defined(_MSC_VER)
-        free(buf);
-#endif
     }
 }
 
@@ -1259,7 +1252,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
 
 
     const unsigned int max_threads = omp_get_max_threads();
-    kmeans_state *average_color = malloc((KMEANS_CACHE_LINE_GAP+map->colors) * max_threads * sizeof(kmeans_state));
+    LIQ_ARRAY(kmeans_state, average_color, (KMEANS_CACHE_LINE_GAP+map->colors) * max_threads);
     kmeans_init(map, max_threads, average_color);
 
     int row;
@@ -1286,8 +1279,6 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     kmeans_finalize(map, max_threads, average_color);
 
     nearest_free(n);
-
-    free(average_color);
     return remapping_error / (input_image->width * input_image->height);
 }
 
@@ -2060,13 +2051,12 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image(liq_result *result, li
         return LIQ_BUFFER_TOO_SMALL;
     }
 
-    unsigned char **rows = malloc(input_image->height * sizeof(unsigned char *));
+    LIQ_ARRAY(unsigned char *, rows, input_image->height);
     unsigned char *buffer_bytes = buffer;
     for(unsigned int i=0; i < input_image->height; i++) {
         rows[i] = &buffer_bytes[input_image->width * i];
     }
     liq_error error = liq_write_remapped_image_rows(result, input_image, rows);
-    free(rows);
     return error;
 }
 

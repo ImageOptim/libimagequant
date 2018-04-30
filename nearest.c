@@ -110,8 +110,7 @@ LIQ_PRIVATE struct nearest_map *nearest_init(const colormap *map) {
     mempoolptr m = NULL;
     struct nearest_map *handle = mempool_create(&m, sizeof(handle[0]), sizeof(handle[0]) + sizeof(vp_node)*map->colors+16, map->malloc, map->free);
 
-    vp_sort_tmp indexes[256];
-    assert(map->colors <= 256);
+    LIQ_ARRAY(vp_sort_tmp, indexes, map->colors);
 
     for(unsigned int i=0; i < map->colors; i++) {
         indexes[i].idx = i;
