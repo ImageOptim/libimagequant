@@ -512,7 +512,7 @@ LIQ_EXPORT liq_attr* liq_attr_create_with_allocator(void* (*custom_malloc)(size_
         .target_mse = 0,
         .max_mse = MAX_DIFF,
     };
-    liq_set_speed(attr, 3);
+    liq_set_speed(attr, 4);
     return attr;
 }
 
