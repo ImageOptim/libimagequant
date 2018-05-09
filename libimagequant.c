@@ -58,7 +58,8 @@ struct liq_attr {
     unsigned int max_colors, max_histogram_entries;
     unsigned int min_posterization_output /* user setting */, min_posterization_input /* speed setting */;
     unsigned int kmeans_iterations, feedback_loop_trials;
-    bool last_index_transparent, use_contrast_maps, use_dither_map;
+    bool last_index_transparent, use_contrast_maps;
+    unsigned char use_dither_map;
     unsigned char speed;
 
     unsigned char progress_stage1, progress_stage2, progress_stage3;
@@ -105,7 +106,8 @@ typedef struct liq_remapping_result {
     liq_palette int_palette;
     double gamma, palette_error;
     float dither_level;
-    bool use_dither_map; unsigned char progress_stage1;
+    unsigned char use_dither_map;
+    unsigned char progress_stage1;
 } liq_remapping_result;
 
 struct liq_result {
@@ -122,7 +124,7 @@ struct liq_result {
     float dither_level;
     double gamma, palette_error;
     int min_posterization_output;
-    bool use_dither_map;
+    unsigned char use_dither_map;
 };
 
 struct liq_histogram {
@@ -343,6 +345,9 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_set_speed(liq_attr* attr, int speed)
     attr->max_histogram_entries = (1<<17) + (1<<18)*(10-speed);
     attr->min_posterization_input = (speed >= 8) ? 1 : 0;
     attr->use_dither_map = (speed <= (omp_get_max_threads() > 1 ? 7 : 5)); // parallelized dither map might speed up floyd remapping
+    if (attr->use_dither_map && speed < 3) {
+        attr->use_dither_map = 2; // always
+    }
     attr->use_contrast_maps = (speed <= 7) || attr->use_dither_map;
     attr->speed = speed;
 
@@ -1849,6 +1854,10 @@ static colormap *find_best_palette(histogram *hist, const liq_attr *options, con
     // at this point actual gamma is not set, so very conservative posterization estimate is used
     const double target_mse = MIN(max_mse, MAX(options->target_mse, pow((1<<options->min_posterization_output)/1024.0, 2)));
     int feedback_loop_trials = options->feedback_loop_trials;
+    if (hist->size > 5000) {feedback_loop_trials = (feedback_loop_trials*3 + 3)/4;}
+    if (hist->size > 25000) {feedback_loop_trials = (feedback_loop_trials*3 + 3)/4;}
+    if (hist->size > 50000) {feedback_loop_trials = (feedback_loop_trials*3 + 3)/4;}
+    if (hist->size > 100000) {feedback_loop_trials = (feedback_loop_trials*3 + 3)/4;}
     colormap *acolormap = NULL;
     double least_error = MAX_DIFF;
     double target_mse_overshoot = feedback_loop_trials>0 ? 1.05 : 1.0;
@@ -1955,7 +1964,7 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
         }
 
         // K-Means iteration approaches local minimum for the palette
-        const double iteration_limit = options->kmeans_iteration_limit;
+        double iteration_limit = options->kmeans_iteration_limit;
         unsigned int iterations = options->kmeans_iterations;
 
         if (!iterations && palette_error < 0 && max_mse < MAX_DIFF) iterations = 1; // otherwise total error is never calculated and MSE limit won't work
@@ -1967,6 +1976,11 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
                     hist->achv[j].tmp.likely_colormap_index = 0; // actual value doesn't matter, as the guess is out of date anyway
                 }
             }
+
+            if (hist->size > 5000) {iterations = (iterations*3 + 3)/4;}
+            if (hist->size > 25000) {iterations = (iterations*3 + 3)/4;}
+            if (hist->size > 50000) {iterations = (iterations*3 + 3)/4;}
+            if (hist->size > 100000) {iterations = (iterations*3 + 3)/4; iteration_limit *= 2;}
 
             verbose_print(options, "  moving colormap towards local minimum");
 
@@ -2089,7 +2103,9 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image_rows(liq_result *quant
         set_rounded_palette(&result->int_palette, result->palette, result->gamma, quant->min_posterization_output);
         remapping_error = remap_to_palette(input_image, row_pointers, result->palette);
     } else {
-        const bool generate_dither_map = result->use_dither_map && (input_image->edges && !input_image->dither_map);
+        const bool is_image_huge = (input_image->width * input_image->height) > 2000 * 2000;
+        const bool allow_dither_map = result->use_dither_map == 2 || (!is_image_huge && result->use_dither_map);
+        const bool generate_dither_map = allow_dither_map && (input_image->edges && !input_image->dither_map);
         if (generate_dither_map) {
             // If dithering (with dither map) is required, this image is used to find areas that require dithering
             remapping_error = remap_to_palette(input_image, row_pointers, result->palette);
