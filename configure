@@ -143,9 +143,11 @@ if [ "$QUIET" -ne 1 ]; then
 fi
 
 # /tmp, because mingw has problems opening /dev/null and gives false negative
-if ! echo "int main(){}" | "$CC" -xc -std=c99 -o /tmp/gcccheck - > /dev/null; then
+if ! echo "int main(){}" | "$CC" -xc -std=c99 -o pngquant-gcccheck - > /dev/null; then
+    rm -f pngquant-gcccheck
     error "Compiler" "$CC failed to compile anything (make sure it's installed and supports C99)"
 fi
+rm -f pngquant-gcccheck
 
 status "Compiler" "$CC"
 
