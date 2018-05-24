@@ -532,12 +532,27 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_add_fixed_color(liq_image *img, liq_c
     return LIQ_OK;
 }
 
-LIQ_NONNULL liq_error liq_histogram_add_fixed_color(liq_histogram *hist, f_pixel color)
+LIQ_NONNULL static liq_error liq_histogram_add_fixed_color_f(liq_histogram *hist, f_pixel color)
 {
     if (hist->fixed_colors_count > 255) return LIQ_UNSUPPORTED;
 
     hist->fixed_colors[hist->fixed_colors_count++] = color;
     return LIQ_OK;
+}
+
+LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_fixed_color(liq_histogram *hist, liq_color color, double gamma)
+{
+    if (!CHECK_STRUCT_TYPE(hist, liq_histogram)) return LIQ_INVALID_POINTER;
+
+    float gamma_lut[256];
+    to_f_set_gamma(gamma_lut, gamma ? gamma : 0.45455);
+    const f_pixel px = rgba_to_f(gamma_lut, (rgba_pixel){
+        .r = color.r,
+        .g = color.g,
+        .b = color.b,
+        .a = color.a,
+    });
+    return liq_histogram_add_fixed_color_f(hist, px);
 }
 
 LIQ_NONNULL static bool liq_image_use_low_memory(liq_image *img)
@@ -1563,7 +1578,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hi
     input_hist->gamma = input_image->gamma;
 
     for(int i = 0; i < input_image->fixed_colors_count; i++) {
-        liq_error res = liq_histogram_add_fixed_color(input_hist, input_image->fixed_colors[i]);
+        liq_error res = liq_histogram_add_fixed_color_f(input_hist, input_image->fixed_colors[i]);
         if (res != LIQ_OK) {
             return res;
         }
