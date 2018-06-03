@@ -53,7 +53,7 @@ $(SHAREDOBJS):
 	$(CC) -fPIC $(CFLAGS) -c $(@:.lo=.c) -o $@
 
 libimagequant.so: $(SHAREDOBJS)
-	$(CC) -shared -Wl,-soname,$(SHAREDLIBVER) -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
+	$(CC) -shared -Wl,-soname,$(SHAREDLIBVER) -o $(SHAREDLIBVER) $^ $(LDFLAGS)
 	ln -fs $(SHAREDLIBVER) $(SHAREDLIB)
 	sed -i "s#^prefix=.*#prefix=$(PREFIX)#" $(PKGCONFIG)
 	sed -i "s#^Version:.*#Version: $(VERSION)#" $(PKGCONFIG)
@@ -112,7 +112,7 @@ install:
 	[ -d $(DESTDIR)$(LIBDIR) ] || mkdir -p $(DESTDIR)$(LIBDIR)
 	[ -d $(DESTDIR)$(PKGCONFIGDIR) ] || mkdir -p $(DESTDIR)$(PKGCONFIGDIR)
 	[ -d $(DESTDIR)$(INCLUDEDIR) ] || mkdir -p $(DESTDIR)$(INCLUDEDIR)
-	install $(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB).$(SOVER)
+	install $(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIBVER)
 	cp -P $(SHAREDLIB) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
 	install imagequant.pc $(DESTDIR)$(PKGCONFIGDIR)/imagequant.pc
 	install libimagequant.h $(DESTDIR)$(INCLUDEDIR)/libimagequant.h
