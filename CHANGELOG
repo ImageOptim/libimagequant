@@ -1,3 +1,9 @@
+version 2.12
+------------
+ - new liq_histogram_add_fixed_color()
+ - faster for large/complex images
+ - workarounds for Microsoft's outdated C compiler
+
 version 2.11
 ------------
  - new liq_image_set_background() for high-quality remapping of GIF frames
@@ -7,7 +13,6 @@ version 2.11
 version 2.10
 -----------
  - supports building with Rust/Cargo
- - new liq_histogram_add_fixed_color()
 
 version 2.9
 -----------
