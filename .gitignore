@@ -1,4 +1,5 @@
 config.mk
+imagequant.pc
 *.lo
 *.o
 *.a
