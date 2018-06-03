@@ -3,6 +3,11 @@
 STATICLIB=libimagequant.a
 SHAREDLIB=libimagequant.$(SOLIBSUFFIX)
 SOVER=0
+ifeq ($(SOLIBSUFFIX),dylib)
+	SHAREDLIBVER=libimagequant.$(SOVER).$(SOLIBSUFFIX)
+else
+	SHAREDLIBVER=libimagequant.$(SOLIBSUFFIX).$(SOVER)
+endif
 
 JNILIB=libimagequant.jnilib
 DLL=imagequant.dll
@@ -48,14 +53,14 @@ $(SHAREDOBJS):
 	$(CC) -fPIC $(CFLAGS) -c $(@:.lo=.c) -o $@
 
 libimagequant.so: $(SHAREDOBJS)
-	$(CC) -shared -Wl,-soname,$(SHAREDLIB).$(SOVER) -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
-	ln -fs $(SHAREDLIB).$(SOVER) $(SHAREDLIB)
+	$(CC) -shared -Wl,-soname,$(SHAREDLIBVER) -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
+	ln -fs $(SHAREDLIBVER) $(SHAREDLIB)
 	sed -i "s#^prefix=.*#prefix=$(PREFIX)#" $(PKGCONFIG)
 	sed -i "s#^Version:.*#Version: $(VERSION)#" $(PKGCONFIG)
 
 libimagequant.dylib: $(SHAREDOBJS)
-	$(CC) -shared -o $(SHAREDLIB).$(SOVER) $^ $(LDFLAGS)
-	ln -fs $(SHAREDLIB).$(SOVER) $(SHAREDLIB)
+	$(CC) -shared -o $(SHAREDLIBVER) $^ $(LDFLAGS)
+	ln -fs $(SHAREDLIBVER) $(SHAREDLIB)
 
 $(OBJS): $(wildcard *.h) config.mk
 
@@ -97,7 +102,7 @@ lodepng.c:
 	curl -o lodepng.c -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp
 
 clean:
-	rm -f $(OBJS) $(SHAREDOBJS) $(SHAREDLIB).$(SOVER) $(SHAREDLIB) $(STATICLIB) $(TARFILE) $(DLL) '$(DLLIMP)' '$(DLLDEF)'
+	rm -f $(OBJS) $(SHAREDOBJS) $(SHAREDLIBVER) $(SHAREDLIB) $(STATICLIB) $(TARFILE) $(DLL) '$(DLLIMP)' '$(DLLDEF)'
 	rm -f $(JAVAHEADERS) $(JAVACLASSES) $(JNILIB) example
 
 distclean: clean
@@ -107,13 +112,13 @@ install:
 	[ -d $(DESTDIR)$(LIBDIR) ] || mkdir -p $(DESTDIR)$(LIBDIR)
 	[ -d $(DESTDIR)$(PKGCONFIGDIR) ] || mkdir -p $(DESTDIR)$(PKGCONFIGDIR)
 	[ -d $(DESTDIR)$(INCLUDEDIR) ] || mkdir -p $(DESTDIR)$(INCLUDEDIR)
-	install $(SHAREDLIB).$(SOVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB).$(SOVER)
+	install $(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB).$(SOVER)
 	cp -P $(SHAREDLIB) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
 	install imagequant.pc $(DESTDIR)$(PKGCONFIGDIR)/imagequant.pc
 	install libimagequant.h $(DESTDIR)$(INCLUDEDIR)/libimagequant.h
 
 uninstall:
-	rm -f $(DESTDIR)$(LIBDIR)/$(SHAREDLIB).$(SOVER)
+	rm -f $(DESTDIR)$(LIBDIR)/$(SHAREDLIBVER)
 	rm -f $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
 	rm -f $(DESTDIR)$(PKGCONFIGDIR)/imagequant.pc
 	rm -f $(DESTDIR)$(INCLUDEDIR)/libimagequant.h

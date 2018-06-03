@@ -90,6 +90,5 @@ LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kme
     nearest_free(n);
     kmeans_finalize(map, max_threads, average_color);
 
-    free(average_color);
     return total_diff / hist->total_perceptual_weight;
 }

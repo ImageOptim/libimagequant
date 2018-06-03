@@ -208,7 +208,7 @@ The `pixels` array must not be modified or freed until this object is freed with
 
 `width` and `height` are dimensions in pixels. An image 10x10 pixel large will need a 400-byte array.
 
-`gamma` can be `0` for images with the typical 1/2.2 [gamma](https://en.wikipedia.org/wiki/Gamma_correction).
+If the `gamma` argument is `0`, then the default of 1/2.2 [gamma](https://en.wikipedia.org/wiki/Gamma_correction) is assumed, which is good for most sRGB images.
 Otherwise `gamma` must be > 0 and < 1, e.g. `0.45455` (1/2.2) or `0.55555` (1/1.8). Generated palette will use the same gamma unless `liq_set_output_gamma()` is used. If `liq_set_output_gamma` is not used, then it only affects whether brighter or darker areas of the image will get more palette colors allocated.
 
 Returns `NULL` on failure, e.g. if `pixels` is `NULL` or `width`/`height` is <= 0.
@@ -589,15 +589,17 @@ If the input is invalid, these all return -1.
 ---
 
     liq_error liq_image_add_fixed_color(liq_image* img, liq_color color);
-    liq_error liq_histogram_add_fixed_color(liq_histogram *hist, liq_color color);
+    liq_error liq_histogram_add_fixed_color(liq_histogram* hist, liq_color color, double gamma);
 
 Reserves a color in the output palette created from this image. It behaves as if the given color was used in the image and was very important.
 
-RGB values of `liq_color` are assumed to have the same gamma as the image.
+RGB values of `liq_color` are assumed to have the same gamma as the image. For the histogram function, the `gamma` can be `0` (see `liq_image_create_rgba()`).
 
 It must be called before the image is quantized.
 
 Returns error if more than 256 colors are added. If image is quantized to fewer colors than the number of fixed colors added, then excess fixed colors will be ignored.
+
+For histograms see also a more flexible `liq_histogram_add_colors()`.
 
 ---
 
