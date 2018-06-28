@@ -1768,7 +1768,7 @@ LIQ_NONNULL static void contrast_maps(liq_image *image)
             z *= z; // noise is amplified
             z *= z;
             // 85 is about 1/3rd of weight (not 0, because noisy pixels still need to be included, just not as precisely).
-            const unsigned int z_int = 85 + (unsigned int)(z * 171.f);
+            const unsigned int z_int = 80 + (unsigned int)(z * 176.f);
             noise[j*cols+i] = MIN(z_int, 255);
             const int e_int = 255 - (int)(edge * 256.f);
             edges[j*cols+i] = e_int > 0 ? MIN(e_int, 255) : 0;

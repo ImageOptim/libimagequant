@@ -33,15 +33,7 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
             // RGBA color is casted to long for easier hasing/comparisons
             union rgba_as_int px = {pixels[row][col]};
             unsigned int hash;
-            if (!px.rgba.a) {
-                // "dirty alpha" has different RGBA values that end up being the same fully transparent color
-                px.l=0; hash=0;
-
-                boost = 2000;
-                if (importance_map) {
-                    importance_map++;
-                }
-            } else {
+            if (px.rgba.a) {
                 // mask posterizes all 4 channels in one go
                 px.l = (px.l & posterize_mask) | ((px.l & posterize_high_mask) >> (8-ignorebits));
                 // fancier hashing algorithms didn't improve much
@@ -52,13 +44,20 @@ LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba
                 } else {
                     boost = 255;
                 }
+            } else {
+                // "dirty alpha" has different RGBA values that end up being the same fully transparent color
+                px.l=0; hash=0;
+
+                boost = 2000;
+                if (importance_map) {
+                    importance_map++;
+                }
             }
 
             if (!pam_add_to_hash(acht, hash, boost, px, row, rows)) {
                 return false;
             }
         }
-
     }
     acht->cols = cols;
     acht->rows += rows;
