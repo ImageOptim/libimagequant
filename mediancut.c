@@ -175,7 +175,7 @@ typedef struct {
 static int comparevariance(const void *ch1, const void *ch2)
 {
     return ((const channelvariance*)ch1)->variance > ((const channelvariance*)ch2)->variance ? -1 :
-          (((const channelvariance*)ch1)->variance < ((const channelvariance*)ch2)->variance ? 1 : 0);
+           (((const channelvariance*)ch1)->variance < ((const channelvariance*)ch2)->variance ? 1 : 0);
 }
 
 /** Finds which channels need to be sorted first and preproceses achv for fast sort */
@@ -202,7 +202,7 @@ static double prepare_sort(struct box *b, hist_item achv[])
         // Only the first channel really matters. When trying median cut many times
         // with different histogram weights, I don't want sort randomness to influence outcome.
         achv[ind1 + i].tmp.sort_value = ((unsigned int)(chans[channels[0].chan]*65535.0)<<16) |
-                                       (unsigned int)((chans[channels[2].chan] + chans[channels[1].chan]/2.0 + chans[channels[3].chan]/4.0)*65535.0);
+                                        (unsigned int)((chans[channels[2].chan] + chans[channels[1].chan]/2.0 + chans[channels[3].chan]/4.0)*65535.0);
     }
 
     const f_pixel median = get_median(b, achv);
@@ -353,8 +353,9 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
             // later raises the limit to allow large smooth areas/gradients get colors.
             const double current_max_mse = max_mse + (boxes/(double)newcolors)*16.0*max_mse;
             const int bi = best_splittable_box(bv, boxes, current_max_mse);
-            if (bi < 0)
-                break;        /* ran out of colors! */
+            if (bi < 0) {
+                break;    /* ran out of colors! */
+            }
 
             unsigned int indx = bv[bi].ind;
             unsigned int clrs = bv[bi].colors;
