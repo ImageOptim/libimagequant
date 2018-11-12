@@ -303,7 +303,7 @@ Freeing `liq_result` also frees any `liq_palette` obtained from it.
 
     liq_error liq_set_speed(liq_attr* attr, int speed);
 
-Higher speed levels disable expensive algorithms and reduce quantization precision. The default speed is `3`. Speed `1` gives marginally better quality at significant CPU cost. Speed `10` has usually 5% lower quality, but is 8 times faster than the default.
+Higher speed levels disable expensive algorithms and reduce quantization precision. The default speed is `4`. Speed `1` gives marginally better quality at significant CPU cost. Speed `10` has usually 5% lower quality, but is 8 times faster than the default.
 
 High speeds combined with `liq_set_quality()` will use more colors than necessary and will be less likely to meet minimum required quality.
 
