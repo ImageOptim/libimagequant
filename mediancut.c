@@ -195,8 +195,13 @@ static double prepare_sort(struct box *b, hist_item achv[])
 
     const unsigned int ind1 = b->ind;
     const unsigned int colors = b->colors;
+#if __GNUC__ >= 9
+    #pragma omp parallel for if (colors > 25000) \
+        schedule(static) default(none) shared(achv, channels, colors, ind1)
+#else
     #pragma omp parallel for if (colors > 25000) \
         schedule(static) default(none) shared(achv, channels)
+#endif
     for(unsigned int i=0; i < colors; i++) {
         const float *chans = (const float *)&achv[ind1 + i].acolor;
         // Only the first channel really matters. When trying median cut many times
