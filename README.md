@@ -7,9 +7,8 @@ It's powering [pngquant2](https://pngquant.org).
 
 Libimagequant is dual-licensed:
 
-* For Free/Libre Open Source Software it's available under [GPL v3 or later](https://raw.github.com/ImageOptim/libimagequant/master/COPYRIGHT) with additional copyright notices for older parts of the code.
-
-* For use in non-GPL software (e.g. closed-source or App Store distribution) please ask kornel@pngquant.org for a commercial license.
+* For Free/Libre Open Source Software it's available under GPL v3 or later with additional [copyright notices](https://raw.github.com/ImageOptim/libimagequant/master/COPYRIGHT) for older parts of the code.
+* For use in closed-source software, AppStore distribution, and other non-GPL uses, you can [obtain a commercial license](https://supso.org/projects/pngquant). Feel free to ask kornel@pngquant.org for details and custom licensing terms if you need them.
 
 ## Download
 
@@ -321,7 +320,7 @@ Freeing `liq_result` also frees any `liq_palette` obtained from it.
 
     liq_error liq_set_speed(liq_attr* attr, int speed);
 
-Higher speed levels disable expensive algorithms and reduce quantization precision. The default speed is `3`. Speed `1` gives marginally better quality at significant CPU cost. Speed `10` has usually 5% lower quality, but is 8 times faster than the default.
+Higher speed levels disable expensive algorithms and reduce quantization precision. The default speed is `4`. Speed `1` gives marginally better quality at significant CPU cost. Speed `10` has usually 5% lower quality, but is 8 times faster than the default.
 
 High speeds combined with `liq_set_quality()` will use more colors than necessary and will be less likely to meet minimum required quality.
 
