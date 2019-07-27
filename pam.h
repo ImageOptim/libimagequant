@@ -16,6 +16,12 @@
 #ifndef PAM_H
 #define PAM_H
 
+// accidental debug assertions make color search much slower,
+// so force assertions off if there's no explicit setting
+#if !defined(NDEBUG) && !defined(DEBUG)
+#define NDEBUG
+#endif
+
 #include <math.h>
 #include <assert.h>
 #include <stdlib.h>
