@@ -31,9 +31,7 @@
 //!
 //! Note that "image" here means raw uncompressed pixels. If you have a compressed image file, such as PNG, you must use another library (e.g. lodepng) to decode it first.
 
-
 #![allow(non_camel_case_types)]
-extern crate rgb;
 
 #[cfg(feature = "openmp")]
 extern crate openmp_sys;
@@ -101,7 +99,7 @@ impl error::Error for liq_error {
 }
 
 impl fmt::Display for liq_error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.description())
     }
 }
