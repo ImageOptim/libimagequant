@@ -2,7 +2,7 @@ matrix:
   include:
     - os: linux
       language: java
-      jdk: oraclejdk8
+      jdk: oraclejdk9
       env: CFLAGS="-fPIC"
       install: true
       script: make java
