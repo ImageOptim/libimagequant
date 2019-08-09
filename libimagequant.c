@@ -1030,7 +1030,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_set_dithering_level(liq_result *res, float 
         res->remapping = NULL;
     }
 
-    if (res->dither_level < 0 || res->dither_level > 1.0f) return LIQ_VALUE_OUT_OF_RANGE;
+    if (dither_level < 0 || dither_level > 1.0f) return LIQ_VALUE_OUT_OF_RANGE;
     res->dither_level = dither_level;
     return LIQ_OK;
 }
