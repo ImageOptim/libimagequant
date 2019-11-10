@@ -1,5 +1,4 @@
 // Don't forget to add -L . (or whatever dir has .rlib) to rustc!
-extern crate imagequant;
 
 fn main() {
     // Image loading/saving is outside scope of this library

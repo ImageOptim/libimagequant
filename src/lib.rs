@@ -9,10 +9,9 @@
 #![warn(missing_docs)]
 
 extern crate imagequant_sys as ffi;
-extern crate libc;
 
-pub use ffi::liq_error;
-pub use ffi::liq_error::*;
+pub use crate::ffi::liq_error;
+pub use crate::ffi::liq_error::*;
 use std::os::raw::c_int;
 use std::mem;
 use std::marker;
@@ -174,12 +173,12 @@ impl Attributes {
     /// Create new histogram
     ///
     /// Use to make one palette suitable for many images
-    pub fn new_histogram(&self) -> Histogram {
+    pub fn new_histogram(&self) -> Histogram<'_> {
         Histogram::new(&self)
     }
 
     /// Generate palette for the image
-    pub fn quantize(&mut self, image: &Image) -> Result<QuantizationResult, liq_error> {
+    pub fn quantize(&mut self, image: &Image<'_>) -> Result<QuantizationResult, liq_error> {
         unsafe {
             let mut h = ptr::null_mut();
             match ffi::liq_image_quantize(&mut *image.handle, &mut *self.handle, &mut h) {
@@ -209,7 +208,7 @@ impl<'a> Histogram<'a> {
     /// "Learns" colors from the image, which will be later used to generate the palette.
     ///
     /// Fixed colors added to the image are also added to the histogram. If total number of fixed colors exceeds 256, this function will fail with `LIQ_BUFFER_TOO_SMALL`.
-    pub fn add_image(&mut self, image: &mut Image) -> liq_error {
+    pub fn add_image(&mut self, image: &mut Image<'_>) -> liq_error {
         unsafe { ffi::liq_histogram_add_image(&mut *self.handle, &*self.attr.handle, &mut *image.handle) }
     }
 
@@ -408,7 +407,7 @@ impl QuantizationResult {
     /// Remap image
     ///
     /// Returns palette and 1-byte-per-pixel uncompresed bitmap
-    pub fn remapped(&mut self, image: &mut Image) -> Result<(Vec<Color>, Vec<u8>), liq_error> {
+    pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<Color>, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
         let mut buf = Vec::with_capacity(len);
         unsafe {
@@ -422,7 +421,7 @@ impl QuantizationResult {
 }
 
 impl fmt::Debug for QuantizationResult {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "QuantizationResult(q={})", self.quantization_quality())
     }
 }
@@ -520,7 +519,7 @@ fn poke_it() {
 
 #[test]
 fn set_importance_map() {
-    use ffi::liq_color as RGBA;
+    use crate::ffi::liq_color as RGBA;
     let mut liq = new();
     let bitmap = &[RGBA::new(255,0,0,255), RGBA::new(0u8,0,255,255)];
     let ref mut img = liq.new_image(&bitmap[..], 2, 1, 0.).unwrap();

@@ -10,11 +10,12 @@ license = "GPL-3.0+"
 name = "imagequant"
 readme = "README.md"
 repository = "https://github.com/kornelski/libimagequant-rust.git"
-version = "2.11.9"
+version = "2.12.5"
+edition = "2018"
 
 [dependencies]
-imagequant-sys = "2.11.9"
-libc = "0.2.33"
+imagequant-sys = "2.12.5"
+libc = "0.2.60"
 
 [features]
 default = ["sse"]
