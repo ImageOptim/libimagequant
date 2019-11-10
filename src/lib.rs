@@ -12,11 +12,11 @@ extern crate imagequant_sys as ffi;
 
 pub use crate::ffi::liq_error;
 pub use crate::ffi::liq_error::*;
-use std::os::raw::c_int;
-use std::mem;
-use std::marker;
-use std::ptr;
 use std::fmt;
+use std::marker;
+use std::mem;
+use std::os::raw::c_int;
+use std::ptr;
 
 /// 8-bit RGBA. This is the only color format used by the library.
 pub type Color = ffi::liq_color;
@@ -89,6 +89,12 @@ impl Clone for Attributes {
     }
 }
 
+impl Default for Attributes {
+    fn default() -> Attributes {
+        Attributes::new()
+    }
+}
+
 impl Attributes {
     /// New handle for library configuration
     ///
@@ -96,7 +102,7 @@ impl Attributes {
     pub fn new() -> Self {
         let handle = unsafe { ffi::liq_attr_create() };
         assert!(!handle.is_null(), "SSE-capable CPU is required for this build.");
-        Attributes { handle: handle }
+        Attributes { handle }
     }
 
     /// It's better to use `set_quality()`
@@ -128,8 +134,8 @@ impl Attributes {
     /// Reads values set with `set_quality`
     pub fn quality(&mut self) -> (u32, u32) {
         unsafe {
-            (ffi::liq_get_min_quality(&mut *self.handle) as u32,
-             ffi::liq_get_max_quality(&mut *self.handle) as u32)
+            (ffi::liq_get_min_quality(&*self.handle) as u32,
+             ffi::liq_get_max_quality(&*self.handle) as u32)
         }
     }
 
@@ -144,7 +150,7 @@ impl Attributes {
     /// Move transparent color to the last entry in the palette
     ///
     /// This is less efficient for PNG, but required by some broken software
-    pub fn set_last_index_transparent(&mut self, value: bool) -> () {
+    pub fn set_last_index_transparent(&mut self, value: bool) {
         unsafe { ffi::liq_set_last_index_transparent(&mut *self.handle, value as c_int) }
     }
 
@@ -181,7 +187,7 @@ impl Attributes {
     pub fn quantize(&mut self, image: &Image<'_>) -> Result<QuantizationResult, liq_error> {
         unsafe {
             let mut h = ptr::null_mut();
-            match ffi::liq_image_quantize(&mut *image.handle, &mut *self.handle, &mut h) {
+            match ffi::liq_image_quantize(&*image.handle, &*self.handle, &mut h) {
                 liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult { handle: h }),
                 err => Err(err),
             }
@@ -200,7 +206,7 @@ impl<'a> Histogram<'a> {
     /// All options should be set on `attr` before the histogram object is created. Options changed later may not have effect.
     pub fn new(attr: &'a Attributes) -> Self {
         Histogram {
-            attr: attr,
+            attr,
             handle: unsafe { ffi::liq_histogram_create(&*attr.handle) },
         }
     }
@@ -228,7 +234,7 @@ impl<'a> Histogram<'a> {
     pub fn quantize(&mut self) -> Result<QuantizationResult, liq_error> {
         unsafe {
             let mut h = ptr::null_mut();
-            match ffi::liq_histogram_quantize(&mut *self.handle, &*self.attr.handle, &mut h) {
+            match ffi::liq_histogram_quantize(&*self.handle, &*self.attr.handle, &mut h) {
                 liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult { handle: h }),
                 err => Err(err),
             }
@@ -264,10 +270,8 @@ impl<'bitmap> Image<'bitmap> {
     pub fn new_unsafe_fn<CustomData: Send + Sync + 'bitmap>(attr: &Attributes, convert_row_fn: ConvertRowUnsafeFn<CustomData>, user_data: *mut CustomData, width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
         unsafe {
             match ffi::liq_image_create_custom(&*attr.handle, mem::transmute(convert_row_fn), user_data as *mut _, width as c_int, height as c_int, gamma) {
-                handle if !handle.is_null() => Ok(Image {handle, _marker: marker::PhantomData}),
-                _ => {
-                    Err(LIQ_INVALID_POINTER)
-                }
+                handle if !handle.is_null() => Ok(Image { handle, _marker: marker::PhantomData }),
+                _ => Err(LIQ_INVALID_POINTER),
             }
         }
     }
@@ -399,7 +403,7 @@ impl QuantizationResult {
     /// It's slighly better if you get palette from the `remapped()` call instead
     pub fn palette(&mut self) -> Vec<Color> {
         unsafe {
-            let ref pal = *ffi::liq_get_palette(&mut *self.handle);
+            let pal = &*ffi::liq_get_palette(&mut *self.handle);
             pal.entries.iter().cloned().take(pal.count as usize).collect()
         }
     }
@@ -513,17 +517,17 @@ fn poke_it() {
 
     assert_eq!(width * height, pixels.len());
     assert_eq!(100, res.quantization_quality());
-    assert_eq!(Color{r:255,g:255,b:255,a:255}, palette[0]);
-    assert_eq!(Color{r:0x55,g:0x66,b:0x77,a:255}, palette[1]);
+    assert_eq!(Color { r: 255, g: 255, b: 255, a: 255 }, palette[0]);
+    assert_eq!(Color { r: 0x55, g: 0x66, b: 0x77, a: 255 }, palette[1]);
 }
 
 #[test]
 fn set_importance_map() {
     use crate::ffi::liq_color as RGBA;
     let mut liq = new();
-    let bitmap = &[RGBA::new(255,0,0,255), RGBA::new(0u8,0,255,255)];
+    let bitmap = &[RGBA::new(255, 0, 0, 255), RGBA::new(0u8, 0, 255, 255)];
     let ref mut img = liq.new_image(&bitmap[..], 2, 1, 0.).unwrap();
-    let map = &[255,0];
+    let map = &[255, 0];
     img.set_importance_map(map).unwrap();
     let mut res = liq.quantize(img).unwrap();
     let pal = res.palette();

@@ -4,7 +4,7 @@ fn main() {
     // Image loading/saving is outside scope of this library
     let width = 10usize;
     let height = 10usize;
-    let fakebitmap = vec![255u8; 4*width*height];
+    let fakebitmap = vec![255u8; 4 * width * height];
 
     // http://pngquant.org/lib/
 
