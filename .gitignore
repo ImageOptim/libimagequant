@@ -1,8 +1,0 @@
-*.o
-*.rlib
-/pngquant*/
-example
-target/
-Cargo.lock
-vendor/*
-!vendor/lib
