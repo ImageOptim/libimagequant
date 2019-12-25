@@ -23,8 +23,7 @@ fn main() {
     }
 
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").expect("Needs CARGO_CFG_TARGET_ARCH");
-    if target_arch =="x86_64" ||
-       (target_arch == "x86" && cfg!(feature = "sse")) {
+    if target_arch == "x86" && cfg!(feature = "sse") {
         cc.flag(if compiler.is_like_msvc() {"/arch:SSE2"} else {"-msse"});
         cc.define("USE_SSE", Some("1"));
     }
