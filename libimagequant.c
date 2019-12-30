@@ -566,7 +566,7 @@ LIQ_NONNULL static bool liq_image_use_low_memory(liq_image *img)
 
 LIQ_NONNULL static bool liq_image_should_use_low_memory(liq_image *img, const bool low_memory_hint)
 {
-    return img->width * img->height > (low_memory_hint ? LIQ_HIGH_MEMORY_LIMIT/8 : LIQ_HIGH_MEMORY_LIMIT) / sizeof(f_pixel); // Watch out for integer overflow
+    return (size_t)img->width * (size_t)img->height > (low_memory_hint ? LIQ_HIGH_MEMORY_LIMIT/8 : LIQ_HIGH_MEMORY_LIMIT) / sizeof(f_pixel); // Watch out for integer overflow
 }
 
 static liq_image *liq_image_create_internal(const liq_attr *attr, rgba_pixel* rows[], liq_image_get_rgba_row_callback *row_callback, void *row_callback_user_info, int width, int height, double gamma)
@@ -647,7 +647,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_importance_map(liq_image *img, un
     if (!CHECK_STRUCT_TYPE(img, liq_image)) return LIQ_INVALID_POINTER;
     if (!CHECK_USER_POINTER(importance_map)) return LIQ_INVALID_POINTER;
 
-    const size_t required_size = img->width * img->height;
+    const size_t required_size = (size_t)img->width * (size_t)img->height;
     if (buffer_size < required_size) {
         return LIQ_BUFFER_TOO_SMALL;
     }
@@ -1032,7 +1032,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_set_dithering_level(liq_result *res, float 
         res->remapping = NULL;
     }
 
-    if (res->dither_level < 0 || res->dither_level > 1.0f) return LIQ_VALUE_OUT_OF_RANGE;
+    if (dither_level < 0 || dither_level > 1.0f) return LIQ_VALUE_OUT_OF_RANGE;
     res->dither_level = dither_level;
     return LIQ_OK;
 }
@@ -2081,7 +2081,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image(liq_result *result, li
         return LIQ_INVALID_POINTER;
     }
 
-    const size_t required_size = input_image->width * input_image->height;
+    const size_t required_size = (size_t)input_image->width * (size_t)input_image->height;
     if (buffer_size < required_size) {
         return LIQ_BUFFER_TOO_SMALL;
     }
