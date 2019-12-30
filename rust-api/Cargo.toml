@@ -10,11 +10,11 @@ license = "GPL-3.0+"
 name = "imagequant"
 readme = "README.md"
 repository = "https://github.com/ImageOptim/libimagequant"
-version = "2.12.5"
+version = "2.12.6"
 edition = "2018"
 
 [dependencies]
-imagequant-sys = { version = "2.12.5", path = "../" }
+imagequant-sys = { version = "2.12.6", path = "../" }
 libc = "0.2.60"
 
 [features]
