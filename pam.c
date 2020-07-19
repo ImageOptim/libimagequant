@@ -225,6 +225,9 @@ LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table 
     }
     hist->size = j;
     hist->total_perceptual_weight = total_weight;
+    for(unsigned int k=0; k < hist->size; k++) {
+        hist->achv[k].tmp.likely_colormap_index = 0;
+    }
     if (!j) {
         pam_freeacolorhist(hist);
         return NULL;
