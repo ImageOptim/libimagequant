@@ -39,7 +39,6 @@ extern crate openmp_sys;
 use std::os::raw::{c_int, c_uint, c_char, c_void};
 use std::error;
 use std::fmt;
-use std::error::Error;
 
 pub enum liq_attr {}
 pub enum liq_image {}
@@ -83,24 +82,21 @@ pub struct liq_histogram_entry {
 }
 
 impl error::Error for liq_error {
-    fn description(&self) -> &str {
-        match *self {
-            liq_error::LIQ_OK => "OK",
-            liq_error::LIQ_QUALITY_TOO_LOW => "LIQ_QUALITY_TOO_LOW",
-            liq_error::LIQ_VALUE_OUT_OF_RANGE => "VALUE_OUT_OF_RANGE",
-            liq_error::LIQ_OUT_OF_MEMORY => "OUT_OF_MEMORY",
-            liq_error::LIQ_ABORTED => "LIQ_ABORTED",
-            liq_error::LIQ_BITMAP_NOT_AVAILABLE => "BITMAP_NOT_AVAILABLE",
-            liq_error::LIQ_BUFFER_TOO_SMALL => "BUFFER_TOO_SMALL",
-            liq_error::LIQ_INVALID_POINTER => "INVALID_POINTER",
-            liq_error::LIQ_UNSUPPORTED => "LIQ_UNSUPPORTED",
-        }
-    }
 }
 
 impl fmt::Display for liq_error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.description())
+        f.write_str(match *self {
+            liq_error::LIQ_OK => "OK",
+            liq_error::LIQ_QUALITY_TOO_LOW => "QUALITY_TOO_LOW",
+            liq_error::LIQ_VALUE_OUT_OF_RANGE => "VALUE_OUT_OF_RANGE",
+            liq_error::LIQ_OUT_OF_MEMORY => "OUT_OF_MEMORY",
+            liq_error::LIQ_ABORTED => "ABORTED",
+            liq_error::LIQ_BITMAP_NOT_AVAILABLE => "BITMAP_NOT_AVAILABLE",
+            liq_error::LIQ_BUFFER_TOO_SMALL => "BUFFER_TOO_SMALL",
+            liq_error::LIQ_INVALID_POINTER => "INVALID_POINTER",
+            liq_error::LIQ_UNSUPPORTED => "UNSUPPORTED",
+        })
     }
 }
 
