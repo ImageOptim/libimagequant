@@ -666,7 +666,9 @@ The library needs to sort unique colors present in the image. Although the sorti
 
 ### OpenMP
 
-The library will parallelize some operations if compiled with OpenMP.
+The library can parallelize some operations if compiled with OpenMP.
+
+GCC 9 or later is required for correct OpenMP support. Older compilers *will cause bugs* when OpenMP is enabled.
 
 You must not increase number of maximum threads after `liq_image` has been created, as it allocates some per-thread buffers.
 

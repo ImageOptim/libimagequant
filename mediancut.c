@@ -195,7 +195,7 @@ static double prepare_sort(struct box *b, hist_item achv[])
 
     const unsigned int ind1 = b->ind;
     const unsigned int colors = b->colors;
-#if __GNUC__ >= 9
+#if __GNUC__ >= 9 || __clang__
     #pragma omp parallel for if (colors > 25000) \
         schedule(static) default(none) shared(achv, channels, colors, ind1)
 #else

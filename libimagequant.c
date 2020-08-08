@@ -1276,7 +1276,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     LIQ_ARRAY(kmeans_state, average_color, (KMEANS_CACHE_LINE_GAP+map->colors) * max_threads);
     kmeans_init(map, max_threads, average_color);
 
-#if __GNUC__ >= 9
+#if __GNUC__ >= 9 || __clang__
     #pragma omp parallel for if (rows*cols > 3000) \
         schedule(static) default(none) shared(acolormap,average_color,cols,input_image,map,n,output_pixels,rows,transparent_index) reduction(+:remapping_error)
 #else
