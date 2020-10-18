@@ -343,15 +343,13 @@ Returns the value set by `liq_set_speed()`.
 
     liq_error liq_set_min_opacity(liq_attr* attr, int min);
 
-Alpha values higher than this will be rounded to opaque. This is a workaround for Internet Explorer 6, but because this browser is not used any more, this option is deprecated and will be removed. The default is `255` (no change).
-
-Returns `LIQ_VALUE_OUT_OF_RANGE` if the value is outside the 0-255 range.
+This was a workaround for Internet Explorer 6, but because this browser is not used any more, this option has been deprecated and removed.
 
 ----
 
     int liq_get_min_opacity(liq_attr* attr);
 
-Returns the value set by `liq_set_min_opacity()`.
+This function has been deprecated.
 
 ----
 
@@ -684,7 +682,9 @@ The library needs to sort unique colors present in the image. Although the sorti
 
 ### OpenMP
 
-The library will parallelize some operations if compiled with OpenMP.
+The library can parallelize some operations if compiled with OpenMP.
+
+GCC 9 or later is required for correct OpenMP support. Older compilers *will cause bugs* when OpenMP is enabled.
 
 You must not increase number of maximum threads after `liq_image` has been created, as it allocates some per-thread buffers.
 

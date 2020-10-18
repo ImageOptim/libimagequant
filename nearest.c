@@ -19,15 +19,23 @@ typedef struct vp_sort_tmp {
 
 typedef struct vp_search_tmp {
     float distance;
+    float distance_squared;
     unsigned int idx;
     int exclude;
 } vp_search_tmp;
 
+struct leaf {
+    f_pixel color;
+    unsigned int idx;
+};
+
 typedef struct vp_node {
     struct vp_node *near, *far;
     f_pixel vantage_point;
-    float radius;
-    unsigned int idx;
+    float radius, radius_squared;
+    struct leaf *rest;
+    unsigned short idx;
+    unsigned short restcount;
 } vp_node;
 
 struct nearest_map {
@@ -79,6 +87,7 @@ static vp_node *vp_create_node(mempoolptr *m, vp_sort_tmp indexes[], int num_ind
             .vantage_point = items[indexes[0].idx].acolor,
             .idx = indexes[0].idx,
             .radius = MAX_DIFF,
+            .radius_squared = MAX_DIFF,
         };
         return node;
     }
@@ -99,9 +108,19 @@ static vp_node *vp_create_node(mempoolptr *m, vp_sort_tmp indexes[], int num_ind
         .vantage_point = items[ref_idx].acolor,
         .idx = ref_idx,
         .radius = sqrtf(indexes[half_idx].distance_squared),
+        .radius_squared = indexes[half_idx].distance_squared,
     };
-    node->near = vp_create_node(m, indexes, half_idx, items);
-    node->far = vp_create_node(m, &indexes[half_idx], num_indexes - half_idx, items);
+    if (num_indexes < 7) {
+        node->rest = mempool_alloc(m, sizeof(node->rest[0]) * num_indexes, 0);
+        node->restcount = num_indexes;
+        for(int i=0; i < num_indexes; i++) {
+            node->rest[i].idx = indexes[i].idx;
+            node->rest[i].color = items[indexes[i].idx].acolor;
+        }
+    } else {
+        node->near = vp_create_node(m, indexes, half_idx, items);
+        node->far = vp_create_node(m, &indexes[half_idx], num_indexes - half_idx, items);
+    }
 
     return node;
 }
@@ -126,6 +145,7 @@ LIQ_PRIVATE struct nearest_map *nearest_init(const colormap *map) {
     for(unsigned int i=0; i < map->colors; i++) {
         vp_search_tmp best = {
             .distance = MAX_DIFF,
+            .distance_squared = MAX_DIFF,
             .exclude = i,
         };
         vp_search_node(root, &map->palette[i].acolor, &best);
@@ -137,15 +157,29 @@ LIQ_PRIVATE struct nearest_map *nearest_init(const colormap *map) {
 
 static void vp_search_node(const vp_node *node, const f_pixel *const needle, vp_search_tmp *const best_candidate) {
     do {
-        const float distance = sqrtf(colordifference(node->vantage_point, *needle));
+        const float distance_squared = colordifference(node->vantage_point, *needle);
+        const float distance = sqrtf(distance_squared);
 
-        if (distance < best_candidate->distance && best_candidate->exclude != node->idx) {
+        if (distance_squared < best_candidate->distance_squared && best_candidate->exclude != node->idx) {
             best_candidate->distance = distance;
+            best_candidate->distance_squared = distance_squared;
             best_candidate->idx = node->idx;
         }
 
+        if (node->restcount) {
+            for(int i=0; i < node->restcount; i++) {
+                const float distance_squared = colordifference(node->rest[i].color, *needle);
+                if (distance_squared < best_candidate->distance_squared && best_candidate->exclude != node->rest[i].idx) {
+                    best_candidate->distance = sqrtf(distance_squared);
+                    best_candidate->distance_squared = distance_squared;
+                    best_candidate->idx = node->rest[i].idx;
+                }
+            }
+            return;
+        }
+
         // Recurse towards most likely candidate first to narrow best candidate's distance as soon as possible
-        if (distance < node->radius) {
+        if (distance_squared < node->radius_squared) {
             if (node->near) {
                 vp_search_node(node->near, needle, best_candidate);
             }
@@ -155,7 +189,7 @@ static void vp_search_node(const vp_node *node, const f_pixel *const needle, vp_
             if (node->far && distance >= node->radius - best_candidate->distance) {
                 node = node->far; // Fast tail recursion
             } else {
-                break;
+                return;
             }
         } else {
             if (node->far) {
@@ -164,7 +198,7 @@ static void vp_search_node(const vp_node *node, const f_pixel *const needle, vp_
             if (node->near && distance <= node->radius + best_candidate->distance) {
                 node = node->near; // Fast tail recursion
             } else {
-                break;
+                return;
             }
         }
     } while(true);
@@ -179,6 +213,7 @@ LIQ_PRIVATE unsigned int nearest_search(const struct nearest_map *handle, const 
 
     vp_search_tmp best_candidate = {
         .distance = sqrtf(guess_diff),
+        .distance_squared = guess_diff,
         .idx = likely_colormap_index,
         .exclude = -1,
     };
