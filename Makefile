@@ -93,7 +93,7 @@ cargo:
 	cargo test
 
 example: example.c lodepng.h lodepng.c $(STATICLIB)
-	$(CC) -g $(CFLAGS) -Wall example.c $(STATICLIB) -o example
+	$(CC) -g $(CFLAGS) -Wall example.c $(STATICLIB) -o example -lm
 
 lodepng.h:
 	curl -o lodepng.h -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h
