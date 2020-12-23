@@ -968,6 +968,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_quantize(liq_image *const img, liq_at
     }
     liq_error err = liq_histogram_add_image(hist, attr, img);
     if (LIQ_OK != err) {
+        liq_histogram_destroy(hist);
         return err;
     }
 
