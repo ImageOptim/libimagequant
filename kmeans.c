@@ -61,11 +61,12 @@ LIQ_PRIVATE void kmeans_finalize(colormap *map, const unsigned int max_threads, 
                     .b = b / total,
                 };
             } else {
-                unsigned int r = (i + rand()%7);
-                map->palette[i].acolor.a = map->palette[r%map->colors].acolor.a;
-                map->palette[i].acolor.r = map->palette[r%map->colors].acolor.r;
-                map->palette[i].acolor.g = map->palette[(r+1)%map->colors].acolor.g;
-                map->palette[i].acolor.b = map->palette[(r+2)%map->colors].acolor.b;
+                // if a color is useless, make a new one
+                // (it was supposed to be random, but Android NDK has problematic stdlib headers)
+                map->palette[i].acolor.a = map->palette[(i+1)%map->colors].acolor.a;
+                map->palette[i].acolor.r = map->palette[(i+2)%map->colors].acolor.r;
+                map->palette[i].acolor.g = map->palette[(i+3)%map->colors].acolor.g;
+                map->palette[i].acolor.b = map->palette[(i+4)%map->colors].acolor.b;
             }
         }
     }
