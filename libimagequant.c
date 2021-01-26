@@ -848,7 +848,16 @@ LIQ_EXPORT LIQ_NONNULL int liq_image_get_height(const liq_image *input_image)
 
 typedef void free_func(void*);
 
-LIQ_NONNULL static free_func *get_default_free_func(liq_image *img)
+LIQ_NONNULL static free_func *get_default_image_free_func(liq_image *img)
+{
+    // When default allocator is used then user-supplied pointers must be freed with free()
+    if (img->free != liq_aligned_free) {
+        return img->free;
+    }
+    return free;
+}
+
+LIQ_NONNULL static free_func *get_default_rows_free_func(liq_image *img)
 {
     // When default allocator is used then user-supplied pointers must be freed with free()
     if (img->free_rows_internal || img->free != liq_aligned_free) {
@@ -860,12 +869,12 @@ LIQ_NONNULL static free_func *get_default_free_func(liq_image *img)
 LIQ_NONNULL static void liq_image_free_rgba_source(liq_image *input_image)
 {
     if (input_image->free_pixels && input_image->pixels) {
-        get_default_free_func(input_image)(input_image->pixels);
+        get_default_image_free_func(input_image)(input_image->pixels);
         input_image->pixels = NULL;
     }
 
     if (input_image->free_rows && input_image->rows) {
-        get_default_free_func(input_image)(input_image->rows);
+        get_default_rows_free_func(input_image)(input_image->rows);
         input_image->rows = NULL;
     }
 }
