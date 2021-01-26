@@ -18,6 +18,8 @@ use std::mem;
 use std::os::raw::c_int;
 use std::ptr;
 
+pub use rgb::RGBA8 as RGBA;
+
 /// 8-bit RGBA. This is the only color format used by the library.
 pub type Color = ffi::liq_color;
 
@@ -167,12 +169,12 @@ impl Attributes {
     /// Describe dimensions of a slice of RGBA pixels
     ///
     /// Use 0.0 for gamma if the image is sRGB (most images are).
-    pub fn new_image<'a, RGBA: Copy>(&self, bitmap: &'a [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'a>, liq_error> {
+    pub fn new_image<'a>(&self, bitmap: &'a [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'a>, liq_error> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
-    pub fn new_image_stride<'a, RGBA: Copy>(&self, bitmap: &'a [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'a>, liq_error> {
+    pub fn new_image_stride<'a>(&self, bitmap: &'a [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'a>, liq_error> {
         Image::new_stride(self, bitmap, width, height, stride, gamma)
     }
 
@@ -256,7 +258,7 @@ impl<'bitmap> Image<'bitmap> {
     ///
     /// Use `0.` for gamma if the image is sRGB (most images are).
     #[inline]
-    pub fn new<PixelType: Copy>(attr: &Attributes, bitmap: &'bitmap [PixelType], width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
+    pub fn new(attr: &Attributes, bitmap: &'bitmap [RGBA], width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
         Self::new_stride(attr, bitmap, width, height, width, gamma)
     }
 
@@ -278,37 +280,31 @@ impl<'bitmap> Image<'bitmap> {
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
     pub fn new_stride<PixelType: Copy>(attr: &Attributes, bitmap: &'bitmap [PixelType], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, liq_error> {
-        let bytes_per_pixel = mem::size_of::<PixelType>();
-        match bytes_per_pixel {
-            1 | 4 => {}
-            _ => return Err(LIQ_UNSUPPORTED),
-        }
-        if bitmap.len() * bytes_per_pixel < (stride * height + width - stride) * 4 {
-            eprintln!("Buffer length is {}×{} bytes, which is not enough for {}×{}×4 RGBA bytes", bitmap.len(), bytes_per_pixel, stride, height);
+        if bitmap.len() < (stride * height + width - stride) {
+            eprintln!("Buffer length is {} bytes, which is not enough for {}×{}×4 RGBA bytes", bitmap.len()*4, stride, height);
             return Err(LIQ_BUFFER_TOO_SMALL);
         }
-        unsafe {
-            let rows = Self::malloc_image_rows(bitmap, stride, height, bytes_per_pixel);
-            match ffi::liq_image_create_rgba_rows(&*attr.handle, rows, width as c_int, height as c_int, gamma) {
-                h if !h.is_null() && ffi::liq_image_set_memory_ownership(&*h, ffi::liq_ownership::LIQ_OWN_ROWS).is_ok() => {
-                    Ok(Image {
-                        handle: h,
-                        _marker: marker::PhantomData,
-                    })
-                },
-                _ => {
-                    libc::free(rows as *mut _);
-                    Err(LIQ_INVALID_POINTER)
-                }
+        let rows = Self::malloc_image_rows(bitmap, stride, height);
+        let ownership = if copy { ffi::liq_ownership::LIQ_OWN_ROWS | ffi::liq_ownership::LIQ_COPY_PIXELS } else { ffi::liq_ownership::LIQ_OWN_ROWS };
+        match ffi::liq_image_create_rgba_rows(&*attr.handle, rows, width as c_int, height as c_int, gamma) {
+            h if !h.is_null() && ffi::liq_image_set_memory_ownership(&*h, ownership).is_ok() => {
+                Ok(Image {
+                    handle: h,
+                    _marker: PhantomData,
+                })
+            },
+            _ => {
+                libc::free(rows as *mut _);
+                Err(LIQ_INVALID_POINTER)
             }
         }
     }
 
     /// For arbitrary stride libimagequant requires rows. It's most convenient if they're allocated using libc,
     /// so they can be owned and freed automatically by the C library.
-    unsafe fn malloc_image_rows<PixelType: Copy>(bitmap: &'bitmap [PixelType], stride: usize, height: usize, bytes_per_pixel: usize) -> *mut *const u8 {
+    unsafe fn malloc_image_rows(bitmap: &[RGBA], stride: usize, height: usize) -> *mut *const u8 {
         let mut byte_ptr = bitmap.as_ptr() as *const u8;
-        let stride_bytes = (stride * bytes_per_pixel) as isize;
+        let stride_bytes = (stride * 4) as isize;
         let rows = libc::malloc(mem::size_of::<*const u8>() * height) as *mut *const u8;
         for y in 0..height as isize {
             *rows.offset(y) = byte_ptr;
@@ -439,9 +435,7 @@ unsafe impl<'a> Send for Histogram<'a> {}
 fn takes_rgba() {
     let liq = Attributes::new();
 
-    #[allow(dead_code)]
-    #[derive(Copy, Clone)]
-    struct RGBA {r:u8, g:u8, b:u8, a:u8};
+    use rgb::RGBA8 as RGBA;
     let img = vec![RGBA {r:0, g:0, b:0, a:0}; 8];
 
 
@@ -450,13 +444,6 @@ fn takes_rgba() {
     liq.new_image(&img, 8, 1, 0.0).unwrap();
     assert!(liq.new_image(&img, 9, 1, 0.0).is_err());
     assert!(liq.new_image(&img, 4, 3, 0.0).is_err());
-
-    #[allow(dead_code)]
-    #[derive(Copy, Clone)]
-    struct RGB {r:u8, g:u8, b:u8};
-    let badimg = vec![RGB {r:0, g:0, b:0}; 8];
-    assert!(liq.new_image(&badimg, 1, 1, 0.0).is_err());
-    assert!(liq.new_image(&badimg, 100, 100, 0.0).is_err());
 }
 
 #[test]
@@ -464,11 +451,11 @@ fn histogram() {
     let attr = Attributes::new();
     let mut hist = attr.new_histogram();
 
-    let bitmap1 = vec![0u8; 4];
+    let bitmap1 = vec![RGBA {r:0, g:0, b:0, a:0}; 1];
     let mut image1 = attr.new_image(&bitmap1[..], 1, 1, 0.0).unwrap();
     hist.add_image(&mut image1);
 
-    let bitmap2 = vec![255u8; 4];
+    let bitmap2 = vec![RGBA {r:255, g:255, b:255, a:255}; 1];
     let mut image2 = attr.new_image(&bitmap2[..], 1, 1, 0.0).unwrap();
     hist.add_image(&mut image2);
 
@@ -486,11 +473,11 @@ fn histogram() {
 fn poke_it() {
     let width = 10usize;
     let height = 10usize;
-    let mut fakebitmap = vec![255u8; 4*width*height];
+    let mut fakebitmap = vec![RGBA::new(255,255,255,255); width*height];
 
-    fakebitmap[0] = 0x55;
-    fakebitmap[1] = 0x66;
-    fakebitmap[2] = 0x77;
+    fakebitmap[0].r = 0x55;
+    fakebitmap[0].g = 0x66;
+    fakebitmap[0].b = 0x77;
 
     // Configure the library
     let mut liq = Attributes::new();
@@ -539,7 +526,7 @@ fn set_importance_map() {
 fn thread() {
     let liq = Attributes::new();
     std::thread::spawn(move || {
-        let b = vec![0u8;4];
+        let b = vec![RGBA::new(0,0,0,0);1];
         liq.new_image(&b, 1, 1, 0.).unwrap();
     }).join().unwrap();
 }
