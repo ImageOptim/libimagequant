@@ -626,6 +626,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_memory_ownership(liq_image *img, 
 }
 
 LIQ_NONNULL static void liq_image_free_maps(liq_image *input_image);
+LIQ_NONNULL static void liq_image_free_dither_map(liq_image *input_image);
 LIQ_NONNULL static void liq_image_free_importance_map(liq_image *input_image);
 
 LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_importance_map(liq_image *img, unsigned char importance_map[], size_t buffer_size, enum liq_ownership ownership) {
@@ -671,7 +672,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_background(liq_image *img, liq_im
     }
 
     img->background = background;
-    liq_image_free_maps(img); // Force them to be re-analyzed with the background
+    liq_image_free_dither_map(img); // Force it to be re-analyzed with the background
 
     return LIQ_OK;
 }
@@ -893,7 +894,10 @@ LIQ_NONNULL static void liq_image_free_maps(liq_image *input_image) {
         input_image->free(input_image->edges);
         input_image->edges = NULL;
     }
+    liq_image_free_dither_map(input_image);
+}
 
+LIQ_NONNULL static void liq_image_free_dither_map(liq_image *input_image) {
     if (input_image->dither_map) {
         input_image->free(input_image->dither_map);
         input_image->dither_map = NULL;
