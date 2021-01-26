@@ -49,7 +49,9 @@ On Windows run `make java-dll` and it'll create `libimagequant.dll` instead.
 
 ### Compiling on Windows/Visual Studio
 
-To build on Windows simple install CMake and use it to generate makefile base on your system.
+The library can be compiled with any C compiler that has at least basic support for C99 (GCC, clang, ICC, C++ Builder, even Tiny C Compiler), but Visual Studio 2012 and older are not up to date with the 1999 C standard. Use Visual Studio **2015** and the [MSVC-compatible branch of the library](https://github.com/ImageOptim/libimagequant/tree/msvc).
+
+To build on Windows, install CMake and use it to generate a makefile/project for your build system.
 
 Build instructions
 
@@ -57,15 +59,8 @@ Build instructions
     cd build
     cmake ..
     cmake --build .
-    
-To generate Visual Studio project use below instructions
 
-    mkdir build
-    cd build
-    cmake -G "Visual Studio 15 2017" ..
-    cmake --build .
-    
-To generate Visual Studio 64bit project use below instructions
+To generate a 64-bit Visual Studio project instead:
 
     mkdir build
     cd build
