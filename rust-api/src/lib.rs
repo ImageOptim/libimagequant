@@ -8,12 +8,12 @@
 #![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
 #![warn(missing_docs)]
 
-extern crate imagequant_sys as ffi;
-
-pub use crate::ffi::liq_error;
 pub use crate::ffi::liq_error::*;
+pub use crate::ffi::liq_error;
+
+use imagequant_sys as ffi;
 use std::fmt;
-use std::marker;
+use std::marker::PhantomData;
 use std::mem;
 use std::os::raw::c_int;
 use std::ptr;
@@ -37,7 +37,7 @@ pub struct Attributes {
 pub struct Image<'a> {
     handle: *mut ffi::liq_image,
     /// Holds row pointers for images with stride
-    _marker: marker::PhantomData<&'a [u8]>,
+    _marker: PhantomData<&'a [u8]>,
 }
 
 /// Palette inside.
@@ -277,7 +277,7 @@ impl<'bitmap> Image<'bitmap> {
     pub fn new_unsafe_fn<CustomData: Send + Sync + 'bitmap>(attr: &Attributes, convert_row_fn: ConvertRowUnsafeFn<CustomData>, user_data: *mut CustomData, width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
         unsafe {
             match ffi::liq_image_create_custom(&*attr.handle, mem::transmute(convert_row_fn), user_data as *mut _, width as c_int, height as c_int, gamma) {
-                handle if !handle.is_null() => Ok(Image { handle, _marker: marker::PhantomData }),
+                handle if !handle.is_null() => Ok(Image { handle, _marker: PhantomData }),
                 _ => Err(LIQ_INVALID_POINTER),
             }
         }
