@@ -14,7 +14,7 @@ version = "2.13.0"
 edition = "2018"
 
 [dependencies]
-imagequant-sys = { version = "2.13.0", path = "../" }
+imagequant-sys = { version = "3", path = "../" }
 libc = "0.2.60"
 
 [features]

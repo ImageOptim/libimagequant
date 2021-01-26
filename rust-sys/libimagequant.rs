@@ -60,12 +60,16 @@ pub enum liq_error {
     LIQ_UNSUPPORTED,
 }
 
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub enum liq_ownership {
-    LIQ_OWN_ROWS = 4,
-    LIQ_OWN_PIXELS = 8,
-    LIQ_COPY_PIXELS = 16,
+bitflags::bitflags! {
+    #[repr(C)]
+    pub struct liq_ownership: c_int {
+        /// Moves ownership of the rows array. It will free it using `free()` or custom allocator.
+        const LIQ_OWN_ROWS = 4;
+        /// Moves ownership of the pixel data. It will free it using `free()` or custom allocator.
+        const LIQ_OWN_PIXELS = 8;
+        /// Makes a copy of the pixels, so the `liq_image` is not tied to pixel's lifetime.
+        const LIQ_COPY_PIXELS = 16;
+    }
 }
 
 #[repr(C)]
@@ -283,6 +287,11 @@ extern "C" {
     pub fn liq_get_remapping_error(result: &liq_result) -> f64;
     pub fn liq_get_remapping_quality(result: &liq_result) -> c_int;
     pub fn liq_version() -> c_int;
+}
+
+#[test]
+fn ownership_bitflags() {
+    assert_eq!(4+16, (liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_COPY_PIXELS).bits());
 }
 
 #[test]
