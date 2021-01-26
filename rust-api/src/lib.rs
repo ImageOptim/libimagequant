@@ -178,6 +178,11 @@ impl Attributes {
         Image::new_stride(self, bitmap, width, height, stride, gamma)
     }
 
+    /// Like `new_image_stride`, but makes a copy of the pixels
+    pub fn new_image_stride_copy(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, liq_error> {
+        Image::new_stride_copy(self, bitmap, width, height, stride, gamma)
+    }
+
     /// Create new histogram
     ///
     /// Use to make one palette suitable for many images
@@ -279,7 +284,20 @@ impl<'bitmap> Image<'bitmap> {
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
-    pub fn new_stride<PixelType: Copy>(attr: &Attributes, bitmap: &'bitmap [PixelType], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, liq_error> {
+    #[inline]
+    pub fn new_stride(attr: &Attributes, bitmap: &'bitmap [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, liq_error> {
+        // Type definition preserves the lifetime, so it's not unsafe
+        unsafe { Self::new_stride_internal(attr, bitmap, width, height, stride, gamma, false) }
+    }
+
+    /// Create new image by copying `bitmap` to an internal buffer, so that it makes a self-contained type.
+    #[inline]
+    pub fn new_stride_copy(attr: &Attributes, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, liq_error> {
+        // copy guarantees the image doesn't reference the bitmap any more
+        unsafe { Self::new_stride_internal(attr, bitmap, width, height, stride, gamma, true) }
+    }
+
+    unsafe fn new_stride_internal<'varies>(attr: &Attributes, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64, copy: bool) -> Result<Image<'varies>, liq_error> {
         if bitmap.len() < (stride * height + width - stride) {
             eprintln!("Buffer length is {} bytes, which is not enough for {}×{}×4 RGBA bytes", bitmap.len()*4, stride, height);
             return Err(LIQ_BUFFER_TOO_SMALL);
