@@ -302,26 +302,37 @@ impl<'bitmap> Image<'bitmap> {
             eprintln!("Buffer length is {} bytes, which is not enough for {}×{}×4 RGBA bytes", bitmap.len()*4, stride, height);
             return Err(LIQ_BUFFER_TOO_SMALL);
         }
+        let (bitmap, ownership) = if copy {
+            let copied = libc::malloc(4 * bitmap.len()) as *mut RGBA;
+            ptr::copy_nonoverlapping(bitmap.as_ptr(), copied, bitmap.len());
+            (copied as *const _, ffi::liq_ownership::LIQ_OWN_ROWS | ffi::liq_ownership::LIQ_OWN_PIXELS)
+        } else {
+            (bitmap.as_ptr(), ffi::liq_ownership::LIQ_OWN_ROWS)
+        };
         let rows = Self::malloc_image_rows(bitmap, stride, height);
-        let ownership = if copy { ffi::liq_ownership::LIQ_OWN_ROWS | ffi::liq_ownership::LIQ_COPY_PIXELS } else { ffi::liq_ownership::LIQ_OWN_ROWS };
-        match ffi::liq_image_create_rgba_rows(&*attr.handle, rows, width as c_int, height as c_int, gamma) {
-            h if !h.is_null() && ffi::liq_image_set_memory_ownership(&*h, ownership).is_ok() => {
-                Ok(Image {
-                    handle: h,
-                    _marker: PhantomData,
-                })
-            },
-            _ => {
+        let h = ffi::liq_image_create_rgba_rows(&*attr.handle, rows, width as c_int, height as c_int, gamma);
+        if h.is_null() {
+            libc::free(rows as *mut _);
+            return Err(LIQ_INVALID_POINTER);
+        }
+        let img = Image {
+            handle: h,
+            _marker: PhantomData,
+        };
+        match ffi::liq_image_set_memory_ownership(&*h, ownership) {
+            LIQ_OK => Ok(img),
+            err => {
+                drop(img);
                 libc::free(rows as *mut _);
-                Err(LIQ_INVALID_POINTER)
-            }
+                Err(err)
+            },
         }
     }
 
     /// For arbitrary stride libimagequant requires rows. It's most convenient if they're allocated using libc,
     /// so they can be owned and freed automatically by the C library.
-    unsafe fn malloc_image_rows(bitmap: &[RGBA], stride: usize, height: usize) -> *mut *const u8 {
-        let mut byte_ptr = bitmap.as_ptr() as *const u8;
+    unsafe fn malloc_image_rows(bitmap: *const RGBA, stride: usize, height: usize) -> *mut *const u8 {
+        let mut byte_ptr = bitmap as *const u8;
         let stride_bytes = (stride * 4) as isize;
         let rows = libc::malloc(mem::size_of::<*const u8>() * height) as *mut *const u8;
         for y in 0..height as isize {
@@ -448,6 +459,13 @@ unsafe impl Send for Attributes {}
 unsafe impl Send for QuantizationResult {}
 unsafe impl<'bitmap> Send for Image<'bitmap> {}
 unsafe impl<'a> Send for Histogram<'a> {}
+
+#[test]
+fn copy_img() {
+    let tmp = vec![RGBA::new(1,2,3,4); 10*100];
+    let liq = Attributes::new();
+    let _ = liq.new_image_stride_copy(&tmp, 10, 100, 10, 0.).unwrap();
+}
 
 #[test]
 fn takes_rgba() {
