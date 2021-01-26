@@ -5,11 +5,9 @@
 #ifndef LIBIMAGEQUANT_H
 #define LIBIMAGEQUANT_H
 
-#ifdef IMAGEQUANT_EXPORTS
+#ifdef _WINDOWS
 #define LIQ_EXPORT __declspec(dllexport)
-#endif
-
-#ifndef LIQ_EXPORT
+#else 
 #define LIQ_EXPORT extern
 #endif
 

@@ -787,7 +787,9 @@ LIQ_NONNULL static const rgba_pixel *liq_image_get_row_rgba(liq_image *img, unsi
 LIQ_NONNULL static void convert_row_to_f(liq_image *img, f_pixel *row_f_pixels, const unsigned int row, const float gamma_lut[])
 {
     assert(row_f_pixels);
+#ifndef _MSC_VER
     assert(!USE_SSE || 0 == ((uintptr_t)row_f_pixels & 15));
+#endif
 
     const rgba_pixel *const row_pixels = liq_image_get_row_rgba(img, row);
 
@@ -1268,6 +1270,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     LIQ_ARRAY(kmeans_state, average_color, (KMEANS_CACHE_LINE_GAP+map->colors) * max_threads);
     kmeans_init(map, max_threads, average_color);
 
+    int row;
 #if __GNUC__ >= 9 || __clang__
     #pragma omp parallel for if (rows*cols > 3000) \
         schedule(static) default(none) shared(acolormap,average_color,cols,input_image,map,n,output_pixels,rows,transparent_index) reduction(+:remapping_error)
@@ -1275,7 +1278,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     #pragma omp parallel for if (rows*cols > 3000) \
         schedule(static) default(none) shared(acolormap) shared(average_color) reduction(+:remapping_error)
 #endif
-    for(int row = 0; row < rows; ++row) {
+    for(row = 0; row < rows; ++row) {
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
         const f_pixel *const bg_pixels = input_image->background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(input_image->background, row) : NULL;
 
