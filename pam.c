@@ -178,7 +178,7 @@ LIQ_PRIVATE struct acolorhash_table *pam_allocacolorhash(unsigned int maxcolors,
 
 ALWAYS_INLINE static float pam_add_to_hist(const float *gamma_lut, hist_item *achv, unsigned int *j, const struct acolorhist_arr_item *entry, const float max_perceptual_weight)
 {
-    if (entry->perceptual_weight == 0) {
+    if (entry->perceptual_weight == 0 && *j > 0) {
         return 0;
     }
     const float w = MIN(entry->perceptual_weight/128.f, max_perceptual_weight);
