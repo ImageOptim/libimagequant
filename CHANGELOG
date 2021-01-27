@@ -1,3 +1,14 @@
+version 2.14
+------------
+ - improved Rust API
+ - quality improvements for remapping overlays over a background
+
+version 2.13
+------------
+ - support OpenMP in clang
+ - dropped old Internet Explorer workarounds
+ - speed and quality improvements
+
 version 2.12
 ------------
  - new liq_histogram_add_fixed_color()

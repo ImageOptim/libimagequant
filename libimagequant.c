@@ -626,6 +626,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_memory_ownership(liq_image *img, 
 }
 
 LIQ_NONNULL static void liq_image_free_maps(liq_image *input_image);
+LIQ_NONNULL static void liq_image_free_dither_map(liq_image *input_image);
 LIQ_NONNULL static void liq_image_free_importance_map(liq_image *input_image);
 
 LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_importance_map(liq_image *img, unsigned char importance_map[], size_t buffer_size, enum liq_ownership ownership) {
@@ -671,7 +672,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_set_background(liq_image *img, liq_im
     }
 
     img->background = background;
-    liq_image_free_maps(img); // Force them to be re-analyzed with the background
+    liq_image_free_dither_map(img); // Force it to be re-analyzed with the background
 
     return LIQ_OK;
 }
@@ -895,7 +896,10 @@ LIQ_NONNULL static void liq_image_free_maps(liq_image *input_image) {
         input_image->free(input_image->edges);
         input_image->edges = NULL;
     }
+    liq_image_free_dither_map(input_image);
+}
 
+LIQ_NONNULL static void liq_image_free_dither_map(liq_image *input_image) {
     if (input_image->dither_map) {
         input_image->free(input_image->dither_map);
         input_image->dither_map = NULL;
@@ -1263,7 +1267,12 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     const colormap_item *acolormap = map->palette;
 
     struct nearest_map *const n = nearest_init(map);
-    const int transparent_index = input_image->background ? nearest_search(n, &(f_pixel){0,0,0,0}, 0, NULL) : 0;
+    liq_image *background = input_image->background;
+    const int transparent_index = background ? nearest_search(n, &(f_pixel){0,0,0,0}, 0, NULL) : -1;
+    if (background && acolormap[transparent_index].acolor.a > 1.f/256.f) {
+        // palette unsuitable for using the bg
+        background = NULL;
+    }
 
 
     const unsigned int max_threads = omp_get_max_threads();
@@ -1280,19 +1289,25 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
 #endif
     for(row = 0; row < rows; ++row) {
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
-        const f_pixel *const bg_pixels = input_image->background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(input_image->background, row) : NULL;
+        const f_pixel *const bg_pixels = background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(background, row) : NULL;
 
         unsigned int last_match=0;
         for(unsigned int col = 0; col < cols; ++col) {
             float diff;
             last_match = nearest_search(n, &row_pixels[col], last_match, &diff);
-            if (bg_pixels && colordifference(bg_pixels[col], acolormap[last_match].acolor) <= diff) {
-                last_match = transparent_index;
+            if (bg_pixels) {
+                float bg_diff = colordifference(bg_pixels[col], acolormap[last_match].acolor);
+                if (bg_diff <= diff) {
+                    diff = bg_diff;
+                    last_match = transparent_index;
+                }
             }
             output_pixels[row][col] = last_match;
 
             remapping_error += diff;
-            kmeans_update_color(row_pixels[col], 1.0, map, last_match, omp_get_thread_num(), average_color);
+            if (last_match != transparent_index) {
+                kmeans_update_color(row_pixels[col], 1.0, map, last_match, omp_get_thread_num(), average_color);
+            }
         }
     }
 
@@ -1374,7 +1389,12 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
 
     bool ok = true;
     struct nearest_map *const n = nearest_init(map);
-    const int transparent_index = input_image->background ? nearest_search(n, &(f_pixel){0,0,0,0}, 0, NULL) : 0;
+    liq_image *background = input_image->background;
+    const int transparent_index = background ? nearest_search(n, &(f_pixel){0,0,0,0}, 0, NULL) : -1;
+    if (background && acolormap[transparent_index].acolor.a > 1.f/256.f) {
+        // palette unsuitable for using the bg
+        background = NULL;
+    }
 
     // response to this value is non-linear and without it any value < 0.8 would give almost no dithering
     float base_dithering_level = quant->dither_level;
@@ -1397,7 +1417,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
 
         int col = (fs_direction > 0) ? 0 : (cols - 1);
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
-        const f_pixel *const bg_pixels = input_image->background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(input_image->background, row) : NULL;
+        const f_pixel *const bg_pixels = background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(background, row) : NULL;
 
         do {
             float dither_level = base_dithering_level;
@@ -1411,12 +1431,24 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             float diff;
             last_match = nearest_search(n, &spx, guessed_match, &diff);
             f_pixel output_px = acolormap[last_match].acolor;
-            if (bg_pixels && colordifference(bg_pixels[col], output_px) <= diff) {
-                output_px = bg_pixels[col];
-                output_pixels[row][col] = transparent_index;
-            } else {
-                output_pixels[row][col] = last_match;
+            if (bg_pixels) {
+                float baseline_diff = colordifference(row_pixels[col], bg_pixels[col]);
+                float dithered_diff = colordifference(row_pixels[col], acolormap[last_match].acolor);
+                // Avoid making bg worse, but still allow a bit of dithering
+                if (dithered_diff * 0.9 > baseline_diff) {
+                    float undithered_diff = colordifference(row_pixels[col], acolormap[guessed_match].acolor);
+                    // try undithered change, but only when it's pretty good, otherwise it may erase previous floyd dither
+                    if (undithered_diff < baseline_diff * 0.6) {
+                        output_px = acolormap[guessed_match].acolor;
+                        last_match = guessed_match;
+                    } else {
+                        output_px = bg_pixels[col];
+                        last_match = transparent_index;
+                    }
+                }
             }
+
+            output_pixels[row][col] = last_match;
 
             f_pixel err = {
                 .r = (spx.r - output_px.r),
