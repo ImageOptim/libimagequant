@@ -1417,10 +1417,19 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             last_match = nearest_search(n, &spx, guessed_match, &diff);
             f_pixel output_px = acolormap[last_match].acolor;
             if (bg_pixels) {
-                float bg_diff = colordifference(bg_pixels[col], output_px);
-                if (bg_diff <= diff) {
-                    output_px = bg_pixels[col];
-                    last_match = transparent_index;
+                float baseline_diff = colordifference(row_pixels[col], bg_pixels[col]);
+                float dithered_diff = colordifference(row_pixels[col], acolormap[last_match].acolor);
+                // Avoid making bg worse, but still allow a bit of dithering
+                if (dithered_diff * 0.9 > baseline_diff) {
+                    float undithered_diff = colordifference(row_pixels[col], acolormap[guessed_match].acolor);
+                    // try undithered change, but only when it's pretty good, otherwise it may erase previous floyd dither
+                    if (undithered_diff < baseline_diff * 0.6) {
+                        output_px = acolormap[guessed_match].acolor;
+                        last_match = guessed_match;
+                    } else {
+                        output_px = bg_pixels[col];
+                        last_match = transparent_index;
+                    }
                 }
             }
 
