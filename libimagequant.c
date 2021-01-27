@@ -1287,8 +1287,12 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
         for(unsigned int col = 0; col < cols; ++col) {
             float diff;
             last_match = nearest_search(n, &row_pixels[col], last_match, &diff);
-            if (bg_pixels && colordifference(bg_pixels[col], acolormap[last_match].acolor) <= diff) {
-                last_match = transparent_index;
+            if (bg_pixels) {
+                float bg_diff = colordifference(bg_pixels[col], acolormap[last_match].acolor);
+                if (bg_diff <= diff) {
+                    diff = bg_diff;
+                    last_match = transparent_index;
+                }
             }
             output_pixels[row][col] = last_match;
 
@@ -1412,12 +1416,15 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             float diff;
             last_match = nearest_search(n, &spx, guessed_match, &diff);
             f_pixel output_px = acolormap[last_match].acolor;
-            if (bg_pixels && colordifference(bg_pixels[col], output_px) <= diff) {
-                output_px = bg_pixels[col];
-                output_pixels[row][col] = transparent_index;
-            } else {
-                output_pixels[row][col] = last_match;
+            if (bg_pixels) {
+                float bg_diff = colordifference(bg_pixels[col], output_px);
+                if (bg_diff <= diff) {
+                    output_px = bg_pixels[col];
+                    last_match = transparent_index;
+                }
             }
+
+            output_pixels[row][col] = last_match;
 
             f_pixel err = {
                 .r = (spx.r - output_px.r),
