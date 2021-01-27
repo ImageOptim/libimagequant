@@ -1265,7 +1265,7 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     const colormap_item *acolormap = map->palette;
 
     struct nearest_map *const n = nearest_init(map);
-    const int transparent_index = input_image->background ? nearest_search(n, &(f_pixel){0,0,0,0}, 0, NULL) : 0;
+    const int transparent_index = input_image->background ? nearest_search(n, &(f_pixel){0,0,0,0}, 0, NULL) : -1;
 
 
     const unsigned int max_threads = omp_get_max_threads();
@@ -1297,7 +1297,9 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
             output_pixels[row][col] = last_match;
 
             remapping_error += diff;
-            kmeans_update_color(row_pixels[col], 1.0, map, last_match, omp_get_thread_num(), average_color);
+            if (last_match != transparent_index) {
+                kmeans_update_color(row_pixels[col], 1.0, map, last_match, omp_get_thread_num(), average_color);
+            }
         }
     }
 
