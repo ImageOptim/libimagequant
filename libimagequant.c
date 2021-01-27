@@ -1280,13 +1280,8 @@ LIQ_NONNULL static float remap_to_palette(liq_image *const input_image, unsigned
     kmeans_init(map, max_threads, average_color);
 
     int row;
-#if __GNUC__ >= 9 || __clang__
     #pragma omp parallel for if (rows*cols > 3000) \
-        schedule(static) default(none) shared(acolormap,average_color,cols,input_image,map,n,output_pixels,rows,transparent_index) reduction(+:remapping_error)
-#else
-    #pragma omp parallel for if (rows*cols > 3000) \
-        schedule(static) default(none) shared(acolormap) shared(average_color) reduction(+:remapping_error)
-#endif
+        schedule(static) default(none) shared(background,acolormap,average_color,cols,input_image,map,n,output_pixels,rows,transparent_index) reduction(+:remapping_error)
     for(row = 0; row < rows; ++row) {
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
         const f_pixel *const bg_pixels = background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(background, row) : NULL;
