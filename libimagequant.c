@@ -1422,22 +1422,31 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
             const f_pixel spx = get_dithered_pixel(dither_level, max_dither_error, thiserr[col + 1], row_pixels[col]);
 
             const unsigned int guessed_match = output_image_is_remapped ? output_pixels[row][col] : last_match;
-            float diff;
-            last_match = nearest_search(n, &spx, guessed_match, &diff);
+            float dither_diff;
+            last_match = nearest_search(n, &spx, guessed_match, &dither_diff);
             f_pixel output_px = acolormap[last_match].acolor;
+            // this is for animgifs
             if (bg_pixels) {
-                float baseline_diff = colordifference(row_pixels[col], bg_pixels[col]);
-                float dithered_diff = colordifference(row_pixels[col], acolormap[last_match].acolor);
-                // Avoid making bg worse, but still allow a bit of dithering
-                if (dithered_diff * 0.9 > baseline_diff) {
-                    float undithered_diff = colordifference(row_pixels[col], acolormap[guessed_match].acolor);
-                    // try undithered change, but only when it's pretty good, otherwise it may erase previous floyd dither
-                    if (undithered_diff < baseline_diff * 0.6) {
-                        output_px = acolormap[guessed_match].acolor;
-                        last_match = guessed_match;
-                    } else {
-                        output_px = bg_pixels[col];
-                        last_match = transparent_index;
+                // if the background makes better match *with* dithering, it's a definitive win
+                float bg_for_dither_diff = colordifference(spx, bg_pixels[col]);
+                if (bg_for_dither_diff <= dither_diff) {
+                    output_px = bg_pixels[col];
+                    last_match = transparent_index;
+                } else {
+                    // if dithering is not applied, there's a high risk of creating artifacts (flat areas, error accumulating badly),
+                    // OTOH poor dithering disturbs static backgrounds and creates oscilalting frames that break backgrounds
+                    // back and forth in two differently bad ways
+                    float max_diff = colordifference(row_pixels[col], bg_pixels[col]);
+                    float dithered_diff = colordifference(row_pixels[col], output_px);
+                    // if dithering is worse than natural difference between frames
+                    // (this rule dithers moving areas, but does not dither static areas)
+                    if (dithered_diff > max_diff) {
+                        // then see if an undithered color is closer to the ideal
+                        float undithered_diff = colordifference(row_pixels[col], acolormap[guessed_match].acolor);
+                        if (undithered_diff < max_diff) {
+                            output_px = acolormap[guessed_match].acolor;
+                            last_match = guessed_match;
+                        }
                     }
                 }
             }
