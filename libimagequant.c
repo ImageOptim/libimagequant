@@ -1412,6 +1412,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
         int col = (fs_direction > 0) ? 0 : (cols - 1);
         const f_pixel *const row_pixels = liq_image_get_row_f(input_image, row);
         const f_pixel *const bg_pixels = background && acolormap[transparent_index].acolor.a < 1.f/256.f ? liq_image_get_row_f(background, row) : NULL;
+        int undithered_bg_used = 0;
 
         do {
             float dither_level = base_dithering_level;
@@ -1432,6 +1433,10 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
                 if (bg_for_dither_diff <= dither_diff) {
                     output_px = bg_pixels[col];
                     last_match = transparent_index;
+                } else if (undithered_bg_used > 1) {
+                    // the undithered fallback can cause artifacts when too many undithered pixels accumulate a big dithering error
+                    // so periodically ignore undithered fallback to prevent that
+                    undithered_bg_used = 0;
                 } else {
                     // if dithering is not applied, there's a high risk of creating artifacts (flat areas, error accumulating badly),
                     // OTOH poor dithering disturbs static backgrounds and creates oscilalting frames that break backgrounds
@@ -1444,6 +1449,7 @@ LIQ_NONNULL static bool remap_to_palette_floyd(liq_image *input_image, unsigned 
                         // then see if an undithered color is closer to the ideal
                         float undithered_diff = colordifference(row_pixels[col], acolormap[guessed_match].acolor);
                         if (undithered_diff < max_diff) {
+                            undithered_bg_used++;
                             output_px = acolormap[guessed_match].acolor;
                             last_match = guessed_match;
                         }
