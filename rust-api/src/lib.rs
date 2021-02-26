@@ -28,6 +28,10 @@ pub type Color = ffi::liq_color;
 /// Used if you're building histogram manually. Otherwise see `add_image()`
 pub type HistogramEntry = ffi::liq_histogram_entry;
 
+/// Slice of a color palette. The second member of the tuple is the actual
+/// number of colors
+pub type PaletteSlice = ([Color; 256], i32);
+
 /// Settings for the conversion proces. Start here.
 pub struct Attributes {
     handle: *mut ffi::liq_attr,
@@ -427,22 +431,72 @@ impl QuantizationResult {
     ///
     /// It's slighly better if you get palette from the `remapped()` call instead
     pub fn palette(&mut self) -> Vec<Color> {
+        let (slice, count) = self.palette_slice();
+        slice.iter().cloned().take(count as usize).collect()
+    }
+
+    /// Final palette slice
+    ///
+    /// It's slighly better if you get palette from the `remapped()` call instead
+    ///
+    /// Use when ownership of the palette colors is not needed
+    pub fn palette_slice(&mut self) -> PaletteSlice {
+        let pal;
         unsafe {
-            let pal = &*ffi::liq_get_palette(&mut *self.handle);
-            pal.entries.iter().cloned().take(pal.count as usize).collect()
+            pal = &*ffi::liq_get_palette(&mut *self.handle);
         }
+        (pal.entries, pal.count)
     }
 
     /// Remap image
     ///
-    /// Returns palette and 1-byte-per-pixel uncompresed bitmap
+    /// Returns palette and 1-byte-per-pixel uncompressed bitmap
     pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<Color>, Vec<u8>), liq_error> {
+        self.remapped_palette_slice(image).map(|((slice, count), buf)| {
+            (slice.iter().cloned().take(count as usize).collect(), buf)
+        })
+    }
+
+    /// Remap image
+    ///
+    /// Returns palette and 1-byte-per-pixel uncompressed bitmap on the provided buffer.
+    /// Fails with `LIQ_BUFFER_TOO_SMALL` if the buffer is not big enough to store the image data
+    pub fn remapped_with_buffer<T: AsMut<[u8]>>(&mut self, image: &mut Image<'_>, mut buf: T) -> Result<Vec<Color>, liq_error> {
+        self.remapped_palette_slice_with_buffer(image, &mut buf).map(|(slice, count)| {
+            slice.iter().cloned().take(count as usize).collect()
+        })
+    }
+
+    /// Remap image
+    ///
+    /// Returns palette and 1-byte-per-pixel uncompressed bitmap
+    ///
+    /// Use when ownership of the full palette colors vector is not needed
+    pub fn remapped_palette_slice(&mut self, image: &mut Image<'_>) -> Result<(PaletteSlice, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
         let mut buf = Vec::with_capacity(len);
         unsafe {
             buf.set_len(len); // Creates uninitialized buffer
-            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, buf.as_mut_ptr(), buf.len()) {
-                LIQ_OK => Ok((self.palette(), buf)),
+        }
+        self.remapped_palette_slice_with_buffer(image, &mut buf).map(|slice| (slice, buf))
+    }
+
+    /// Remap image
+    ///
+    /// Returns palette and 1-byte-per-pixel uncompressed bitmap on the provided buffer.
+    /// Fails with `LIQ_BUFFER_TOO_SMALL` if the buffer is not big enough to store the image data
+    ///
+    /// Use when ownership of the full palette colors vector is not needed
+    pub fn remapped_palette_slice_with_buffer<T: AsMut<[u8]>>(&mut self, image: &mut Image<'_>, mut buf: T) -> Result<PaletteSlice, liq_error> {
+        let buf = buf.as_mut();
+        let buf_len = buf.len();
+        let len = image.width() * image.height();
+        if buf_len < len {
+            return Err(LIQ_BUFFER_TOO_SMALL)
+        }
+        unsafe {
+            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, buf.as_mut_ptr(), buf_len) {
+                LIQ_OK => Ok(self.palette_slice()),
                 err => Err(err),
             }
         }
