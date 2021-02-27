@@ -30,7 +30,7 @@ pub type HistogramEntry = ffi::liq_histogram_entry;
 
 /// Slice of a color palette. The second member of the tuple is the actual
 /// number of colors
-pub type PaletteSlice = ([Color; 256], i32);
+pub type PaletteSlice<'a> = (&'a [Color; 256], i32);
 
 /// Settings for the conversion proces. Start here.
 pub struct Attributes {
@@ -440,12 +440,12 @@ impl QuantizationResult {
     /// It's slighly better if you get palette from the `remapped()` call instead
     ///
     /// Use when ownership of the palette colors is not needed
-    pub fn palette_slice(&mut self) -> PaletteSlice {
+    pub fn palette_slice<'own: 'plte, 'plte>(&'own mut self) -> PaletteSlice<'plte> {
         let pal;
         unsafe {
             pal = &*ffi::liq_get_palette(&mut *self.handle);
         }
-        (pal.entries, pal.count)
+        (&pal.entries, pal.count)
     }
 
     /// Remap image
@@ -472,7 +472,7 @@ impl QuantizationResult {
     /// Returns palette and 1-byte-per-pixel uncompressed bitmap
     ///
     /// Use when ownership of the full palette colors vector is not needed
-    pub fn remapped_palette_slice(&mut self, image: &mut Image<'_>) -> Result<(PaletteSlice, Vec<u8>), liq_error> {
+    pub fn remapped_palette_slice<'own: 'plte, 'plte>(&'own mut self, image: &mut Image<'_>) -> Result<(PaletteSlice<'plte>, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
         let mut buf = Vec::with_capacity(len);
         unsafe {
@@ -487,7 +487,7 @@ impl QuantizationResult {
     /// Fails with `LIQ_BUFFER_TOO_SMALL` if the buffer is not big enough to store the image data
     ///
     /// Use when ownership of the full palette colors vector is not needed
-    pub fn remapped_palette_slice_with_buffer<T: AsMut<[u8]>>(&mut self, image: &mut Image<'_>, mut buf: T) -> Result<PaletteSlice, liq_error> {
+    pub fn remapped_palette_slice_with_buffer<'own: 'plte, 'plte, T: AsMut<[u8]>>(&'own mut self, image: &mut Image<'_>, mut buf: T) -> Result<PaletteSlice<'plte>, liq_error> {
         let buf = buf.as_mut();
         let buf_len = buf.len();
         let len = image.width() * image.height();
