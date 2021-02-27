@@ -11,7 +11,6 @@
 pub use crate::ffi::liq_error::*;
 pub use crate::ffi::liq_error;
 
-use ffi::liq_palette;
 use imagequant_sys as ffi;
 use std::fmt;
 use std::marker::PhantomData;
@@ -30,9 +29,9 @@ pub type Color = ffi::liq_color;
 pub type HistogramEntry = ffi::liq_histogram_entry;
 
 /// Pointer to a color palette
-pub type PalettePtr<'a> = &'a liq_palette;
+pub type PalettePtr<'a> = &'a ffi::liq_palette;
 
-/// Settings for the conversion proces. Start here.
+/// Settings for the conversion process. Start here.
 pub struct Attributes {
     handle: *mut ffi::liq_attr,
 }
@@ -47,7 +46,7 @@ pub struct Image<'a> {
 /// Palette inside.
 pub struct QuantizationResult<'a> {
     handle: *mut ffi::liq_result,
-    _marker: PhantomData<&'a liq_palette>,
+    _marker: PhantomData<&'a ffi::liq_palette>,
 }
 
 /// Generate one shared palette for multiple images.
