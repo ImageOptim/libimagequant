@@ -29,8 +29,7 @@ pub type Color = ffi::liq_color;
 /// Used if you're building histogram manually. Otherwise see `add_image()`
 pub type HistogramEntry = ffi::liq_histogram_entry;
 
-/// Pointer to a color palette. The second member of the tuple is the actual
-/// number of colors
+/// Pointer to a color palette
 pub type PalettePtr<'a> = &'a liq_palette;
 
 /// Settings for the conversion proces. Start here.
@@ -46,8 +45,9 @@ pub struct Image<'a> {
 }
 
 /// Palette inside.
-pub struct QuantizationResult {
+pub struct QuantizationResult<'a> {
     handle: *mut ffi::liq_result,
+    _marker: PhantomData<&'a liq_palette>,
 }
 
 /// Generate one shared palette for multiple images.
@@ -74,7 +74,7 @@ impl<'a> Drop for Image<'a> {
     }
 }
 
-impl Drop for QuantizationResult {
+impl Drop for QuantizationResult<'_> {
     fn drop(&mut self) {
         unsafe {
             ffi::liq_result_destroy(&mut *self.handle);
@@ -200,7 +200,10 @@ impl Attributes {
         unsafe {
             let mut h = ptr::null_mut();
             match ffi::liq_image_quantize(&*image.handle, &*self.handle, &mut h) {
-                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult { handle: h }),
+                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult {
+                    handle: h,
+                    _marker: PhantomData,
+                }),
                 err => Err(err),
             }
         }
@@ -247,7 +250,10 @@ impl<'a> Histogram<'a> {
         unsafe {
             let mut h = ptr::null_mut();
             match ffi::liq_histogram_quantize(&*self.handle, &*self.attr.handle, &mut h) {
-                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult { handle: h }),
+                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult {
+                    handle: h,
+                    _marker: PhantomData,
+                }),
                 err => Err(err),
             }
         }
@@ -397,7 +403,7 @@ impl<'bitmap> Image<'bitmap> {
     }
 }
 
-impl QuantizationResult {
+impl QuantizationResult<'_> {
     /// Set to 1.0 to get nice smooth image
     pub fn set_dithering_level(&mut self, value: f32) -> liq_error {
         unsafe { ffi::liq_set_dithering_level(&mut *self.handle, value) }
@@ -441,7 +447,7 @@ impl QuantizationResult {
     /// It's slighly better if you get palette from the `remapped()` call instead
     ///
     /// Use when ownership of the palette colors is not needed
-    pub fn palette_ptr<'own: 'plte, 'plte>(&'own mut self) -> PalettePtr<'plte> {
+    pub fn palette_ptr(&mut self) -> PalettePtr<'_> {
         unsafe {
             &*ffi::liq_get_palette(&mut *self.handle)
         }
@@ -471,7 +477,7 @@ impl QuantizationResult {
     /// Returns palette and 1-byte-per-pixel uncompressed bitmap
     ///
     /// Use when ownership of the full palette colors vector is not needed
-    pub fn remapped_palette_ptr<'own: 'plte, 'plte>(&'own mut self, image: &mut Image<'_>) -> Result<(PalettePtr<'plte>, Vec<u8>), liq_error> {
+    pub fn remapped_palette_ptr(&mut self, image: &mut Image<'_>) -> Result<(PalettePtr<'_>, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
         let mut buf = Vec::with_capacity(len);
         unsafe {
@@ -486,7 +492,7 @@ impl QuantizationResult {
     /// Fails with `LIQ_BUFFER_TOO_SMALL` if the buffer is not big enough to store the image data
     ///
     /// Use when ownership of the full palette colors vector is not needed
-    pub fn remapped_palette_ptr_with_buffer<'own: 'plte, 'plte, T: AsMut<[u8]>>(&'own mut self, image: &mut Image<'_>, mut buf: T) -> Result<PalettePtr<'plte>, liq_error> {
+    pub fn remapped_palette_ptr_with_buffer<T: AsMut<[u8]>>(&mut self, image: &mut Image<'_>, mut buf: T) -> Result<PalettePtr<'_>, liq_error> {
         let buf = buf.as_mut();
         let buf_len = buf.len();
         let len = image.width() * image.height();
@@ -502,14 +508,14 @@ impl QuantizationResult {
     }
 }
 
-impl fmt::Debug for QuantizationResult {
+impl fmt::Debug for QuantizationResult<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "QuantizationResult(q={})", self.quantization_quality())
     }
 }
 
 unsafe impl Send for Attributes {}
-unsafe impl Send for QuantizationResult {}
+unsafe impl Send for QuantizationResult<'_> {}
 unsafe impl<'bitmap> Send for Image<'bitmap> {}
 unsafe impl<'a> Send for Histogram<'a> {}
 
@@ -589,12 +595,30 @@ fn poke_it() {
     res.set_dithering_level(1.0);
 
     // You can reuse the result to generate several images with the same palette
-    let (palette, pixels) = res.remapped(img).unwrap();
 
-    assert_eq!(width * height, pixels.len());
-    assert_eq!(100, res.quantization_quality());
-    assert_eq!(Color { r: 255, g: 255, b: 255, a: 255 }, palette[0]);
-    assert_eq!(Color { r: 0x55, g: 0x66, b: 0x77, a: 255 }, palette[1]);
+    // Try the owning remap methods
+    {
+        let (palette, pixels) = res.remapped(img).unwrap();
+
+        assert_eq!(100, res.quantization_quality());
+        assert_eq!(width * height, pixels.len());
+        assert_eq!(Color { r: 255, g: 255, b: 255, a: 255 }, palette[0]);
+        assert_eq!(Color { r: 0x55, g: 0x66, b: 0x77, a: 255 }, palette[1]);
+    }
+
+    // Now try the non-owning remap alternative method
+    {
+        let mut pixels = Vec::with_capacity(width * height);
+        unsafe {
+            pixels.set_len(width * height);
+        }
+        let palette = res.remapped_palette_ptr_with_buffer(img, &mut pixels).unwrap();
+
+        //drop(res); // Compiler would complain about borrow being used in line below (good)
+        assert_eq!(Color { r: 255, g: 255, b: 255, a: 255 }, palette.entries[0]);
+        assert_eq!(Color { r: 0x55, g: 0x66, b: 0x77, a: 255 }, palette.entries[1]);
+        assert_eq!(100, res.quantization_quality());
+    }
 }
 
 #[test]
@@ -623,8 +647,8 @@ fn thread() {
 #[test]
 fn callback_test() {
     let mut called = 0;
+    let mut a = new();
     let mut res = {
-        let mut a = new();
         unsafe extern "C" fn get_row(output_row: *mut Color, y: c_int, width: c_int, user_data: *mut i32) {
             assert!(y >= 0 && y < 5);
             assert_eq!(123, width);
