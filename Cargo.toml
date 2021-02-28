@@ -1,7 +1,7 @@
 # libimagequant is a pure C library.
 # Rust/Cargo is entirely optional. You can also use ./configure && make
 [package]
-version = "3.0.2+sys2.14.0"
+version = "3.0.4-alpha.2"
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 build = "rust-sys/build.rs"
 categories = ["external-ffi-bindings"]
@@ -25,7 +25,7 @@ bitflags = "1.2.1"
 
 [dependencies.openmp-sys]
 optional = true
-version = "1.0.0"
+version = "1.2.0-alpha.1"
 
 [features]
 default = ["sse"]
