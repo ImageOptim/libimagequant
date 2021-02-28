@@ -15,6 +15,7 @@ use imagequant_sys as ffi;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
+use std::mem::MaybeUninit;
 use std::os::raw::c_int;
 use std::ptr;
 
@@ -27,9 +28,6 @@ pub type Color = ffi::liq_color;
 ///
 /// Used if you're building histogram manually. Otherwise see `add_image()`
 pub type HistogramEntry = ffi::liq_histogram_entry;
-
-/// Pointer to a color palette
-pub type PalettePtr<'a> = &'a ffi::liq_palette;
 
 /// Settings for the conversion process. Start here.
 pub struct Attributes {
@@ -44,9 +42,8 @@ pub struct Image<'a> {
 }
 
 /// Palette inside.
-pub struct QuantizationResult<'a> {
+pub struct QuantizationResult {
     handle: *mut ffi::liq_result,
-    _marker: PhantomData<&'a ffi::liq_palette>,
 }
 
 /// Generate one shared palette for multiple images.
@@ -73,7 +70,7 @@ impl<'a> Drop for Image<'a> {
     }
 }
 
-impl Drop for QuantizationResult<'_> {
+impl Drop for QuantizationResult {
     fn drop(&mut self) {
         unsafe {
             ffi::liq_result_destroy(&mut *self.handle);
@@ -133,6 +130,7 @@ impl Attributes {
     /// If minimum quality can't be met, quantization will fail.
     ///
     /// Default is min 0, max 100.
+    #[inline]
     pub fn set_quality(&mut self, min: u32, max: u32) -> liq_error {
         unsafe { ffi::liq_set_quality(&mut *self.handle, min as c_int, max as c_int) }
     }
@@ -199,10 +197,7 @@ impl Attributes {
         unsafe {
             let mut h = ptr::null_mut();
             match ffi::liq_image_quantize(&*image.handle, &*self.handle, &mut h) {
-                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult {
-                    handle: h,
-                    _marker: PhantomData,
-                }),
+                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult { handle: h }),
                 err => Err(err),
             }
         }
@@ -249,10 +244,7 @@ impl<'a> Histogram<'a> {
         unsafe {
             let mut h = ptr::null_mut();
             match ffi::liq_histogram_quantize(&*self.handle, &*self.attr.handle, &mut h) {
-                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult {
-                    handle: h,
-                    _marker: PhantomData,
-                }),
+                liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult { handle: h }),
                 err => Err(err),
             }
         }
@@ -402,7 +394,7 @@ impl<'bitmap> Image<'bitmap> {
     }
 }
 
-impl QuantizationResult<'_> {
+impl QuantizationResult {
     /// Set to 1.0 to get nice smooth image
     pub fn set_dithering_level(&mut self, value: f32) -> liq_error {
         unsafe { ffi::liq_set_dithering_level(&mut *self.handle, value) }
@@ -437,84 +429,64 @@ impl QuantizationResult<'_> {
     ///
     /// It's slighly better if you get palette from the `remapped()` call instead
     pub fn palette(&mut self) -> Vec<Color> {
-        let pal = self.palette_ptr();
-        pal.entries.iter().cloned().take(pal.count as usize).collect()
+        self.palette_ref().to_vec()
     }
 
-    /// Final palette pointer
+    /// Final palette (as a temporary slice)
     ///
     /// It's slighly better if you get palette from the `remapped()` call instead
     ///
     /// Use when ownership of the palette colors is not needed
-    pub fn palette_ptr(&mut self) -> PalettePtr<'_> {
+    #[inline]
+    pub fn palette_ref(&mut self) -> &[Color] {
         unsafe {
-            &*ffi::liq_get_palette(&mut *self.handle)
+            let pal = &*ffi::liq_get_palette(&mut *self.handle);
+            std::slice::from_raw_parts(pal.entries.as_ptr(), (pal.count as usize).min(pal.entries.len()))
         }
     }
 
-    /// Remap image
+    /// Remap image into a `Vec`
     ///
-    /// Returns palette and 1-byte-per-pixel uncompressed bitmap
+    /// Returns the palette and a 1-byte-per-pixel uncompressed bitmap
     pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<Color>, Vec<u8>), liq_error> {
-        self.remapped_palette_ptr(image).map(|(pal, buf)| {
-            (pal.entries.iter().cloned().take(pal.count as usize).collect(), buf)
-        })
-    }
-
-    /// Remap image
-    ///
-    /// Returns palette and 1-byte-per-pixel uncompressed bitmap on the provided buffer.
-    /// Fails with `LIQ_BUFFER_TOO_SMALL` if the buffer is not big enough to store the image data
-    pub fn remapped_with_buffer<T: AsMut<[u8]>>(&mut self, image: &mut Image<'_>, mut buf: T) -> Result<Vec<Color>, liq_error> {
-        self.remapped_palette_ptr_with_buffer(image, &mut buf).map(|pal| {
-            pal.entries.iter().cloned().take(pal.count as usize).collect()
-        })
-    }
-
-    /// Remap image
-    ///
-    /// Returns palette and 1-byte-per-pixel uncompressed bitmap
-    ///
-    /// Use when ownership of the full palette colors vector is not needed
-    pub fn remapped_palette_ptr(&mut self, image: &mut Image<'_>) -> Result<(PalettePtr<'_>, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
+        // Capacity is essential here, as it creates uninitialized buffer
         let mut buf = Vec::with_capacity(len);
         unsafe {
-            buf.set_len(len); // Creates uninitialized buffer
+            let uninit_slice = std::slice::from_raw_parts_mut(buf.as_ptr() as *mut _, buf.capacity());
+            self.remap_into(image, uninit_slice)?;
+            buf.set_len(uninit_slice.len());
         }
-        self.remapped_palette_ptr_with_buffer(image, &mut buf).map(|slice| (slice, buf))
+        Ok((self.palette(), buf))
     }
 
-    /// Remap image
+    /// Remap image into an existing buffer.
     ///
-    /// Returns palette and 1-byte-per-pixel uncompressed bitmap on the provided buffer.
-    /// Fails with `LIQ_BUFFER_TOO_SMALL` if the buffer is not big enough to store the image data
+    /// This is a low-level call for use when existing memory has to be reused. Use `remapped()` if possible.
     ///
-    /// Use when ownership of the full palette colors vector is not needed
-    pub fn remapped_palette_ptr_with_buffer<T: AsMut<[u8]>>(&mut self, image: &mut Image<'_>, mut buf: T) -> Result<PalettePtr<'_>, liq_error> {
-        let buf = buf.as_mut();
-        let buf_len = buf.len();
-        let len = image.width() * image.height();
-        if buf_len < len {
-            return Err(LIQ_BUFFER_TOO_SMALL)
-        }
+    /// Writes 1-byte-per-pixel uncompressed bitmap into the pre-allocated buffer.
+    ///
+    /// You should call `palette()` or `palette_ref()` _after_ this call, but not before it,
+    /// because remapping changes the palette.
+    #[inline]
+    pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<u8>]) -> Result<(), liq_error> {
         unsafe {
-            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, buf.as_mut_ptr(), buf_len) {
-                LIQ_OK => Ok(self.palette_ptr()),
+            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, output_buf.as_mut_ptr() as *mut _, output_buf.len()) {
+                LIQ_OK => Ok(()),
                 err => Err(err),
             }
         }
     }
 }
 
-impl fmt::Debug for QuantizationResult<'_> {
+impl fmt::Debug for QuantizationResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "QuantizationResult(q={})", self.quantization_quality())
     }
 }
 
 unsafe impl Send for Attributes {}
-unsafe impl Send for QuantizationResult<'_> {}
+unsafe impl Send for QuantizationResult {}
 unsafe impl<'bitmap> Send for Image<'bitmap> {}
 unsafe impl<'a> Send for Histogram<'a> {}
 
@@ -594,30 +566,12 @@ fn poke_it() {
     res.set_dithering_level(1.0);
 
     // You can reuse the result to generate several images with the same palette
+    let (palette, pixels) = res.remapped(img).unwrap();
 
-    // Try the owning remap methods
-    {
-        let (palette, pixels) = res.remapped(img).unwrap();
-
-        assert_eq!(100, res.quantization_quality());
-        assert_eq!(width * height, pixels.len());
-        assert_eq!(Color { r: 255, g: 255, b: 255, a: 255 }, palette[0]);
-        assert_eq!(Color { r: 0x55, g: 0x66, b: 0x77, a: 255 }, palette[1]);
-    }
-
-    // Now try the non-owning remap alternative method
-    {
-        let mut pixels = Vec::with_capacity(width * height);
-        unsafe {
-            pixels.set_len(width * height);
-        }
-        let palette = res.remapped_palette_ptr_with_buffer(img, &mut pixels).unwrap();
-
-        //drop(res); // Compiler would complain about borrow being used in line below (good)
-        assert_eq!(Color { r: 255, g: 255, b: 255, a: 255 }, palette.entries[0]);
-        assert_eq!(Color { r: 0x55, g: 0x66, b: 0x77, a: 255 }, palette.entries[1]);
-        assert_eq!(100, res.quantization_quality());
-    }
+    assert_eq!(width * height, pixels.len());
+    assert_eq!(100, res.quantization_quality());
+    assert_eq!(Color { r: 255, g: 255, b: 255, a: 255 }, palette[0]);
+    assert_eq!(Color { r: 0x55, g: 0x66, b: 0x77, a: 255 }, palette[1]);
 }
 
 #[test]
@@ -646,8 +600,8 @@ fn thread() {
 #[test]
 fn callback_test() {
     let mut called = 0;
-    let mut a = new();
     let mut res = {
+        let mut a = new();
         unsafe extern "C" fn get_row(output_row: *mut Color, y: c_int, width: c_int, user_data: *mut i32) {
             assert!(y >= 0 && y < 5);
             assert_eq!(123, width);
