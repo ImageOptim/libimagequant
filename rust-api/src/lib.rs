@@ -8,8 +8,8 @@
 #![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
 #![warn(missing_docs)]
 
-pub use crate::ffi::liq_error::*;
 pub use crate::ffi::liq_error;
+pub use crate::ffi::liq_error::*;
 
 use imagequant_sys as ffi;
 use std::fmt;
@@ -109,6 +109,7 @@ impl Attributes {
     ///
     /// See also `new_image()`
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         let handle = unsafe { ffi::liq_attr_create() };
         assert!(!handle.is_null(), "SSE-capable CPU is required for this build.");
@@ -173,12 +174,14 @@ impl Attributes {
 
     /// Return currently set speed/quality trade-off setting
     #[inline(always)]
+    #[must_use]
     pub fn speed(&mut self) -> i32 {
         unsafe { ffi::liq_get_speed(&*self.handle) }
     }
 
     /// Return max number of colors set
     #[inline(always)]
+    #[must_use]
     pub fn max_colors(&mut self) -> i32 {
         unsafe { ffi::liq_get_max_colors(&*self.handle) }
     }
@@ -207,6 +210,7 @@ impl Attributes {
     ///
     /// Use to make one palette suitable for many images
     #[inline(always)]
+    #[must_use]
     pub fn new_histogram(&self) -> Histogram<'_> {
         Histogram::new(&self)
     }
@@ -225,6 +229,7 @@ impl Attributes {
 
 /// Start here: creates new handle for library configuration
 #[inline(always)]
+#[must_use]
 pub fn new() -> Attributes {
     Attributes::new()
 }
@@ -234,6 +239,7 @@ impl<'a> Histogram<'a> {
     ///
     /// All options should be set on `attr` before the histogram object is created. Options changed later may not have effect.
     #[inline]
+    #[must_use]
     pub fn new(attr: &'a Attributes) -> Self {
         Histogram {
             attr,
@@ -303,7 +309,7 @@ impl<'bitmap> Image<'bitmap> {
     #[inline]
     pub fn new_unsafe_fn<CustomData: Send + Sync + 'bitmap>(attr: &Attributes, convert_row_fn: ConvertRowUnsafeFn<CustomData>, user_data: *mut CustomData, width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
         unsafe {
-            match ffi::liq_image_create_custom(&*attr.handle, mem::transmute(convert_row_fn), user_data as *mut _, width as c_int, height as c_int, gamma) {
+            match ffi::liq_image_create_custom(&*attr.handle, mem::transmute(convert_row_fn), user_data.cast(), width as c_int, height as c_int, gamma) {
                 handle if !handle.is_null() => Ok(Image { handle, _marker: PhantomData }),
                 _ => Err(LIQ_INVALID_POINTER),
             }
@@ -339,7 +345,7 @@ impl<'bitmap> Image<'bitmap> {
         let rows = Self::malloc_image_rows(bitmap, stride, height);
         let h = ffi::liq_image_create_rgba_rows(&*attr.handle, rows, width as c_int, height as c_int, gamma);
         if h.is_null() {
-            libc::free(rows as *mut _);
+            libc::free(rows.cast());
             return Err(LIQ_INVALID_POINTER);
         }
         let img = Image {
@@ -350,7 +356,7 @@ impl<'bitmap> Image<'bitmap> {
             LIQ_OK => Ok(img),
             err => {
                 drop(img);
-                libc::free(rows as *mut _);
+                libc::free(rows.cast());
                 Err(err)
             },
         }
@@ -360,23 +366,25 @@ impl<'bitmap> Image<'bitmap> {
     /// so they can be owned and freed automatically by the C library.
     unsafe fn malloc_image_rows(bitmap: *const RGBA, stride: usize, height: usize) -> *mut *const u8 {
         let mut byte_ptr = bitmap as *const u8;
-        let stride_bytes = (stride * 4) as isize;
+        let stride_bytes = stride * 4;
         let rows = libc::malloc(mem::size_of::<*const u8>() * height) as *mut *const u8;
-        for y in 0..height as isize {
-            *rows.offset(y) = byte_ptr;
-            byte_ptr = byte_ptr.offset(stride_bytes);
+        for y in 0..height {
+            *rows.add(y) = byte_ptr;
+            byte_ptr = byte_ptr.add(stride_bytes);
         }
         rows
     }
 
     /// Width of the image in pixels
     #[inline]
+    #[must_use]
     pub fn width(&self) -> usize {
         unsafe { ffi::liq_image_get_width(&*self.handle) as usize }
     }
 
     /// Height of the image in pixels
     #[inline]
+    #[must_use]
     pub fn height(&self) -> usize {
         unsafe { ffi::liq_image_get_height(&*self.handle) as usize }
     }
@@ -390,9 +398,7 @@ impl<'bitmap> Image<'bitmap> {
     /// Returns error if more than 256 colors are added. If image is quantized to fewer colors than the number of fixed colors added, then excess fixed colors will be ignored.
     #[inline]
     pub fn add_fixed_color(&mut self, color: ffi::liq_color) -> liq_error {
-        unsafe {
-            ffi::liq_image_add_fixed_color(&mut *self.handle, color)
-        }
+        unsafe { ffi::liq_image_add_fixed_color(&mut *self.handle, color) }
     }
 
     /// Remap pixels assuming they will be displayed on this background.
@@ -442,18 +448,21 @@ impl QuantizationResult {
     ///
     /// Colors are converted from input gamma to this gamma
     #[inline]
+    #[must_use]
     pub fn output_gamma(&mut self) -> f64 {
         unsafe { ffi::liq_get_output_gamma(&*self.handle) }
     }
 
     /// Number 0-100 guessing how nice the input image will look if remapped to this palette
     #[inline]
+    #[must_use]
     pub fn quantization_quality(&self) -> i32 {
         unsafe { ffi::liq_get_quantization_quality(&*self.handle) as i32 }
     }
 
     /// Approximate mean square error of the palette
     #[inline]
+    #[must_use]
     pub fn quantization_error(&self) -> Option<f64> {
         match unsafe { ffi::liq_get_quantization_error(&*self.handle) } {
             x if x < 0. => None,
@@ -464,6 +473,7 @@ impl QuantizationResult {
     /// Final palette
     ///
     /// It's slighly better if you get palette from the `remapped()` call instead
+    #[must_use]
     pub fn palette(&mut self) -> Vec<Color> {
         self.palette_ref().to_vec()
     }
@@ -507,7 +517,7 @@ impl QuantizationResult {
     #[inline]
     pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<u8>]) -> Result<(), liq_error> {
         unsafe {
-            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, output_buf.as_mut_ptr() as *mut _, output_buf.len()) {
+            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, output_buf.as_mut_ptr().cast(), output_buf.len()) {
                 LIQ_OK => Ok(()),
                 err => Err(err),
             }
@@ -516,6 +526,7 @@ impl QuantizationResult {
 }
 
 impl fmt::Debug for QuantizationResult {
+    #[cold]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "QuantizationResult(q={})", self.quantization_quality())
     }
