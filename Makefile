@@ -104,6 +104,7 @@ lodepng.c:
 clean:
 	rm -f $(OBJS) $(SHAREDOBJS) $(SHAREDLIBVER) $(SHAREDLIB) $(STATICLIB) $(TARFILE) $(DLL) '$(DLLIMP)' '$(DLLDEF)'
 	rm -f $(JAVAHEADERS) $(JAVACLASSES) $(JNILIB) example
+	rm -rf target rust-api/target rust-sys/target
 
 distclean: clean
 	rm -f config.mk

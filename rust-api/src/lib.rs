@@ -8,13 +8,14 @@
 #![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
 #![warn(missing_docs)]
 
-pub use crate::ffi::liq_error::*;
 pub use crate::ffi::liq_error;
+pub use crate::ffi::liq_error::*;
 
 use imagequant_sys as ffi;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
+use std::mem::MaybeUninit;
 use std::os::raw::c_int;
 use std::ptr;
 
@@ -28,7 +29,7 @@ pub type Color = ffi::liq_color;
 /// Used if you're building histogram manually. Otherwise see `add_image()`
 pub type HistogramEntry = ffi::liq_histogram_entry;
 
-/// Settings for the conversion proces. Start here.
+/// Settings for the conversion process. Start here.
 pub struct Attributes {
     handle: *mut ffi::liq_attr,
 }
@@ -52,6 +53,7 @@ pub struct Histogram<'a> {
 }
 
 impl Drop for Attributes {
+    #[inline]
     fn drop(&mut self) {
         unsafe {
             if !self.handle.is_null() {
@@ -62,6 +64,7 @@ impl Drop for Attributes {
 }
 
 impl<'a> Drop for Image<'a> {
+    #[inline]
     fn drop(&mut self) {
         unsafe {
             ffi::liq_image_destroy(&mut *self.handle);
@@ -70,6 +73,7 @@ impl<'a> Drop for Image<'a> {
 }
 
 impl Drop for QuantizationResult {
+    #[inline]
     fn drop(&mut self) {
         unsafe {
             ffi::liq_result_destroy(&mut *self.handle);
@@ -78,6 +82,7 @@ impl Drop for QuantizationResult {
 }
 
 impl<'a> Drop for Histogram<'a> {
+    #[inline]
     fn drop(&mut self) {
         unsafe {
             ffi::liq_histogram_destroy(&mut *self.handle);
@@ -86,12 +91,14 @@ impl<'a> Drop for Histogram<'a> {
 }
 
 impl Clone for Attributes {
+    #[inline]
     fn clone(&self) -> Attributes {
         unsafe { Attributes { handle: ffi::liq_attr_copy(&*self.handle) } }
     }
 }
 
 impl Default for Attributes {
+    #[inline(always)]
     fn default() -> Attributes {
         Attributes::new()
     }
@@ -101,6 +108,8 @@ impl Attributes {
     /// New handle for library configuration
     ///
     /// See also `new_image()`
+    #[inline]
+    #[must_use]
     pub fn new() -> Self {
         let handle = unsafe { ffi::liq_attr_create() };
         assert!(!handle.is_null(), "SSE-capable CPU is required for this build.");
@@ -108,6 +117,7 @@ impl Attributes {
     }
 
     /// It's better to use `set_quality()`
+    #[inline]
     pub fn set_max_colors(&mut self, value: i32) -> liq_error {
         unsafe { ffi::liq_set_max_colors(&mut *self.handle, value) }
     }
@@ -115,11 +125,13 @@ impl Attributes {
     /// Number of least significant bits to ignore.
     ///
     /// Useful for generating palettes for VGA, 15-bit textures, or other retro platforms.
+    #[inline]
     pub fn set_min_posterization(&mut self, value: i32) -> liq_error {
         unsafe { ffi::liq_set_min_posterization(&mut *self.handle, value) }
     }
 
     /// Returns number of bits of precision truncated
+    #[inline]
     pub fn min_posterization(&mut self) -> i32 {
         unsafe { ffi::liq_get_min_posterization(&*self.handle) }
     }
@@ -129,11 +141,13 @@ impl Attributes {
     /// If minimum quality can't be met, quantization will fail.
     ///
     /// Default is min 0, max 100.
+    #[inline]
     pub fn set_quality(&mut self, min: u32, max: u32) -> liq_error {
         unsafe { ffi::liq_set_quality(&mut *self.handle, min as c_int, max as c_int) }
     }
 
     /// Reads values set with `set_quality`
+    #[inline]
     pub fn quality(&mut self) -> (u32, u32) {
         unsafe {
             (ffi::liq_get_min_quality(&*self.handle) as u32,
@@ -145,6 +159,7 @@ impl Attributes {
     ///
     /// Faster speeds generate images of lower quality, but may be useful
     /// for real-time generation of images.
+    #[inline]
     pub fn set_speed(&mut self, value: i32) -> liq_error {
         unsafe { ffi::liq_set_speed(&mut *self.handle, value) }
     }
@@ -152,16 +167,21 @@ impl Attributes {
     /// Move transparent color to the last entry in the palette
     ///
     /// This is less efficient for PNG, but required by some broken software
+    #[inline]
     pub fn set_last_index_transparent(&mut self, value: bool) {
         unsafe { ffi::liq_set_last_index_transparent(&mut *self.handle, value as c_int) }
     }
 
     /// Return currently set speed/quality trade-off setting
+    #[inline(always)]
+    #[must_use]
     pub fn speed(&mut self) -> i32 {
         unsafe { ffi::liq_get_speed(&*self.handle) }
     }
 
     /// Return max number of colors set
+    #[inline(always)]
+    #[must_use]
     pub fn max_colors(&mut self) -> i32 {
         unsafe { ffi::liq_get_max_colors(&*self.handle) }
     }
@@ -169,16 +189,19 @@ impl Attributes {
     /// Describe dimensions of a slice of RGBA pixels
     ///
     /// Use 0.0 for gamma if the image is sRGB (most images are).
+    #[inline]
     pub fn new_image<'a>(&self, bitmap: &'a [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'a>, liq_error> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
+    #[inline]
     pub fn new_image_stride<'a>(&self, bitmap: &'a [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'a>, liq_error> {
         Image::new_stride(self, bitmap, width, height, stride, gamma)
     }
 
     /// Like `new_image_stride`, but makes a copy of the pixels
+    #[inline]
     pub fn new_image_stride_copy(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, liq_error> {
         Image::new_stride_copy(self, bitmap, width, height, stride, gamma)
     }
@@ -186,6 +209,8 @@ impl Attributes {
     /// Create new histogram
     ///
     /// Use to make one palette suitable for many images
+    #[inline(always)]
+    #[must_use]
     pub fn new_histogram(&self) -> Histogram<'_> {
         Histogram::new(&self)
     }
@@ -203,6 +228,8 @@ impl Attributes {
 }
 
 /// Start here: creates new handle for library configuration
+#[inline(always)]
+#[must_use]
 pub fn new() -> Attributes {
     Attributes::new()
 }
@@ -211,6 +238,8 @@ impl<'a> Histogram<'a> {
     /// Creates histogram object that will be used to collect color statistics from multiple images.
     ///
     /// All options should be set on `attr` before the histogram object is created. Options changed later may not have effect.
+    #[inline]
+    #[must_use]
     pub fn new(attr: &'a Attributes) -> Self {
         Histogram {
             attr,
@@ -221,6 +250,7 @@ impl<'a> Histogram<'a> {
     /// "Learns" colors from the image, which will be later used to generate the palette.
     ///
     /// Fixed colors added to the image are also added to the histogram. If total number of fixed colors exceeds 256, this function will fail with `LIQ_BUFFER_TOO_SMALL`.
+    #[inline]
     pub fn add_image(&mut self, image: &mut Image<'_>) -> liq_error {
         unsafe { ffi::liq_histogram_add_image(&mut *self.handle, &*self.attr.handle, &mut *image.handle) }
     }
@@ -228,6 +258,7 @@ impl<'a> Histogram<'a> {
     /// Alternative to `add_image()`. Intead of counting colors in an image, it directly takes an array of colors and their counts.
     ///
     /// This function is only useful if you already have a histogram of the image from another source.
+    #[inline]
     pub fn add_colors(&mut self, colors: &[HistogramEntry], gamma: f64) -> liq_error {
         unsafe {
             ffi::liq_histogram_add_colors(&mut *self.handle, &*self.attr.handle, colors.as_ptr(), colors.len() as c_int, gamma)
@@ -238,6 +269,7 @@ impl<'a> Histogram<'a> {
     ///
     /// Palette generated using this function won't be improved during remapping.
     /// If you're generating palette for only one image, it's better not to use the `Histogram`.
+    #[inline]
     pub fn quantize(&mut self) -> Result<QuantizationResult, liq_error> {
         unsafe {
             let mut h = ptr::null_mut();
@@ -262,7 +294,7 @@ impl<'bitmap> Image<'bitmap> {
     /// `bitmap` must be either `&[u8]` or a slice with one element per pixel (`&[RGBA]`).
     ///
     /// Use `0.` for gamma if the image is sRGB (most images are).
-    #[inline]
+    #[inline(always)]
     pub fn new(attr: &Attributes, bitmap: &'bitmap [RGBA], width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
         Self::new_stride(attr, bitmap, width, height, width, gamma)
     }
@@ -274,9 +306,10 @@ impl<'bitmap> Image<'bitmap> {
     ///
     /// The user data must be compatible with a primitive pointer
     /// (i.e. not a slice, not a Trait object. `Box` it if you must).
+    #[inline]
     pub fn new_unsafe_fn<CustomData: Send + Sync + 'bitmap>(attr: &Attributes, convert_row_fn: ConvertRowUnsafeFn<CustomData>, user_data: *mut CustomData, width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
         unsafe {
-            match ffi::liq_image_create_custom(&*attr.handle, mem::transmute(convert_row_fn), user_data as *mut _, width as c_int, height as c_int, gamma) {
+            match ffi::liq_image_create_custom(&*attr.handle, mem::transmute(convert_row_fn), user_data.cast(), width as c_int, height as c_int, gamma) {
                 handle if !handle.is_null() => Ok(Image { handle, _marker: PhantomData }),
                 _ => Err(LIQ_INVALID_POINTER),
             }
@@ -284,14 +317,14 @@ impl<'bitmap> Image<'bitmap> {
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
-    #[inline]
+    #[inline(always)]
     pub fn new_stride(attr: &Attributes, bitmap: &'bitmap [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, liq_error> {
         // Type definition preserves the lifetime, so it's not unsafe
         unsafe { Self::new_stride_internal(attr, bitmap, width, height, stride, gamma, false) }
     }
 
     /// Create new image by copying `bitmap` to an internal buffer, so that it makes a self-contained type.
-    #[inline]
+    #[inline(always)]
     pub fn new_stride_copy(attr: &Attributes, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, liq_error> {
         // copy guarantees the image doesn't reference the bitmap any more
         unsafe { Self::new_stride_internal(attr, bitmap, width, height, stride, gamma, true) }
@@ -312,7 +345,7 @@ impl<'bitmap> Image<'bitmap> {
         let rows = Self::malloc_image_rows(bitmap, stride, height);
         let h = ffi::liq_image_create_rgba_rows(&*attr.handle, rows, width as c_int, height as c_int, gamma);
         if h.is_null() {
-            libc::free(rows as *mut _);
+            libc::free(rows.cast());
             return Err(LIQ_INVALID_POINTER);
         }
         let img = Image {
@@ -323,7 +356,7 @@ impl<'bitmap> Image<'bitmap> {
             LIQ_OK => Ok(img),
             err => {
                 drop(img);
-                libc::free(rows as *mut _);
+                libc::free(rows.cast());
                 Err(err)
             },
         }
@@ -333,21 +366,25 @@ impl<'bitmap> Image<'bitmap> {
     /// so they can be owned and freed automatically by the C library.
     unsafe fn malloc_image_rows(bitmap: *const RGBA, stride: usize, height: usize) -> *mut *const u8 {
         let mut byte_ptr = bitmap as *const u8;
-        let stride_bytes = (stride * 4) as isize;
+        let stride_bytes = stride * 4;
         let rows = libc::malloc(mem::size_of::<*const u8>() * height) as *mut *const u8;
-        for y in 0..height as isize {
-            *rows.offset(y) = byte_ptr;
-            byte_ptr = byte_ptr.offset(stride_bytes);
+        for y in 0..height {
+            *rows.add(y) = byte_ptr;
+            byte_ptr = byte_ptr.add(stride_bytes);
         }
         rows
     }
 
     /// Width of the image in pixels
+    #[inline]
+    #[must_use]
     pub fn width(&self) -> usize {
         unsafe { ffi::liq_image_get_width(&*self.handle) as usize }
     }
 
     /// Height of the image in pixels
+    #[inline]
+    #[must_use]
     pub fn height(&self) -> usize {
         unsafe { ffi::liq_image_get_height(&*self.handle) as usize }
     }
@@ -359,10 +396,9 @@ impl<'bitmap> Image<'bitmap> {
     /// It must be called before the image is quantized.
     ///
     /// Returns error if more than 256 colors are added. If image is quantized to fewer colors than the number of fixed colors added, then excess fixed colors will be ignored.
+    #[inline]
     pub fn add_fixed_color(&mut self, color: ffi::liq_color) -> liq_error {
-        unsafe {
-            ffi::liq_image_add_fixed_color(&mut *self.handle, color)
-        }
+        unsafe { ffi::liq_image_add_fixed_color(&mut *self.handle, color) }
     }
 
     /// Remap pixels assuming they will be displayed on this background.
@@ -370,6 +406,7 @@ impl<'bitmap> Image<'bitmap> {
     /// Pixels that match the background color will be made transparent if there's a fully transparent color available in the palette.
     ///
     /// The background image's pixels must outlive this image
+    #[inline]
     pub fn set_background<'own, 'bg: 'own>(&'own mut self, background: Image<'bg>) -> Result<(), liq_error> {
         unsafe {
             ffi::liq_image_set_background(&mut *self.handle, background.into_raw()).ok()
@@ -379,12 +416,14 @@ impl<'bitmap> Image<'bitmap> {
     /// Set which pixels are more important (and more likely to get a palette entry)
     ///
     /// The map must be `width`×`height` pixels large. Higher numbers = more important.
+    #[inline]
     pub fn set_importance_map(&mut self, map: &[u8]) -> Result<(), liq_error> {
         unsafe {
             ffi::liq_image_set_importance_map(&mut *self.handle, map.as_ptr() as *mut _, map.len(), ffi::liq_ownership::LIQ_COPY_PIXELS).ok()
         }
     }
 
+    #[inline]
     fn into_raw(mut self) -> *mut ffi::liq_image {
         let handle = self.handle;
         self.handle = ptr::null_mut();
@@ -394,11 +433,13 @@ impl<'bitmap> Image<'bitmap> {
 
 impl QuantizationResult {
     /// Set to 1.0 to get nice smooth image
+    #[inline]
     pub fn set_dithering_level(&mut self, value: f32) -> liq_error {
         unsafe { ffi::liq_set_dithering_level(&mut *self.handle, value) }
     }
 
     /// The default is sRGB gamma (~1/2.2)
+    #[inline]
     pub fn set_output_gamma(&mut self, value: f64) -> liq_error {
         unsafe { ffi::liq_set_output_gamma(&mut *self.handle, value) }
     }
@@ -406,16 +447,22 @@ impl QuantizationResult {
     /// Approximate gamma correction value used for the output
     ///
     /// Colors are converted from input gamma to this gamma
+    #[inline]
+    #[must_use]
     pub fn output_gamma(&mut self) -> f64 {
         unsafe { ffi::liq_get_output_gamma(&*self.handle) }
     }
 
     /// Number 0-100 guessing how nice the input image will look if remapped to this palette
+    #[inline]
+    #[must_use]
     pub fn quantization_quality(&self) -> i32 {
         unsafe { ffi::liq_get_quantization_quality(&*self.handle) as i32 }
     }
 
     /// Approximate mean square error of the palette
+    #[inline]
+    #[must_use]
     pub fn quantization_error(&self) -> Option<f64> {
         match unsafe { ffi::liq_get_quantization_error(&*self.handle) } {
             x if x < 0. => None,
@@ -426,23 +473,52 @@ impl QuantizationResult {
     /// Final palette
     ///
     /// It's slighly better if you get palette from the `remapped()` call instead
+    #[must_use]
     pub fn palette(&mut self) -> Vec<Color> {
+        self.palette_ref().to_vec()
+    }
+
+    /// Final palette (as a temporary slice)
+    ///
+    /// It's slighly better if you get palette from the `remapped()` call instead
+    ///
+    /// Use when ownership of the palette colors is not needed
+    #[inline]
+    pub fn palette_ref(&mut self) -> &[Color] {
         unsafe {
             let pal = &*ffi::liq_get_palette(&mut *self.handle);
-            pal.entries.iter().cloned().take(pal.count as usize).collect()
+            std::slice::from_raw_parts(pal.entries.as_ptr(), (pal.count as usize).min(pal.entries.len()))
         }
     }
 
-    /// Remap image
+    /// Remap image into a `Vec`
     ///
-    /// Returns palette and 1-byte-per-pixel uncompresed bitmap
+    /// Returns the palette and a 1-byte-per-pixel uncompressed bitmap
     pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<Color>, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
+        // Capacity is essential here, as it creates uninitialized buffer
         let mut buf = Vec::with_capacity(len);
         unsafe {
-            buf.set_len(len); // Creates uninitialized buffer
-            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, buf.as_mut_ptr(), buf.len()) {
-                LIQ_OK => Ok((self.palette(), buf)),
+            let uninit_slice = std::slice::from_raw_parts_mut(buf.as_ptr() as *mut _, buf.capacity());
+            self.remap_into(image, uninit_slice)?;
+            buf.set_len(uninit_slice.len());
+        }
+        Ok((self.palette(), buf))
+    }
+
+    /// Remap image into an existing buffer.
+    ///
+    /// This is a low-level call for use when existing memory has to be reused. Use `remapped()` if possible.
+    ///
+    /// Writes 1-byte-per-pixel uncompressed bitmap into the pre-allocated buffer.
+    ///
+    /// You should call `palette()` or `palette_ref()` _after_ this call, but not before it,
+    /// because remapping changes the palette.
+    #[inline]
+    pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<u8>]) -> Result<(), liq_error> {
+        unsafe {
+            match ffi::liq_write_remapped_image(&mut *self.handle, &mut *image.handle, output_buf.as_mut_ptr().cast(), output_buf.len()) {
+                LIQ_OK => Ok(()),
                 err => Err(err),
             }
         }
@@ -450,6 +526,7 @@ impl QuantizationResult {
 }
 
 impl fmt::Debug for QuantizationResult {
+    #[cold]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "QuantizationResult(q={})", self.quantization_quality())
     }
