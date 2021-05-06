@@ -133,7 +133,7 @@ static void hist_item_sort_range(hist_item base[], unsigned int len, unsigned in
     }
 }
 
-/** sorts array to make sum of weights lower than halfvar one side, returns edge between <halfvar and >halfvar parts of the set */
+/** sorts array to make sum of weights lower than halfvar one side, returns index of the edge between <halfvar and >halfvar parts of the set */
 static unsigned int hist_item_sort_halfvar(hist_item base[], unsigned int len, double halfvar)
 {
     unsigned int base_idx = 0;  // track base-index
@@ -151,7 +151,7 @@ static unsigned int hist_item_sort_halfvar(hist_item base[], unsigned int len, d
                 len = l;
                 continue;
             } else {
-                // End of left recursion;
+                // reached the end of left part
                 return base_idx;
             }
         }
@@ -162,7 +162,7 @@ static unsigned int hist_item_sort_halfvar(hist_item base[], unsigned int len, d
             base_idx += r;
             len -= r; // tail-recursive "call"
         } else {
-            // End of right recursion
+            // reached the end of the right part
             return base_idx + len;
         }
     } while(1);
