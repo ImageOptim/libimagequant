@@ -1,10 +1,10 @@
-prefix=PREFIX
+prefix=@PREFIX@
 includedir=${prefix}/include
 libdir=${prefix}/lib
 
 Name: imagequant
 Description: Small, portable C library for high-quality conversion of RGBA images to 8-bit indexed-color (palette) images.
 URL: https://pngquant.org/lib/
-Version: VERSION
+Version: @VERSION@
 Libs: -L${libdir} -limagequant
 Cflags: -I${includedir}
