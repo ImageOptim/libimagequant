@@ -92,13 +92,26 @@ LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kme
 #endif
     for(j=0; j < hist_size; j++) {
         float diff;
-        unsigned int match = nearest_search(n, &achv[j].acolor, achv[j].tmp.likely_colormap_index, &diff);
+        const f_pixel px = achv[j].acolor;
+        const unsigned int match = nearest_search(n, &px, achv[j].tmp.likely_colormap_index, &diff);
         achv[j].tmp.likely_colormap_index = match;
+
+        if (callback) {
+            // Check how average diff would look like if there was dithering
+            const f_pixel remapped = map->palette[match].acolor;
+            nearest_search(n, &(f_pixel){
+                .a = px.a + px.a - remapped.a,
+                .r = px.r + px.r - remapped.r,
+                .g = px.g + px.g - remapped.g,
+                .b = px.b + px.b - remapped.b,
+            }, match, &diff);
+
+            callback(&achv[j], diff);
+        }
+
         total_diff += diff * achv[j].perceptual_weight;
 
-        if (callback) callback(&achv[j], diff);
-
-        kmeans_update_color(achv[j].acolor, achv[j].perceptual_weight, map, match, omp_get_thread_num(), average_color);
+        kmeans_update_color(px, achv[j].adjusted_weight, map, match, omp_get_thread_num(), average_color);
     }
 
     nearest_free(n);
