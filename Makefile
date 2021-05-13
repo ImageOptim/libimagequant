@@ -134,7 +134,7 @@ ifeq ($(filter %clean %distclean, $(MAKECMDGOALS)), )
 endif
 
 $(PKGCONFIG): config.mk
-	sed 's|PREFIX|$(PREFIX)|;s|VERSION|$(VERSION)|' < imagequant.pc.in > $(PKGCONFIG)
+	sed 's|@PREFIX@|$(PREFIX)|;s|@VERSION@|$(VERSION)|' < imagequant.pc.in > $(PKGCONFIG)
 
 .PHONY: all static shared clean dist distclean dll java cargo
 .DELETE_ON_ERROR:

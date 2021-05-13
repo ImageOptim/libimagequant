@@ -1,3 +1,8 @@
+
+version 2.15
+------------
+ - speed and quality improvements
+
 version 2.14
 ------------
  - improved Rust API
