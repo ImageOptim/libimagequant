@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
+file(READ version.txt VERSION)
 
 project(imagequant C)
 
@@ -42,7 +43,6 @@ add_library(imagequant_a STATIC
 set_target_properties(imagequant PROPERTIES SOVERSION 0)
 
 set(PREFIX ${CMAKE_INSTALL_PREFIX})
-file(READ version.txt VERSION)
 configure_file(imagequant.pc.in imagequant.pc @ONLY)
 
 install(TARGETS imagequant        LIBRARY           DESTINATION ${LIB_INSTALL_DIR})
