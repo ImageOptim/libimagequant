@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
+file(READ version.txt VERSION)
 
 project(imagequant C)
 
@@ -39,12 +40,13 @@ add_library(imagequant_a STATIC
   pam.c
   kmeans.c
 )
+set_target_properties(imagequant PROPERTIES SOVERSION 0
+  VERSION 0.0)
 
 set(PREFIX ${CMAKE_INSTALL_PREFIX})
-file(READ version.txt VERSION)
 configure_file(imagequant.pc.in imagequant.pc @ONLY)
 
-install(TARGETS imagequant        LIBRARY           DESTINATION lib)
+install(TARGETS imagequant        LIBRARY           DESTINATION ${LIB_INSTALL_DIR})
 install(FILES                     libimagequant.h   DESTINATION include)
-install(FILES ${CMAKE_BINARY_DIR}/libimagequant_a.a DESTINATION lib RENAME libimagequant.a)
-install(FILES ${CMAKE_BINARY_DIR}/imagequant.pc     DESTINATION lib/pkgconfig)
+install(FILES ${CMAKE_BINARY_DIR}/libimagequant_a.a DESTINATION ${LIB_INSTALL_DIR} RENAME libimagequant.a)
+install(FILES ${CMAKE_BINARY_DIR}/imagequant.pc     DESTINATION ${LIB_INSTALL_DIR}/pkgconfig)
