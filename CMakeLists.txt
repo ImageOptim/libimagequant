@@ -39,6 +39,7 @@ add_library(imagequant_a STATIC
   pam.c
   kmeans.c
 )
+set_target_properties(imagequant PROPERTIES SOVERSION 0)
 
 set(PREFIX ${CMAKE_INSTALL_PREFIX})
 file(READ version.txt VERSION)
