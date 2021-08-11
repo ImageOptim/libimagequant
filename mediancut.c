@@ -133,35 +133,37 @@ static void hist_item_sort_range(hist_item base[], unsigned int len, unsigned in
     }
 }
 
-/** sorts array to make sum of weights lower than halfvar one side, returns edge between <halfvar and >halfvar parts of the set */
-static hist_item *hist_item_sort_halfvar(hist_item base[], unsigned int len, double *const lowervar, const double halfvar)
+/** sorts array to make sum of weights lower than halfvar one side, returns index of the edge between <halfvar and >halfvar parts of the set */
+static unsigned int hist_item_sort_halfvar(hist_item base[], unsigned int len, double halfvar)
 {
+    unsigned int base_idx = 0;  // track base-index
     do {
         const unsigned int l = qsort_partition(base, len), r = l+1;
 
         // check if sum of left side is smaller than half,
         // if it is, then it doesn't need to be sorted
-        unsigned int t = 0; double tmpsum = *lowervar;
-        while (t <= l && tmpsum < halfvar) tmpsum += base[t++].color_weight;
+        double tmpsum = 0.;
+        for(unsigned int t = 0; t <= l && tmpsum < halfvar; ++t) tmpsum += base[t].color_weight;
 
-        if (tmpsum < halfvar) {
-            *lowervar = tmpsum;
-        } else {
+        // the split is on the left part
+        if (tmpsum >= halfvar) {
             if (l > 0) {
-                hist_item *res = hist_item_sort_halfvar(base, l, lowervar, halfvar);
-                if (res) return res;
+                len = l;
+                continue;
             } else {
-                // End of left recursion. This will be executed in order from the first element.
-                *lowervar += base[0].color_weight;
-                if (*lowervar > halfvar) return &base[0];
+                // reached the end of left part
+                return base_idx;
             }
         }
-
+        // process the right part
+        halfvar -= tmpsum;
         if (len > r) {
-            base += r; len -= r; // tail-recursive "call"
+            base += r;
+            base_idx += r;
+            len -= r; // tail-recursive "call"
         } else {
-            *lowervar += base[r].color_weight;
-            return (*lowervar > halfvar) ? &base[r] : NULL;
+            // reached the end of the right part
+            return base_idx + len;
         }
     } while(1);
 }
@@ -370,12 +372,11 @@ LIQ_PRIVATE colormap *mediancut(histogram *hist, unsigned int newcolors, const d
              */
 
             const double halfvar = prepare_sort(&bv[bi], achv);
-            double lowervar=0;
 
             // hist_item_sort_halfvar sorts and sums lowervar at the same time
             // returns item to break at …minus one, which does smell like an off-by-one error.
-            hist_item *break_p = hist_item_sort_halfvar(&achv[indx], clrs, &lowervar, halfvar);
-            unsigned int break_at = MIN(clrs-1, break_p - &achv[indx] + 1);
+            unsigned int break_at = hist_item_sort_halfvar(&achv[indx], clrs, halfvar);
+            break_at = MIN(clrs-1, break_at + 1);
 
             /*
              ** Split the box.
