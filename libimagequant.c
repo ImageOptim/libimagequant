@@ -2105,7 +2105,10 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image(liq_result *result, li
     for(unsigned int i=0; i < input_image->height; i++) {
         rows[i] = &buffer_bytes[input_image->width * i];
     }
-    return liq_write_remapped_image_rows(result, input_image, rows);
+    
+    liq_error err = liq_write_remapped_image_rows(result, input_image, rows);
+    free(rows);
+    return err;
 }
 
 LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image_rows(liq_result *quant, liq_image *input_image, unsigned char **row_pointers)
