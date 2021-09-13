@@ -2100,7 +2100,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image(liq_result *result, li
         return LIQ_BUFFER_TOO_SMALL;
     }
 
-    LIQ_ARRAY(unsigned char *, rows, input_image->height);
+    unsigned char **rows = malloc(input_image->height * sizeof(unsigned char *));
     unsigned char *buffer_bytes = buffer;
     for(unsigned int i=0; i < input_image->height; i++) {
         rows[i] = &buffer_bytes[input_image->width * i];
