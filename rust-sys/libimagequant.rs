@@ -153,6 +153,7 @@ extern "C" {
     /// The object should be freed using `liq_attr_destroy()` after it's no longer needed.
     /// Returns `NULL` in the unlikely case that the library cannot run on the current machine (e.g. the library has been compiled for SSE-capable x86 CPU and run on VIA C3 CPU).
     pub fn liq_attr_create() -> *mut liq_attr;
+    pub fn liq_attr_create_with_allocator(malloc: unsafe extern "C" fn(usize) -> *mut c_void, free: unsafe extern "C" fn(*mut c_void)) -> *mut liq_attr;
     pub fn liq_attr_copy(orig: &liq_attr) -> *mut liq_attr;
     pub fn liq_attr_destroy(attr: &mut liq_attr);
 

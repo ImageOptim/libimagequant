@@ -11,15 +11,24 @@
 pub use crate::ffi::liq_error;
 pub use crate::ffi::liq_error::*;
 
+use fallible_collections::FallibleVec;
 use imagequant_sys as ffi;
 use std::fmt;
 use std::marker::PhantomData;
-use std::mem;
 use std::mem::MaybeUninit;
-use std::os::raw::c_int;
+use std::mem;
+use std::os::raw::{c_int, c_void};
 use std::ptr;
 
 pub use rgb::RGBA8 as RGBA;
+
+/// Allocates all memory used by the library, like [`libc::malloc`].
+///
+/// Must return properly aligned memory (16-bytes on x86, pointer size on other architectures).
+pub type MallocUnsafeFn = unsafe extern "C" fn(size: usize) -> *mut c_void;
+
+/// Frees all memory used by the library, like [`libc::free`].
+pub type FreeUnsafeFn = unsafe extern "C" fn(*mut c_void);
 
 /// 8-bit RGBA. This is the only color format used by the library.
 pub type Color = ffi::liq_color;
@@ -32,6 +41,8 @@ pub type HistogramEntry = ffi::liq_histogram_entry;
 /// Settings for the conversion process. Start here.
 pub struct Attributes {
     handle: *mut ffi::liq_attr,
+    malloc: MallocUnsafeFn,
+    free: FreeUnsafeFn,
 }
 
 /// Describes image dimensions for the library.
@@ -93,7 +104,13 @@ impl<'a> Drop for Histogram<'a> {
 impl Clone for Attributes {
     #[inline]
     fn clone(&self) -> Attributes {
-        unsafe { Attributes { handle: ffi::liq_attr_copy(&*self.handle) } }
+        unsafe {
+            Attributes {
+                handle: ffi::liq_attr_copy(&*self.handle),
+                malloc: self.malloc,
+                free: self.free,
+            }
+        }
     }
 }
 
@@ -113,7 +130,27 @@ impl Attributes {
     pub fn new() -> Self {
         let handle = unsafe { ffi::liq_attr_create() };
         assert!(!handle.is_null(), "SSE-capable CPU is required for this build.");
-        Attributes { handle }
+        Attributes {
+            handle,
+            malloc: libc::malloc,
+            free: libc::free,
+        }
+    }
+
+    /// New handle for library configuration, with specified custom allocator for internal use.
+    /// 
+    /// See also `new_image()`
+    /// 
+    /// # Safety
+    /// 
+    /// * `malloc` and `free` must behave according to their corresponding C specification.
+    /// * `malloc` must return properly aligned memory (16-bytes on x86, pointer-sized on other architectures).
+    #[inline]
+    #[must_use]
+    pub unsafe fn with_allocator(malloc: MallocUnsafeFn, free: FreeUnsafeFn) -> Self {
+        let handle = ffi::liq_attr_create_with_allocator(malloc, free);
+        assert!(!handle.is_null(), "SSE-capable CPU is required for this build.");
+        Attributes { handle, malloc, free }
     }
 
     /// It's better to use `set_quality()`
@@ -336,16 +373,16 @@ impl<'bitmap> Image<'bitmap> {
             return Err(LIQ_BUFFER_TOO_SMALL);
         }
         let (bitmap, ownership) = if copy {
-            let copied = libc::malloc(4 * bitmap.len()) as *mut RGBA;
+            let copied = (attr.malloc)(4 * bitmap.len()) as *mut RGBA;
             ptr::copy_nonoverlapping(bitmap.as_ptr(), copied, bitmap.len());
             (copied as *const _, ffi::liq_ownership::LIQ_OWN_ROWS | ffi::liq_ownership::LIQ_OWN_PIXELS)
         } else {
             (bitmap.as_ptr(), ffi::liq_ownership::LIQ_OWN_ROWS)
         };
-        let rows = Self::malloc_image_rows(bitmap, stride, height);
+        let rows = Self::malloc_image_rows(bitmap, stride, height, attr.malloc);
         let h = ffi::liq_image_create_rgba_rows(&*attr.handle, rows, width as c_int, height as c_int, gamma);
         if h.is_null() {
-            libc::free(rows.cast());
+            (attr.free)(rows.cast());
             return Err(LIQ_INVALID_POINTER);
         }
         let img = Image {
@@ -356,7 +393,7 @@ impl<'bitmap> Image<'bitmap> {
             LIQ_OK => Ok(img),
             err => {
                 drop(img);
-                libc::free(rows.cast());
+                (attr.free)(rows.cast());
                 Err(err)
             },
         }
@@ -364,10 +401,10 @@ impl<'bitmap> Image<'bitmap> {
 
     /// For arbitrary stride libimagequant requires rows. It's most convenient if they're allocated using libc,
     /// so they can be owned and freed automatically by the C library.
-    unsafe fn malloc_image_rows(bitmap: *const RGBA, stride: usize, height: usize) -> *mut *const u8 {
+    unsafe fn malloc_image_rows(bitmap: *const RGBA, stride: usize, height: usize, malloc: MallocUnsafeFn) -> *mut *const u8 {
         let mut byte_ptr = bitmap as *const u8;
         let stride_bytes = stride * 4;
-        let rows = libc::malloc(mem::size_of::<*const u8>() * height) as *mut *const u8;
+        let rows = malloc(mem::size_of::<*const u8>() * height) as *mut *const u8;
         for y in 0..height {
             *rows.add(y) = byte_ptr;
             byte_ptr = byte_ptr.add(stride_bytes);
@@ -475,7 +512,10 @@ impl QuantizationResult {
     /// It's slighly better if you get palette from the `remapped()` call instead
     #[must_use]
     pub fn palette(&mut self) -> Vec<Color> {
-        self.palette_ref().to_vec()
+        let pal = self.palette_ref();
+        let mut out: Vec<Color> = FallibleVec::try_with_capacity(pal.len()).unwrap();
+        out.extend_from_slice(pal);
+        out
     }
 
     /// Final palette (as a temporary slice)
@@ -497,13 +537,13 @@ impl QuantizationResult {
     pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<Color>, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
         // Capacity is essential here, as it creates uninitialized buffer
-        let mut buf = Vec::with_capacity(len);
         unsafe {
-            let uninit_slice = std::slice::from_raw_parts_mut(buf.as_ptr() as *mut _, buf.capacity());
+            let mut buf: Vec<u8> = FallibleVec::try_with_capacity(len).map_err(|_| liq_error::LIQ_OUT_OF_MEMORY)?;
+            let uninit_slice = std::slice::from_raw_parts_mut(buf.as_ptr() as *mut MaybeUninit<u8>, buf.capacity());
             self.remap_into(image, uninit_slice)?;
             buf.set_len(uninit_slice.len());
+            Ok((self.palette(), buf))
         }
-        Ok((self.palette(), buf))
     }
 
     /// Remap image into an existing buffer.
@@ -663,4 +703,37 @@ fn callback_test() {
     };
     assert!(called > 5 && called < 50);
     assert_eq!(123, res.palette().len());
+}
+
+#[test]
+fn custom_allocator_test() {
+    // SAFETY: This is all in one thread.
+    static mut ALLOC_COUNTR: usize = 0;
+    static mut FREE_COUNTR: usize = 0;
+
+    unsafe extern "C" fn test_malloc(size: usize) -> *mut c_void {
+        ALLOC_COUNTR += 1;
+        libc::malloc(size)
+    }
+
+    unsafe extern "C" fn test_free(ptr: *mut c_void) {
+        FREE_COUNTR += 1;
+        libc::free(ptr)
+    }
+
+    let liq = unsafe { Attributes::with_allocator(test_malloc, test_free) };
+    assert_eq!(unsafe { ALLOC_COUNTR }, 1);
+    assert_eq!(unsafe { FREE_COUNTR }, 0);
+
+    let liq2 = liq.clone();
+    assert_eq!(liq.malloc, liq2.malloc);
+    assert_eq!(liq.free, liq2.free);
+
+    drop(liq);
+    assert_eq!(unsafe { ALLOC_COUNTR }, 2);
+    assert_eq!(unsafe { FREE_COUNTR }, 1);
+
+    drop(liq2);
+    assert_eq!(unsafe { ALLOC_COUNTR }, 2);
+    assert_eq!(unsafe { FREE_COUNTR }, 2);
 }

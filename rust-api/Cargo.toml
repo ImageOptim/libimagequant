@@ -14,9 +14,10 @@ version = "3.0.4-alpha.2"
 edition = "2018"
 
 [dependencies]
-imagequant-sys = { version = "3.0.4-alpha.2", path = "../" }
-libc = "0.2.60"
-rgb = "0.8.25"
+fallible_collections = "0.4.3"
+imagequant-sys = { version = "3.1.0", path = "../" }
+libc = "0.2.102"
+rgb = "0.8.27"
 
 [features]
 default = ["sse"]
