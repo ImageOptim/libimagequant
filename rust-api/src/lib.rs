@@ -11,11 +11,12 @@
 pub use crate::ffi::liq_error;
 pub use crate::ffi::liq_error::*;
 
+use fallible_collections::FallibleVec;
 use imagequant_sys as ffi;
 use std::fmt;
 use std::marker::PhantomData;
-use std::mem;
 use std::mem::MaybeUninit;
+use std::mem;
 use std::os::raw::{c_int, c_void};
 use std::ptr;
 
@@ -511,7 +512,10 @@ impl QuantizationResult {
     /// It's slighly better if you get palette from the `remapped()` call instead
     #[must_use]
     pub fn palette(&mut self) -> Vec<Color> {
-        self.palette_ref().to_vec()
+        let pal = self.palette_ref();
+        let mut out: Vec<Color> = FallibleVec::try_with_capacity(pal.len()).unwrap();
+        out.extend_from_slice(pal);
+        out
     }
 
     /// Final palette (as a temporary slice)
@@ -533,13 +537,13 @@ impl QuantizationResult {
     pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<Color>, Vec<u8>), liq_error> {
         let len = image.width() * image.height();
         // Capacity is essential here, as it creates uninitialized buffer
-        let mut buf = Vec::with_capacity(len);
         unsafe {
-            let uninit_slice = std::slice::from_raw_parts_mut(buf.as_ptr() as *mut _, buf.capacity());
+            let mut buf: Vec<u8> = FallibleVec::try_with_capacity(len).map_err(|_| liq_error::LIQ_OUT_OF_MEMORY)?;
+            let uninit_slice = std::slice::from_raw_parts_mut(buf.as_ptr() as *mut MaybeUninit<u8>, buf.capacity());
             self.remap_into(image, uninit_slice)?;
             buf.set_len(uninit_slice.len());
+            Ok((self.palette(), buf))
         }
-        Ok((self.palette(), buf))
     }
 
     /// Remap image into an existing buffer.
