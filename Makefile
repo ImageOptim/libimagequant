@@ -115,7 +115,7 @@ install: all $(PKGCONFIG)
 	install -d $(DESTDIR)$(PKGCONFIGDIR)
 	install -d $(DESTDIR)$(INCLUDEDIR)
 	install -m 644 $(STATICLIB) $(DESTDIR)$(LIBDIR)/$(STATICLIB)
-	install -m 644 $(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIBVER)
+	install -m 755 $(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIBVER)
 	ln -sf $(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIB)
 	install -m 644 $(PKGCONFIG) $(DESTDIR)$(PKGCONFIGDIR)/$(PKGCONFIG)
 	install -m 644 libimagequant.h $(DESTDIR)$(INCLUDEDIR)/libimagequant.h
