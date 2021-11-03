@@ -3,7 +3,11 @@ file(READ version.txt VERSION)
 
 project(imagequant C)
 
-option(BUILD_WITH_SSE "Use SSE" ON)
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL ARM64)
+  option(BUILD_WITH_SSE "Use SSE" OFF)
+else()
+  option(BUILD_WITH_SSE "Use SSE" ON)
+endif()
 
 if(BUILD_WITH_SSE)
   add_definitions(-DUSE_SSE=1)
