@@ -1769,7 +1769,7 @@ LIQ_NONNULL static void contrast_maps(liq_image *image)
             z *= z; // noise is amplified
             z *= z;
             // 85 is about 1/3rd of weight (not 0, because noisy pixels still need to be included, just not as precisely).
-            const unsigned int z_int = 85 + (unsigned int)(z * 171.f);
+            const unsigned int z_int = 80 + (unsigned int)(z * 176.f);
             noise[j*cols+i] = MIN(z_int, 255);
             const int e_int = 255 - (int)(edge * 256.f);
             edges[j*cols+i] = e_int > 0 ? MIN(e_int, 255) : 0;
@@ -1877,7 +1877,7 @@ static colormap *add_fixed_colors_to_palette(colormap *palette, const int max_co
 
 LIQ_NONNULL static void adjust_histogram_callback(hist_item *item, float diff)
 {
-    item->adjusted_weight = (item->perceptual_weight+item->adjusted_weight) * (sqrtf(1.f+diff));
+    item->adjusted_weight = (item->perceptual_weight + 2.0 * item->adjusted_weight) * (0.5 + diff);
 }
 
 /**
@@ -2160,7 +2160,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_write_remapped_image_rows(liq_result *quant
         // remapping above was the last chance to do K-Means iteration, hence the final palette is set after remapping
         set_rounded_palette(&result->int_palette, result->palette, result->gamma, quant->min_posterization_output);
 
-        if (!remap_to_palette_floyd(input_image, row_pointers, result, MAX(remapping_error*2.4, 16.f/256.f), generate_dither_map)) {
+        if (!remap_to_palette_floyd(input_image, row_pointers, result, MAX(remapping_error*2.4, 8.f/256.f), generate_dither_map)) {
             return LIQ_ABORTED;
         }
     }
