@@ -1,3 +1,11 @@
+version 2.17
+------------
+ - quality improvement
+ - ARM64 build fix
+
+version 2.16
+------------
+ - fixed LCMS2 error handling
 
 version 2.15
 ------------
