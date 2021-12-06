@@ -13,11 +13,12 @@ pub use crate::ffi::liq_error::*;
 
 use fallible_collections::FallibleVec;
 use imagequant_sys as ffi;
+use std::ffi::CStr;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::mem;
-use std::os::raw::{c_int, c_void};
+use std::os::raw::{c_int, c_void, c_char};
 use std::ptr;
 
 pub use rgb::RGBA8 as RGBA;
@@ -38,11 +39,28 @@ pub type Color = ffi::liq_color;
 /// Used if you're building histogram manually. Otherwise see `add_image()`
 pub type HistogramEntry = ffi::liq_histogram_entry;
 
+/// Print messages
+pub type LogCallbackFn = Box<dyn FnMut(&str) + Send>;
+
+/// Result of [`ProgressCallbackFn`]
+#[repr(C)]
+pub enum ControlFlow {
+    /// Continue processing as normal
+    Continue = 1,
+    /// Abort processing and fail
+    Break = 0,
+}
+
+/// Check progress and optionally abort
+pub type ProgressCallbackFn = Box<dyn FnMut(f32) -> ControlFlow + Send>;
+
 /// Settings for the conversion process. Start here.
 pub struct Attributes {
     handle: *mut ffi::liq_attr,
     malloc: MallocUnsafeFn,
     free: FreeUnsafeFn,
+    log_callback: Option<Box<LogCallbackFn>>, // Double boxed, because it's a fat ptr, and Attributes can be moved
+    progress_callback: Option<Box<ProgressCallbackFn>>,
 }
 
 /// Describes image dimensions for the library.
@@ -102,13 +120,23 @@ impl<'a> Drop for Histogram<'a> {
 }
 
 impl Clone for Attributes {
+    /// NB: it doesn't clone the log/progress callbacks!
     #[inline]
     fn clone(&self) -> Attributes {
         unsafe {
+            let handle = ffi::liq_attr_copy(&*self.handle);
+            if self.log_callback.is_some() { // can't be cloned
+                ffi::liq_set_log_callback(&mut *handle, None, ptr::null_mut());
+            }
+            if self.progress_callback.is_some() { // can't be cloned
+                ffi::liq_attr_set_progress_callback(&mut *handle, None, ptr::null_mut());
+            }
             Attributes {
-                handle: ffi::liq_attr_copy(&*self.handle),
+                handle,
                 malloc: self.malloc,
                 free: self.free,
+                log_callback: None,
+                progress_callback: None,
             }
         }
     }
@@ -134,6 +162,8 @@ impl Attributes {
             handle,
             malloc: libc::malloc,
             free: libc::free,
+            log_callback: None,
+            progress_callback: None,
         }
     }
 
@@ -150,7 +180,12 @@ impl Attributes {
     pub unsafe fn with_allocator(malloc: MallocUnsafeFn, free: FreeUnsafeFn) -> Self {
         let handle = ffi::liq_attr_create_with_allocator(malloc, free);
         assert!(!handle.is_null(), "SSE-capable CPU is required for this build.");
-        Attributes { handle, malloc, free }
+        Attributes {
+            handle,
+            malloc, free,
+            log_callback: None,
+            progress_callback: None,
+        }
     }
 
     /// It's better to use `set_quality()`
@@ -260,6 +295,63 @@ impl Attributes {
                 liq_error::LIQ_OK if !h.is_null() => Ok(QuantizationResult { handle: h }),
                 err => Err(err),
             }
+        }
+    }
+
+    /// Set callback function to be called every time the library wants to print a message.
+    ///
+    /// To share data with the callback, use `Arc` or `Atomic*` types and `move ||` closures.
+    #[inline(always)]
+    pub fn set_log_callback<F: FnMut(&str) + Send + 'static>(&mut self, callback: F) {
+        self._set_log_callback(Box::new(callback))
+    }
+
+    /// Set callback function to be called every time the library makes a progress.
+    /// It can be used to cancel operation early.
+    ///
+    /// To share data with the callback, use `Arc` or `Atomic*` types and `move ||` closures.
+    #[inline(always)]
+    pub fn set_progress_callback<F: FnMut(f32) -> ControlFlow + Send + 'static>(&mut self, callback: F) {
+        self._set_progress_callback(Box::new(callback))
+    }
+
+    fn _set_log_callback(&mut self, callback: LogCallbackFn) {
+        let mut log_callback = Box::new(callback);
+        let log_callback_ref: &mut LogCallbackFn = &mut *log_callback;
+        unsafe {
+            ffi::liq_set_log_callback(&mut *self.handle, Some(call_log_callback), log_callback_ref as *mut LogCallbackFn as *mut c_void);
+        }
+        self.log_callback = Some(log_callback);
+    }
+
+    fn _set_progress_callback(&mut self, callback: ProgressCallbackFn) {
+        let mut progress_callback = Box::new(callback);
+        let progress_callback_ref: &mut ProgressCallbackFn = &mut *progress_callback;
+        unsafe {
+            ffi::liq_attr_set_progress_callback(&mut *self.handle, Some(call_progress_callback), progress_callback_ref as *mut ProgressCallbackFn as *mut c_void);
+        }
+        self.progress_callback = Some(progress_callback);
+    }
+}
+
+extern "C" fn call_log_callback(_liq: &ffi::liq_attr, msg: *const c_char, user_data: *mut c_void) {
+    unsafe {
+        let cb: &mut LogCallbackFn = match (user_data as *mut LogCallbackFn).as_mut() {
+            Some(cb) => cb,
+            None => return,
+        };
+        match CStr::from_ptr(msg).to_str() {
+            Ok(msg) => cb(msg),
+            Err(_) => return,
+        };
+    }
+}
+
+extern "C" fn call_progress_callback(perc: f32, user_data: *mut c_void) -> c_int {
+    unsafe {
+        match (user_data as *mut ProgressCallbackFn).as_mut() {
+            Some(cb) => cb(perc) as _,
+            None => ControlFlow::Break as _,
         }
     }
 }
@@ -640,6 +732,23 @@ fn poke_it() {
     assert_eq!(1, liq.min_posterization());
     liq.set_min_posterization(0);
 
+    use std::sync::atomic::Ordering::SeqCst;
+    use std::sync::atomic::AtomicBool;
+    use std::sync::Arc;
+
+    let log_called = Arc::new(AtomicBool::new(false));
+    let log_called2 = log_called.clone();
+    liq.set_log_callback(move |_msg| {
+        log_called2.store(true, SeqCst);
+    });
+
+    let prog_called = Arc::new(AtomicBool::new(false));
+    let prog_called2 = prog_called.clone();
+    liq.set_progress_callback(move |_perc| {
+        prog_called2.store(true, SeqCst);
+        ControlFlow::Continue
+    });
+
     // Describe the bitmap
     let ref mut img = liq.new_image(&fakebitmap[..], width, height, 0.0).unwrap();
 
@@ -659,6 +768,9 @@ fn poke_it() {
     assert_eq!(100, res.quantization_quality());
     assert_eq!(Color { r: 255, g: 255, b: 255, a: 255 }, palette[0]);
     assert_eq!(Color { r: 0x55, g: 0x66, b: 0x77, a: 255 }, palette[1]);
+
+    assert!(log_called.load(SeqCst));
+    assert!(prog_called.load(SeqCst));
 }
 
 #[test]
