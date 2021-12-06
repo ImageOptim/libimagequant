@@ -4,15 +4,15 @@
 extern crate cc;
 
 use std::env;
-use std::path::PathBuf;
 use std::fs::canonicalize;
+use std::path::PathBuf;
 
 fn main() {
     let mut cc = cc::Build::new();
     let compiler = cc.get_compiler();
     cc.warnings(false);
 
-    if env::var("PROFILE").map(|p|p != "debug").unwrap_or(true) {
+    if env::var("PROFILE").map(|p| p != "debug").unwrap_or(true) {
         cc.define("NDEBUG", Some("1"));
     } else {
         cc.define("DEBUG", Some("1"));

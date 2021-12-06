@@ -36,9 +36,9 @@
 #[cfg(feature = "openmp")]
 extern crate openmp_sys;
 
-use std::os::raw::{c_int, c_uint, c_char, c_void};
 use std::error;
 use std::fmt;
+use std::os::raw::{c_char, c_int, c_uint, c_void};
 
 pub enum liq_attr {}
 pub enum liq_image {}
@@ -85,8 +85,7 @@ pub struct liq_histogram_entry {
     pub count: c_uint,
 }
 
-impl error::Error for liq_error {
-}
+impl error::Error for liq_error {}
 
 impl fmt::Display for liq_error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
