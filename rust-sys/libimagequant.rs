@@ -144,7 +144,6 @@ pub type liq_log_flush_callback_function = Option<unsafe extern "C" fn(liq: &liq
 pub type liq_progress_callback_function = Option<unsafe extern "C" fn(progress_percent: f32, user_info: *mut c_void) -> c_int>;
 pub type liq_image_get_rgba_row_callback = unsafe extern "C" fn(row_out: *mut liq_color, row: c_int, width: c_int, user_info: *mut c_void);
 
-#[link(name="imagequant", kind="static")]
 extern "C" {
 
     /// Returns object that will hold initial settings (attributes) for the library.
