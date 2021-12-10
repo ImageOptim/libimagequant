@@ -19,7 +19,7 @@ JNIDLL=libimagequant.dll
 JNIDLLIMP=libimagequant_dll.a
 JNIDLLDEF=libimagequant_dll.def
 
-OBJS = pam.o mediancut.o blur.o mempool.o kmeans.o nearest.o libimagequant.o
+OBJS = pam.o mediancut.o blur.o remap.o mempool.o kmeans.o nearest.o libimagequant.o
 SHAREDOBJS = $(subst .o,.lo,$(OBJS))
 
 JAVACLASSES = org/pngquant/LiqObject.class org/pngquant/PngQuant.class org/pngquant/Image.class org/pngquant/Result.class

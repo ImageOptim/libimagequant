@@ -41,6 +41,7 @@ fn main() {
             .file("msvc-dist/mediancut.c")
             .file("msvc-dist/mempool.c")
             .file("msvc-dist/pam.c")
+            .file("msvc-dist/remap.c")
             .file("msvc-dist/blur.c");
     } else {
         // This is so that I don't forget to publish MSVC version as well
@@ -57,6 +58,7 @@ fn main() {
             .file("mediancut.c")
             .file("mempool.c")
             .file("pam.c")
+            .file("remap.c")
             .file("blur.c");
     }
 
