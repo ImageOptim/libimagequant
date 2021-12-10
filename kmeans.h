@@ -14,6 +14,6 @@ typedef void (*kmeans_callback)(hist_item *item, float diff);
 LIQ_PRIVATE void kmeans_init(const colormap *map, const unsigned int max_threads, kmeans_state state[]);
 LIQ_PRIVATE void kmeans_update_color(const f_pixel acolor, const float value, const colormap *map, unsigned int match, const unsigned int thread, kmeans_state average_color[]);
 LIQ_PRIVATE void kmeans_finalize(colormap *map, const unsigned int max_threads, const kmeans_state state[]);
-LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kmeans_callback callback);
+LIQ_PRIVATE double kmeans_do_iteration(histogram *hist, colormap *const map, kmeans_callback callback, const unsigned int max_threads);
 
 #endif

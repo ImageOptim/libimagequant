@@ -1925,7 +1925,7 @@ static colormap *find_best_palette(histogram *hist, const liq_attr *options, con
         // and histogram weights are adjusted based on remapping error to give more weight to poorly matched colors
 
         const bool first_run_of_target_mse = !acolormap && target_mse > 0;
-        double total_error = kmeans_do_iteration(hist, newmap, first_run_of_target_mse ? NULL : adjust_histogram_callback);
+        double total_error = kmeans_do_iteration(hist, newmap, first_run_of_target_mse ? NULL : adjust_histogram_callback, omp_get_max_threads());
 
         // goal is to increase quality or to reduce number of colors used if quality is good enough
         if (!acolormap || total_error < least_error || (total_error <= target_mse && newmap->colors < max_colors)) {
@@ -2024,7 +2024,7 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
             double previous_palette_error = MAX_DIFF;
 
             for(unsigned int i=0; i < iterations; i++) {
-                palette_error = kmeans_do_iteration(hist, acolormap, NULL);
+                palette_error = kmeans_do_iteration(hist, acolormap, NULL, omp_get_max_threads());
 
                 if (liq_progress(options, options->progress_stage1 + options->progress_stage2 + (i * options->progress_stage3 * 0.9f) / iterations)) {
                     break;
