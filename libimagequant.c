@@ -1643,11 +1643,7 @@ LIQ_NONNULL static liq_error pngquant_quantize(histogram *hist, const liq_attr *
 
         if (iterations) {
             // likely_colormap_index (used and set in kmeans_do_iteration) can't point to index outside colormap
-            if (acolormap->colors < 256) for(unsigned int j=0; j < hist->size; j++) {
-                if (hist->achv[j].tmp.likely_colormap_index >= acolormap->colors) {
-                    hist->achv[j].tmp.likely_colormap_index = 0; // actual value doesn't matter, as the guess is out of date anyway
-                }
-            }
+            hist_reset_colors(hist, acolormap->colors);
 
             if (hist->size > 5000) {iterations = (iterations*3 + 3)/4;}
             if (hist->size > 25000) {iterations = (iterations*3 + 3)/4;}

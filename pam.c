@@ -314,3 +314,12 @@ LIQ_PRIVATE LIQ_NONNULL colormap *histogram_to_palette(const histogram *hist, vo
     }
     return acolormap;
 }
+
+LIQ_PRIVATE LIQ_NONNULL void hist_reset_colors(const histogram *hist, const unsigned int colors) {
+    // likely_colormap_index (used and set in kmeans_do_iteration) can't point to index outside colormap
+    if (colors < 256) for(unsigned int j=0; j < hist->size; j++) {
+        if (hist->achv[j].tmp.likely_colormap_index >= colors) {
+            hist->achv[j].tmp.likely_colormap_index = 0; // actual value doesn't matter, as the guess is out of date anyway
+        }
+    }
+}

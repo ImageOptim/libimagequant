@@ -287,5 +287,6 @@ LIQ_PRIVATE void pam_freecolormap(colormap *c);
 
 LIQ_PRIVATE void remove_fixed_colors_from_histogram(histogram *hist, const int fixed_colors_count, const f_pixel fixed_colors[], const float target_mse) LIQ_NONNULL;
 LIQ_PRIVATE colormap *histogram_to_palette(const histogram *hist, void* (*malloc)(size_t), void (*free)(void*)) LIQ_NONNULL;
+LIQ_PRIVATE void hist_reset_colors(const histogram *hist, const unsigned int colors) LIQ_NONNULL;
 
 #endif
