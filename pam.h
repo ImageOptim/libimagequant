@@ -281,8 +281,11 @@ LIQ_PRIVATE bool pam_add_to_hash(struct acolorhash_table *acht, unsigned int has
 
 LIQ_PRIVATE void pam_freeacolorhist(histogram *h);
 
-LIQ_PRIVATE colormap *pam_colormap(unsigned int colors, void* (*malloc)(size_t), void (*free)(void*));
-LIQ_PRIVATE colormap *pam_duplicate_colormap(colormap *map);
+LIQ_PRIVATE colormap *pam_colormap(unsigned int colors, void* (*malloc)(size_t), void (*free)(void*)) LIQ_NONNULL;
+LIQ_PRIVATE colormap *pam_duplicate_colormap(colormap *map) LIQ_NONNULL;
 LIQ_PRIVATE void pam_freecolormap(colormap *c);
+
+LIQ_PRIVATE void remove_fixed_colors_from_histogram(histogram *hist, const int fixed_colors_count, const f_pixel fixed_colors[], const float target_mse) LIQ_NONNULL;
+LIQ_PRIVATE colormap *histogram_to_palette(const histogram *hist, void* (*malloc)(size_t), void (*free)(void*)) LIQ_NONNULL;
 
 #endif

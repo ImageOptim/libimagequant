@@ -248,7 +248,7 @@ LIQ_PRIVATE void pam_freeacolorhist(histogram *hist)
     hist->free(hist);
 }
 
-LIQ_PRIVATE colormap *pam_colormap(unsigned int colors, void* (*malloc)(size_t), void (*free)(void*))
+LIQ_PRIVATE LIQ_NONNULL colormap *pam_colormap(unsigned int colors, void* (*malloc)(size_t), void (*free)(void*))
 {
     assert(colors > 0 && colors < 65536);
 
@@ -286,3 +286,31 @@ LIQ_PRIVATE void to_f_set_gamma(float gamma_lut[], const double gamma)
     }
 }
 
+
+/* fixed colors are always included in the palette, so it would be wasteful to duplicate them in palette from histogram */
+LIQ_PRIVATE LIQ_NONNULL void remove_fixed_colors_from_histogram(histogram *hist, const int fixed_colors_count, const f_pixel fixed_colors[], const float target_mse)
+{
+    const float max_difference = MAX(target_mse/2.f, 2.f/256.f/256.f);
+    if (fixed_colors_count) {
+        for(int j=0; j < hist->size; j++) {
+            for(unsigned int i=0; i < fixed_colors_count; i++) {
+                if (colordifference(hist->achv[j].acolor, fixed_colors[i]) < max_difference) {
+                    hist->achv[j] = hist->achv[--hist->size]; // remove color from histogram by overwriting with the last entry
+                    j--; break; // continue searching histogram
+                }
+            }
+        }
+    }
+}
+
+LIQ_PRIVATE LIQ_NONNULL colormap *histogram_to_palette(const histogram *hist, void* (*malloc)(size_t), void (*free)(void*)) {
+    if (!hist->size) {
+        return NULL;
+    }
+    colormap *acolormap = pam_colormap(hist->size, malloc, free);
+    for(unsigned int i=0; i < hist->size; i++) {
+        acolormap->palette[i].acolor = hist->achv[i].acolor;
+        acolormap->palette[i].popularity = hist->achv[i].perceptual_weight;
+    }
+    return acolormap;
+}
