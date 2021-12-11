@@ -90,10 +90,6 @@
 /* from pam.h */
 
 typedef struct {
-    unsigned char r, g, b, a;
-} rgba_pixel;
-
-typedef struct {
     float a, r, g, b;
 } SSE_ALIGN f_pixel;
 
@@ -105,8 +101,8 @@ LIQ_PRIVATE void to_f_set_gamma(float gamma_lut[], const double gamma);
  Converts 8-bit color to internal gamma and premultiplied alpha.
  (premultiplied color space is much better for blending of semitransparent colors)
  */
-ALWAYS_INLINE static f_pixel rgba_to_f(const float gamma_lut[], const rgba_pixel px);
-inline static f_pixel rgba_to_f(const float gamma_lut[], const rgba_pixel px)
+ALWAYS_INLINE static f_pixel rgba_to_f(const float gamma_lut[], const liq_color px);
+inline static f_pixel rgba_to_f(const float gamma_lut[], const liq_color px)
 {
     float a = px.a/255.f;
 
@@ -118,10 +114,10 @@ inline static f_pixel rgba_to_f(const float gamma_lut[], const rgba_pixel px)
     };
 }
 
-inline static rgba_pixel f_to_rgb(const float gamma, const f_pixel px)
+inline static liq_color f_to_rgb(const float gamma, const f_pixel px)
 {
     if (px.a < 1.f/256.f) {
-        return (rgba_pixel){0,0,0,0};
+        return (liq_color){0,0,0,0};
     }
 
     float r = px.r / px.a,
@@ -139,7 +135,7 @@ inline static rgba_pixel f_to_rgb(const float gamma, const f_pixel px)
     b *= 256.f;
     a *= 256.f;
 
-    return (rgba_pixel){
+    return (liq_color){
         .r = r>=255.f ? 255 : r,
         .g = g>=255.f ? 255 : g,
         .b = b>=255.f ? 255 : b,
@@ -220,7 +216,7 @@ inline static float colordifference(f_pixel px, f_pixel py)
 
 /* from pamcmap.h */
 union rgba_as_int {
-    rgba_pixel rgba;
+    liq_color rgba;
     unsigned int l;
 };
 
@@ -280,7 +276,7 @@ struct acolorhash_table {
 LIQ_PRIVATE void pam_freeacolorhash(struct acolorhash_table *acht);
 LIQ_PRIVATE struct acolorhash_table *pam_allocacolorhash(unsigned int maxcolors, unsigned int surface, unsigned int ignorebits, void* (*malloc)(size_t), void (*free)(void*));
 LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table *acht, const double gamma, void* (*malloc)(size_t), void (*free)(void*));
-LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const rgba_pixel *const pixels[], unsigned int cols, unsigned int rows, const unsigned char *importance_map);
+LIQ_PRIVATE bool pam_computeacolorhash(struct acolorhash_table *acht, const liq_color *const pixels[], unsigned int cols, unsigned int rows, const unsigned char *importance_map);
 LIQ_PRIVATE bool pam_add_to_hash(struct acolorhash_table *acht, unsigned int hash, unsigned int boost, union rgba_as_int px, unsigned int row, unsigned int rows);
 
 LIQ_PRIVATE void pam_freeacolorhist(histogram *h);

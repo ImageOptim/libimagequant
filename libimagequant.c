@@ -95,7 +95,7 @@ struct liq_histogram {
 
 static void contrast_maps(liq_image *image) LIQ_NONNULL;
 static liq_error finalize_histogram(liq_histogram *input_hist, liq_attr *options, histogram **hist_output) LIQ_NONNULL;
-static const rgba_pixel *liq_image_get_row_rgba(liq_image *input_image, unsigned int row) LIQ_NONNULL;
+static const liq_color *liq_image_get_row_rgba(liq_image *input_image, unsigned int row) LIQ_NONNULL;
 static void liq_remapping_result_destroy(liq_remapping_result *result) LIQ_NONNULL;
 static liq_error pngquant_quantize(histogram *hist, const liq_attr *options, const int fixed_colors_count, const f_pixel fixed_colors[], const double gamma, bool fixed_result_colors, liq_result **) LIQ_NONNULL;
 static liq_error liq_histogram_quantize_internal(liq_histogram *input_hist, liq_attr *attr, bool fixed_result_colors, liq_result **result_output) LIQ_NONNULL;
@@ -469,7 +469,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_image_add_fixed_color(liq_image *img, liq_c
 
     float gamma_lut[256];
     to_f_set_gamma(gamma_lut, img->gamma);
-    img->fixed_colors[img->fixed_colors_count++] = rgba_to_f(gamma_lut, (rgba_pixel){
+    img->fixed_colors[img->fixed_colors_count++] = rgba_to_f(gamma_lut, (liq_color){
         .r = color.r,
         .g = color.g,
         .b = color.b,
@@ -492,7 +492,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_fixed_color(liq_histogram *hi
 
     float gamma_lut[256];
     to_f_set_gamma(gamma_lut, gamma ? gamma : 0.45455);
-    const f_pixel px = rgba_to_f(gamma_lut, (rgba_pixel){
+    const f_pixel px = rgba_to_f(gamma_lut, (liq_color){
         .r = color.r,
         .g = color.g,
         .b = color.b,
@@ -512,7 +512,7 @@ LIQ_NONNULL static bool liq_image_should_use_low_memory(liq_image *img, const bo
     return (size_t)img->width * (size_t)img->height > (low_memory_hint ? LIQ_HIGH_MEMORY_LIMIT/8 : LIQ_HIGH_MEMORY_LIMIT) / sizeof(f_pixel); // Watch out for integer overflow
 }
 
-static liq_image *liq_image_create_internal(const liq_attr *attr, rgba_pixel* rows[], liq_image_get_rgba_row_callback *row_callback, void *row_callback_user_info, int width, int height, double gamma)
+static liq_image *liq_image_create_internal(const liq_attr *attr, liq_color* rows[], liq_image_get_rgba_row_callback *row_callback, void *row_callback_user_info, int width, int height, double gamma)
 {
     if (gamma < 0 || gamma > 1.0) {
         liq_log_error(attr, "gamma must be >= 0 and <= 1 (try 1/gamma instead)");
@@ -641,7 +641,7 @@ LIQ_NONNULL static bool check_image_size(const liq_attr *attr, const int width, 
         return false;
     }
 
-    if (width > INT_MAX/sizeof(rgba_pixel)/height || width > INT_MAX/16/sizeof(f_pixel) || height > INT_MAX/sizeof(size_t)) {
+    if (width > INT_MAX/sizeof(liq_color)/height || width > INT_MAX/16/sizeof(f_pixel) || height > INT_MAX/sizeof(size_t)) {
         liq_log_error(attr, "image too large");
         return false;
     }
@@ -668,7 +668,7 @@ LIQ_EXPORT liq_image *liq_image_create_rgba_rows(const liq_attr *attr, void *con
             return NULL;
         }
     }
-    return liq_image_create_internal(attr, (rgba_pixel**)rows, NULL, NULL, width, height, gamma);
+    return liq_image_create_internal(attr, (liq_color**)rows, NULL, NULL, width, height, gamma);
 }
 
 LIQ_EXPORT LIQ_NONNULL liq_image *liq_image_create_rgba(const liq_attr *attr, const void* bitmap, int width, int height, double gamma)
@@ -681,8 +681,8 @@ LIQ_EXPORT LIQ_NONNULL liq_image *liq_image_create_rgba(const liq_attr *attr, co
         return NULL;
     }
 
-    rgba_pixel *const pixels = (rgba_pixel *const)bitmap;
-    rgba_pixel **rows = attr->malloc(sizeof(rows[0])*height);
+    liq_color *const pixels = (liq_color *const)bitmap;
+    liq_color **rows = attr->malloc(sizeof(rows[0])*height);
     if (!rows) return NULL;
 
     for(int i=0; i < height; i++) {
@@ -721,14 +721,14 @@ LIQ_NONNULL inline static bool liq_image_can_use_rgba_rows(const liq_image *img)
     return img->rows;
 }
 
-LIQ_NONNULL static const rgba_pixel *liq_image_get_row_rgba(liq_image *img, unsigned int row)
+LIQ_NONNULL static const liq_color *liq_image_get_row_rgba(liq_image *img, unsigned int row)
 {
     if (liq_image_can_use_rgba_rows(img)) {
         return img->rows[row];
     }
 
     assert(img->temp_row);
-    rgba_pixel *temp_row = img->temp_row + LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_thread_num();
+    liq_color *temp_row = img->temp_row + LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_thread_num();
     if (img->rows) {
         memcpy(temp_row, img->rows[row], img->width * sizeof(temp_row[0]));
     } else {
@@ -743,7 +743,7 @@ LIQ_NONNULL static void convert_row_to_f(liq_image *img, f_pixel *row_f_pixels, 
     assert(row_f_pixels);
     assert(!USE_SSE || 0 == ((uintptr_t)row_f_pixels & 15));
 
-    const rgba_pixel *const row_pixels = liq_image_get_row_rgba(img, row);
+    const liq_color *const row_pixels = liq_image_get_row_rgba(img, row);
 
     for(unsigned int col=0; col < img->width; col++) {
         row_f_pixels[col] = rgba_to_f(gamma_lut, row_pixels[col]);
@@ -1171,7 +1171,7 @@ LIQ_NONNULL static void set_rounded_palette(liq_palette *const dest, colormap *c
 
     dest->count = map->colors;
     for(unsigned int x = 0; x < map->colors; ++x) {
-        rgba_pixel px = f_to_rgb(gamma, map->palette[x].acolor);
+        liq_color px = f_to_rgb(gamma, map->palette[x].acolor);
 
         px.r = posterize_channel(px.r, posterize);
         px.g = posterize_channel(px.g, posterize);
@@ -1248,7 +1248,7 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_colors(liq_histogram *input_h
 
     const unsigned int hash_size = input_hist->acht->hash_size;
     for(int i=0; i < num_entries; i++) {
-        const rgba_pixel rgba = {
+        const liq_color rgba = {
             .r = entries[i].color.r,
             .g = entries[i].color.g,
             .b = entries[i].color.b,
@@ -1316,10 +1316,10 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_image(liq_histogram *input_hi
         for(unsigned int row=0; row < rows; row++) {
             bool added_ok;
             if (all_rows_at_once) {
-                added_ok = pam_computeacolorhash(input_hist->acht, (const rgba_pixel *const *)input_image->rows, cols, rows, input_image->importance_map);
+                added_ok = pam_computeacolorhash(input_hist->acht, (const liq_color *const *)input_image->rows, cols, rows, input_image->importance_map);
                 if (added_ok) break;
             } else {
-                const rgba_pixel* rows_p[1] = { liq_image_get_row_rgba(input_image, row) };
+                const liq_color* rows_p[1] = { liq_image_get_row_rgba(input_image, row) };
                 added_ok = pam_computeacolorhash(input_hist->acht, rows_p, cols, 1, input_image->importance_map ? &input_image->importance_map[row * cols] : NULL);
             }
             if (!added_ok) {

@@ -14,11 +14,11 @@ struct liq_image {
     void (*free)(void*);
 
     f_pixel *f_pixels;
-    rgba_pixel **rows;
+    liq_color **rows;
     double gamma;
     unsigned int width, height;
     unsigned char *importance_map, *edges, *dither_map;
-    rgba_pixel *pixels, *temp_row;
+    liq_color *pixels, *temp_row;
     f_pixel *temp_f_row;
     liq_image_get_rgba_row_callback *row_callback;
     void *row_callback_user_info;
