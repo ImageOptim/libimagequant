@@ -38,3 +38,11 @@ crate-type = ["cdylib", "staticlib", "lib"]
 name = "imagequant_sys"
 path = "rust-sys/libimagequant.rs"
 doctest = false
+
+[dev-dependencies]
+lodepng = "3.4.7"
+imagequant = { path = "./rust-api" }
+
+[profile.bench]
+debug = 1
+split-debuginfo = 'unpacked'
