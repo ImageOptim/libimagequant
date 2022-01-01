@@ -1,48 +1,31 @@
-# libimagequant is a pure C library.
-# Rust/Cargo is entirely optional. You can also use ./configure && make
 [package]
-version = "3.1.2+sys2.17.0"
+name = "imagequant"
+version = "4.0.0-beta.1"
+description = "Convert 24/32-bit images to 8-bit palette with alpha channel.\nBindings for libimagequant that powers pngquant lossy PNG compressor.\n\nDual-licensed like pngquant. See https://pngquant.org for details."
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
-build = "rust-sys/build.rs"
-categories = ["external-ffi-bindings"]
-homepage = "https://pngquant.org/lib"
-include = ["COPYRIGHT", "rust-sys/*", "*.c", "*.h", "README.md", "Cargo.toml"]
-keywords = ["pngquant"]
 license = "GPL-3.0-or-later"
-links = "imagequant"
-name = "imagequant-sys"
-readme = "README.md"
+homepage = "https://pngquant.org/lib"
 repository = "https://github.com/ImageOptim/libimagequant"
-description = "Statically linked C part of imagequant library powering tools such as pngquant.\n\nThis library is dual-licensed like pngquant: either GPL or a commercial license. See website for details: https://pngquant.org"
+documentation = "https://docs.rs/imagequant"
+categories = ["multimedia::images"]
+keywords = ["quantization", "palette", "image", "pngquant", "compression"]
+include = ["COPYRIGHT", "src/*.rs", "*.h", "README.md", "Cargo.toml"]
+readme = "README.md"
 edition = "2018"
-
-[build-dependencies]
-cc = "1.0.71"
-
-[dependencies]
-rgb = "0.8.29"
-bitflags = "1.3.2"
-
-[dependencies.openmp-sys]
-optional = true
-version = "1.2.0"
-
-[features]
-default = ["sse"]
-openmp = ["openmp-sys"]
-openmp-static = ["openmp", "openmp-sys/static"]
-sse = []
 
 [lib]
 crate-type = ["cdylib", "staticlib", "lib"]
-name = "imagequant_sys"
-path = "rust-sys/libimagequant.rs"
 doctest = false
+
+[dependencies]
+arrayvec = "0.7.2"
+bitflags = "1.3.2"
+fallible_collections = "0.4.3"
+libc = "0.2.109"
+noisy_float = "0.2.0"
+rayon = "1.5.1"
+rgb = { version = "0.8.30", features = ["argb"] }
+thread_local = "1.1.3"
 
 [dev-dependencies]
 lodepng = "3.4.7"
-imagequant = { path = "./rust-api" }
-
-[profile.bench]
-debug = 1
-split-debuginfo = 'unpacked'

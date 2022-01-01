@@ -12,7 +12,7 @@ fn histogram(b: &mut Bencher) {
     b.iter(move || {
         let mut img = liq.new_image(&img.buffer, img.width, img.height, 0.).unwrap();
         let mut hist = Histogram::new(&liq);
-        hist.add_image(&mut img).unwrap();
+        hist.add_image(&liq, &mut img).unwrap();
     })
 }
 
@@ -29,6 +29,11 @@ fn remap_ord(b: &mut Bencher) {
         res.remap_into(&mut img, &mut buf).unwrap();
         res.remap_into(&mut img, &mut buf).unwrap();
     })
+}
+
+#[bench]
+fn kmeans(b: &mut Bencher) {
+    b.iter(_unstable_internal_kmeans_bench())
 }
 
 #[bench]

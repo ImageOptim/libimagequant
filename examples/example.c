@@ -4,15 +4,8 @@ This is an example how to write your own simple pngquant using libimagequant.
 
 libimagequant works with any PNG library. This example uses lodepng, because it's easier to use than libpng.
 
-To run this example, run these commands in the library directory:
-
-    make example
-    ./example /path/to/some_file.png
-
-On "manually":
-
 1. Get lodepng.c (download lodepng.cpp and rename it) and lodepng.h
-   from http://lodev.org/lodepng/ and put them in this directry
+   from https://lodev.org/lodepng/ and put them in this directry
 
 2. Compile libimagequant (see README.md)
 
