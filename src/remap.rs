@@ -93,7 +93,14 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
 
 fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel, px: f_pixel) -> f_pixel {
     let s = thiserr.0 * dither_level;
-    let mut ratio = 1_f32;
+    // This prevents gaudy green pixels popping out of the blue (or red or black! ;)
+    let dither_error = s.r * s.r + s.g * s.g + s.b * s.b + s.a * s.a;
+    if dither_error < 2. / 256. / 256. {
+        // don't dither areas that don't have noticeable error — makes file smaller
+        return px;
+    }
+
+    let mut ratio: f32 = 1.;
     const MAX_OVERFLOW: f32 = 1.1;
     const MAX_UNDERFLOW: f32 = -0.1;
     // allowing some overflow prevents undithered bands caused by clamping of all channels
@@ -112,20 +119,14 @@ fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel
     } else if px.b + s.b < MAX_UNDERFLOW {
         ratio = ratio.min((MAX_UNDERFLOW - px.b) / s.b);
     }
-    let a = (px.a + s.a).clamp(0., 1.);
-    // This prevents gaudy green pixels popping out of the blue (or red or black! ;)
-    let dither_error = s.r * s.r + s.g * s.g + s.b * s.b + s.a * s.a;
     if dither_error > max_dither_error {
         ratio *= 0.8;
-    } else if dither_error < 2. / 256. / 256. {
-        // don't dither areas that don't have noticeable error — makes file smaller
-        return px;
     }
     f_pixel(ARGBF {
-        b: px.b + s.b * ratio,
+        a: (px.a + s.a).clamp(0., 1.),
         r: px.r + s.r * ratio,
         g: px.g + s.g * ratio,
-        a,
+        b: px.b + s.b * ratio,
     })
 }
 
@@ -135,10 +136,10 @@ fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel
 pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), liq_error> {
     let progress_stage1 = if quant.use_dither_map != DitherMapMode::None { 20 } else { 0 };
 
-    let width = input_image.height();
-    let height = input_image.width();
+    let width = input_image.width();
+    let height = input_image.height();
 
-    let mut temp_row = temp_buf(height);
+    let mut temp_row = temp_buf(width);
 
     let dither_map = if quant.use_dither_map != DitherMapMode::None {
         input_image.dither_map.as_deref().or(input_image.edges.as_deref()).unwrap_or(&[])
@@ -148,7 +149,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     let mut input_image_iter = input_image.px.rows_iter(&mut temp_row)?;
     let mut background = input_image.background.as_mut().map(|bg| bg.px.rows_iter(&mut temp_row)).transpose()?;
 
-    let errwidth = height + 2; // +2 saves from checking out of bounds access
+    let errwidth = width + 2; // +2 saves from checking out of bounds access
     let mut thiserr_data = vec![f_pixel::default(); errwidth * 2];
     let (mut thiserr, mut nexterr) = thiserr_data.split_at_mut(errwidth);
     let n = Nearest::new(&quant.palette);
@@ -164,26 +165,26 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
         base_dithering_level *= 1. / 255.; // dither_map is in 0-255 scale
     }
     let mut scan_forward = true;
-    let mut temp_row = temp_buf(height);
+    let mut temp_row = temp_buf(width);
 
     for (row, output_pixels_row) in output_pixels.rows_mut().enumerate() {
-        if quant.remap_progress(progress_stage1 as f32 + row as f32 * (100. - progress_stage1 as f32) / width as f32) {
+        if quant.remap_progress(progress_stage1 as f32 + row as f32 * (100. - progress_stage1 as f32) / height as f32) {
             return Err(LIQ_ABORTED);
         }
         nexterr.fill_with(f_pixel::default);
-        let mut col = if scan_forward { 0 } else { height - 1 };
+        let mut col = if scan_forward { 0 } else { width - 1 };
         let row_pixels = input_image_iter.row_f(&mut temp_row, row as _);
-        let bg_pixels = if background.is_some() && palette[transparent_index as usize].a < MIN_OPAQUE_A {
-            background.as_mut().unwrap().row_f(&mut temp_row, row as _)
-        } else { &[] };
+        let bg_pixels = background.as_mut().map(|b| b.row_f(&mut temp_row, row as _)).unwrap_or(&[]);
+        let dither_map = dither_map.get(row * width .. row * width + width).unwrap_or(&[]);
         let mut undithered_bg_used = 0;
         let mut last_match = 0;
         loop {
             let mut dither_level = base_dithering_level;
-            if !dither_map.is_empty() {
-                dither_level *= dither_map[row * height + col] as f32;
+            if let Some(&l) = dither_map.get(col) {
+                dither_level *= l as f32;
             }
-            let spx = get_dithered_pixel(dither_level, max_dither_error, thiserr[col + 1], row_pixels[col]);
+            let input_px = row_pixels[col];
+            let spx = get_dithered_pixel(dither_level, max_dither_error, thiserr[col + 1], input_px);
             let guessed_match = if output_image_is_remapped {
                 unsafe { output_pixels_row[col].assume_init() }
             } else {
@@ -192,11 +193,11 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
             let (dither_index, dither_diff) = n.search(&spx, guessed_match);
             last_match = dither_index;
             let mut output_px = palette[last_match as usize];
-            if !bg_pixels.is_empty() {
+            if let Some(bg_pixel) = bg_pixels.get(col) {
                 // if the background makes better match *with* dithering, it's a definitive win
-                let bg_for_dither_diff = spx.diff(&bg_pixels[col]);
+                let bg_for_dither_diff = spx.diff(bg_pixel);
                 if bg_for_dither_diff <= dither_diff {
-                    output_px = bg_pixels[col];
+                    output_px = *bg_pixel;
                     last_match = transparent_index;
                 } else if undithered_bg_used > 1 {
                     // the undithered fallback can cause artifacts when too many undithered pixels accumulate a big dithering error
@@ -206,14 +207,14 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
                     // if dithering is not applied, there's a high risk of creating artifacts (flat areas, error accumulating badly),
                     // OTOH poor dithering disturbs static backgrounds and creates oscilalting frames that break backgrounds
                     // back and forth in two differently bad ways
-                    let max_diff = row_pixels[col].diff(&bg_pixels[col]);
-                    let dithered_diff = row_pixels[col].diff(&output_px);
+                    let max_diff = input_px.diff(bg_pixel);
+                    let dithered_diff = input_px.diff(&output_px);
                     // if dithering is worse than natural difference between frames
                     // (this rule dithers moving areas, but does not dither static areas)
                     if dithered_diff > max_diff {
                         // then see if an undithered color is closer to the ideal
                         let guessed_px = palette[guessed_match as usize];
-                        let undithered_diff = row_pixels[col].diff(&guessed_px); // If dithering error is crazy high, don't propagate it that much
+                        let undithered_diff = input_px.diff(&guessed_px); // If dithering error is crazy high, don't propagate it that much
                         if undithered_diff < max_diff {
                             undithered_bg_used += 1;
                             output_px = guessed_px;
@@ -235,13 +236,13 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
                 nexterr[col].0 += err * (3. / 16.);
             } else {
                 thiserr[col].0 += err * (7. / 16.);
-                nexterr[col].0 = err * (1. / 16.);
                 nexterr[col + 2].0 += err * (3. / 16.);
                 nexterr[col + 1].0 += err * (5. / 16.);
+                nexterr[col].0 = err * (1. / 16.);
             }
             if scan_forward {
                 col += 1;
-                if col >= height {
+                if col >= width {
                     break;
                 }
             } else {
