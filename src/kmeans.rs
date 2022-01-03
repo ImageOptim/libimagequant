@@ -65,12 +65,19 @@ impl Kmeans {
             kmeans.borrow_mut().iterate_batch(batch, &n, colors, adjust_weight);
         });
 
-        tls.into_iter()
+        let diff = tls.into_iter()
             .map(RefCell::into_inner)
             .reduce(Kmeans::merge)
-            .map(move |kmeans| {
+            .map(|kmeans| {
                 kmeans.finalize(palette) / total
-            }).unwrap_or(0.)
+            }).unwrap_or(0.);
+
+        // kmeans may have obsoleted some palette entries. Replace them with any entry from the histogram
+        // (it happens so rarely that there's no point doing something smarter)
+        palette.iter_mut().filter(|(_, p)| !p.is_fixed() && p.popularity() == 0.).zip(hist.items.iter()).for_each(|((c, _), item)| {
+            *c = item.color;
+        });
+        diff
     }
 
     fn iterate_batch(&mut self, batch: &mut [HistItem], n: &Nearest, colors: &[f_pixel], adjust_weight: bool) {

@@ -152,7 +152,7 @@ impl PalPop {
     #[inline]
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn new(popularity: f32) -> Self {
-        debug_assert!(popularity > 0.);
+        debug_assert!(popularity >= 0.);
         Self(popularity)
     }
 
