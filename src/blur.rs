@@ -1,4 +1,3 @@
-
 /// Blurs image horizontally (width 2*size+1) and writes it transposed to dst (called twice gives 2d blur)
 fn transposing_1d_blur(src: &[u8], dst: &mut [u8], width: usize, height: usize, size: u16) {
     for (j, row) in src.chunks_exact(width).enumerate() {

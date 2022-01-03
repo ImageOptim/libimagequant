@@ -1,7 +1,7 @@
 use crate::error::*;
-use crate::LIQ_HIGH_MEMORY_LIMIT;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
 use crate::seacow::{liq_ownership, SeaCow};
+use crate::LIQ_HIGH_MEMORY_LIMIT;
 use std::mem::MaybeUninit;
 
 pub(crate) type RowCallback = dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync;
@@ -200,7 +200,6 @@ pub(crate) fn temp_buf<T>(len: usize) -> Box<[MaybeUninit<T>]> {
     v.into_boxed_slice()
 }
 
-
 #[test]
 fn send() {
     fn is_send<T: Send>() {}
@@ -210,7 +209,6 @@ fn send() {
     is_send::<PixelsSource>();
     is_sync::<PixelsSource>();
 }
-
 
 #[inline(always)]
 unsafe fn box_assume_init<T>(s: Box<[MaybeUninit<T>]>) -> Box<[T]> {

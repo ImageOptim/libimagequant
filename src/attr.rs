@@ -1,10 +1,10 @@
-use crate::pal::PalLen;
 use crate::error::{liq_error, LIQ_OK, LIQ_VALUE_OUT_OF_RANGE};
 use crate::ffi::MagicTag;
 use crate::ffi::LIQ_ATTR_MAGIC;
 use crate::ffi::LIQ_FREED_MAGIC;
 use crate::hist::Histogram;
 use crate::image::Image;
+use crate::pal::PalLen;
 use crate::pal::RGBA;
 use crate::quant::{mse_to_quality, quality_to_mse, QuantizationResult};
 use crate::remap::DitherMapMode;
@@ -137,7 +137,9 @@ impl Attributes {
         self.max_histogram_entries = ((1 << 17) + (1 << 18) * (10 - value)) as _;
         self.min_posterization_input = if value >= 8 { 1 } else { 0 };
         self.use_dither_map = if value <= 6 { DitherMapMode::Enabled } else { DitherMapMode::None };
-        if self.use_dither_map != DitherMapMode::None && value < 3 { self.use_dither_map = DitherMapMode::Always; }
+        if self.use_dither_map != DitherMapMode::None && value < 3 {
+            self.use_dither_map = DitherMapMode::Always;
+        }
         self.use_contrast_maps = (value <= 7) || self.use_dither_map != DitherMapMode::None;
         self.speed = value as u8;
         self.progress_stage1 = if self.use_contrast_maps { 20 } else { 8 };

@@ -1,4 +1,3 @@
-use rayon::iter::ParallelIterator;
 use crate::error::*;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
@@ -8,10 +7,11 @@ use crate::quant::{quality_to_mse, QuantizationResult};
 use crate::rows::temp_buf;
 use crate::seacow::{RowBitmap, RowBitmapMut};
 use rayon::iter::ParallelBridge;
+use rayon::iter::ParallelIterator;
 use rgb::ComponentMap;
-use thread_local::ThreadLocal;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
+use thread_local::ThreadLocal;
 
 #[repr(u8)]
 #[derive(Eq, PartialEq, Clone, Copy)]

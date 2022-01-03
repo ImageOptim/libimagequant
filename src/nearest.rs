@@ -1,7 +1,6 @@
+use crate::OrdFloat;
 use crate::pal::PalIndex;
 use crate::pal::{f_pixel, PalF};
-use noisy_float::NoisyFloat as NF;
-type FiniteFloat = NF<f32, noisy_float::checkers::FiniteChecker>;
 
 impl<'pal> Nearest<'pal> {
     pub fn new(palette: &'pal PalF) -> Self {
@@ -96,7 +95,7 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
     debug_assert!(!indexes.is_empty());
     let palette = items.as_slice();
 
-    if indexes.len() == 1 {
+    if indexes.len() <= 1 {
         return Node {
             vantage_point: palette[usize::from(indexes[0].idx)],
             radius: f32::NAN,
@@ -109,18 +108,13 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
     }
 
     let most_popular_item = indexes.iter().enumerate().max_by_key(move |(_, i)| {
-        FiniteFloat::from_f32(items.pop_as_slice()[usize::from(i.idx)].popularity())
+        OrdFloat::<f32>::unchecked_new(items.pop_as_slice()[usize::from(i.idx)].popularity())
     }).unwrap().0;
     indexes.swap(0, most_popular_item);
     let (ref_, indexes) = indexes.split_first_mut().unwrap();
 
     let vantage_point = palette[usize::from(ref_.idx)];
-    indexes.sort_unstable_by_key(move |i| {
-        FiniteFloat::from_f32(f_pixel::diff(
-            &vantage_point,
-            &palette[i.idx as usize],
-        ))
-    });
+    indexes.sort_unstable_by_key(move |i| OrdFloat::<f32>::unchecked_new(vantage_point.diff(&palette[i.idx as usize])));
 
     let half_index = indexes.len() / 2;
     let num_indexes = indexes.len();

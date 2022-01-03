@@ -1,22 +1,20 @@
 use crate::attr::{Attributes, ControlFlow};
 use crate::error::*;
-use crate::ffi::{LIQ_FREED_MAGIC, LIQ_RESULT_MAGIC};
 use crate::ffi::MagicTag;
+use crate::ffi::{LIQ_FREED_MAGIC, LIQ_RESULT_MAGIC};
 use crate::hist::{FixedColorsSet, HistogramInternal};
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
-use crate::pal::{LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, PalF, PalLen, PalPop, Palette, RGBA};
-use crate::remap::{DitherMapMode, mse_to_standard_mse, Remapped};
+use crate::pal::{PalF, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
+use crate::remap::{mse_to_standard_mse, DitherMapMode, Remapped};
 use crate::seacow::RowBitmapMut;
+use crate::OrdFloat;
 use arrayvec::ArrayVec;
 use fallible_collections::FallibleVec;
 use std::cmp::Reverse;
 use std::fmt;
 use std::mem::MaybeUninit;
-
-use noisy_float::NoisyFloat as NF;
-type FiniteFloat = NF<f32, noisy_float::checkers::FiniteChecker>;
 
 pub struct QuantizationResult {
     pub(crate) magic_header: MagicTag,
@@ -226,7 +224,7 @@ fn sort_palette(attr: &Attributes, palette: &mut PalF) {
     let mut tmp: ArrayVec<_, {MAX_COLORS}> = palette.iter_mut().map(|(c,p)| (*c, *p)).collect();
     tmp.sort_by_key(|(color, pop)| {
         let is_transparent = color.a <= MAX_TRANSP_A;
-        (is_transparent == last_index_transparent, Reverse(FiniteFloat::unchecked_new(pop.popularity())))
+        (is_transparent == last_index_transparent, Reverse(OrdFloat::<f32>::unchecked_new(pop.popularity())))
     });
     palette.iter_mut().zip(tmp).for_each(|((dcol, dpop), (scol, spop))| {
         *dcol = scol;
@@ -236,7 +234,7 @@ fn sort_palette(attr: &Attributes, palette: &mut PalF) {
     if last_index_transparent {
         let alpha_index = palette.as_slice().iter().enumerate()
             .filter(|(_, c)| c.a <= MAX_TRANSP_A)
-            .min_by_key(|(_, c)| FiniteFloat::unchecked_new(c.a))
+            .min_by_key(|(_, c)| OrdFloat::<f32>::unchecked_new(c.a))
             .map(|(i, _)| i);
         if let Some(alpha_index) = alpha_index {
             let last_index = palette.as_slice().len() - 1;

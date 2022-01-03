@@ -79,7 +79,6 @@ impl<'a, T> SeaCow<'a, T> {
     }
 }
 
-
 pub(crate) struct RowBitmap<'a, T> {
     rows: &'a [*const T],
     width: usize,

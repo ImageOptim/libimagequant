@@ -22,9 +22,9 @@ mod remap;
 mod rows;
 mod seacow;
 
-pub use error::liq_error;
 pub use attr::Attributes;
 pub use attr::ControlFlow;
+pub use error::liq_error;
 pub use hist::Histogram;
 pub use hist::HistogramEntry;
 pub type Image<'pixels> = image::Image<'pixels, 'static>;
@@ -34,6 +34,9 @@ pub use quant::QuantizationResult;
 
 const LIQ_HIGH_MEMORY_LIMIT: usize = 1 << 26;
 pub const LIQ_VERSION: u32 = 40000;
+
+/// I don't care about NaNs, just sort them!
+type OrdFloat<F> = noisy_float::NoisyFloat<F, noisy_float::checkers::FiniteChecker>;
 
 /// Start here: creates new handle for library configuration
 ///
@@ -246,8 +249,8 @@ fn ownership_bitflags() {
 
 #[doc(hidden)]
 pub fn _unstable_internal_kmeans_bench() -> impl FnMut() {
-    use crate::pal::PalPop;
     use crate::pal::PalF;
+    use crate::pal::PalPop;
 
     let attr = new();
     let mut h = hist::Histogram::new(&attr);

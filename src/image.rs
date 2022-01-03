@@ -10,8 +10,8 @@ use crate::rows::{DynamicRows, PixelsSource};
 use crate::seacow::RowBitmap;
 use crate::seacow::SeaCow;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
-use std::mem::MaybeUninit;
 use rgb::ComponentMap;
+use std::mem::MaybeUninit;
 
 /// Describes image dimensions for the library.
 pub struct Image<'pixels, 'rows> {

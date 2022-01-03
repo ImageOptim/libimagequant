@@ -1,12 +1,12 @@
 #![allow(clippy::missing_safety_doc)]
 
-use crate::rows::PixelsSource;
 use crate::attr::*;
 use crate::error::*;
 use crate::hist::*;
 use crate::image::*;
 use crate::pal::*;
 use crate::quant::*;
+use crate::rows::PixelsSource;
 use crate::seacow::*;
 use std::ffi::CString;
 use std::mem::MaybeUninit;

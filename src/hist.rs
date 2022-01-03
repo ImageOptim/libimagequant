@@ -1,14 +1,14 @@
-use crate::Attributes;
 use crate::error::*;
 use crate::ffi::MagicTag;
 use crate::ffi::{LIQ_FREED_MAGIC, LIQ_HISTOGRAM_MAGIC};
 use crate::image::Image;
-use crate::pal::ARGBF;
 use crate::pal::PalIndex;
+use crate::pal::ARGBF;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
 use crate::quant::QuantizationResult;
-use crate::rows::DynamicRows;
 use crate::rows::temp_buf;
+use crate::rows::DynamicRows;
+use crate::Attributes;
 use rgb::ComponentSlice;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
@@ -40,7 +40,6 @@ pub struct Histogram {
     posterize_bits: u8,
     max_histogram_entries: u32,
 }
-
 
 pub(crate) type FixedColorsSet = HashSet<HashColor, RgbaHasher>;
 

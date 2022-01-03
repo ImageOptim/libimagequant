@@ -1,14 +1,11 @@
-use crate::pal::{ARGBF, PalLen};
 use crate::hist::{HistItem, HistogramInternal};
-use crate::pal::{PalF, PalPop, f_pixel};
+use crate::pal::{f_pixel, PalF, PalPop};
+use crate::pal::{PalLen, ARGBF};
 use crate::quant::quality_to_mse;
-use noisy_float::checkers::FiniteChecker;
-use noisy_float::NoisyFloat as NF;
+use crate::OrdFloat;
 use rgb::ComponentMap;
 use rgb::ComponentSlice;
 use std::cmp::Reverse;
-
-type FiniteFloat = NF<f32, noisy_float::checkers::FiniteChecker>;
 
 struct MedianCutter<'hist> {
     boxes: Vec<MBox<'hist>>,
@@ -45,7 +42,7 @@ impl<'hist> MBox<'hist> {
         // It's possible that an average color will end up being bad for every entry,
         // so prefer picking actual colors so that at least one histogram entry will be satisfied.
         if (hist.len() < 500 && hist.len() > 2) || Self::is_useless_color(&avg_color, hist, other_boxes) {
-            avg_color = hist.iter().min_by_key(|a| FiniteFloat::unchecked_new(avg_color.diff(&a.color))).map(|a| a.color).unwrap_or_default();
+            avg_color = hist.iter().min_by_key(|a| OrdFloat::<f32>::unchecked_new(avg_color.diff(&a.color))).map(|a| a.color).unwrap_or_default();
         }
         Self::new_c(hist, adjusted_weight_sum, avg_color)
     }
@@ -107,7 +104,7 @@ impl<'hist> MBox<'hist> {
             ChanVariance { chan: 2, variance: vars[2] },
             ChanVariance { chan: 3, variance: vars[3] },
         ];
-        channels.sort_by_key(|a| Reverse(FiniteFloat::unchecked_new(a.variance)));
+        channels.sort_by_key(|a| Reverse(OrdFloat::<f32>::unchecked_new(a.variance)));
 
         for a in self.colors.iter_mut() {
             let chans = a.color.as_slice();
@@ -303,7 +300,7 @@ impl<'hist> MedianCutter<'hist> {
                 }
                 (i, thissum)
             })
-            .max_by_key(|&(_, thissum)| NF::<f64, FiniteChecker>::unchecked_new(thissum))
+            .max_by_key(|&(_, thissum)| OrdFloat::<f64>::unchecked_new(thissum))
             .map(|(i, _)| self.boxes.swap_remove(i))
     }
 }
