@@ -100,6 +100,7 @@ impl Histogram {
     ///
     /// Fixed colors added to the image are also added to the histogram. If the total number of fixed colors exceeds 256,
     /// this function will fail with `LIQ_BUFFER_TOO_SMALL`.
+    #[inline(never)]
     pub fn add_image(&mut self, attr: &Attributes, image: &mut Image) -> Result<(), liq_error> {
         let width = image.width();
         let height = image.height();
@@ -133,6 +134,7 @@ impl Histogram {
     /// Alternative to `add_image()`. Intead of counting colors in an image, it directly takes an array of colors and their counts.
     ///
     /// This function is only useful if you already have a histogram of the image from another source.
+    #[inline(never)]
     pub fn add_colors(&mut self, entries: &[HistogramEntry], gamma: f64) -> Result<(), liq_error> {
         if entries.is_empty() || entries.len() > 1 << 24 {
             return Err(LIQ_VALUE_OUT_OF_RANGE);
@@ -174,6 +176,7 @@ impl Histogram {
         self.quantize_internal(attr, true)
     }
 
+    #[inline(never)]
     pub(crate) fn quantize_internal(&mut self, attr: &Attributes, freeze_result_colors: bool) -> Result<QuantizationResult, liq_error> {
         if self.hashmap.is_empty() && self.fixed_colors.is_empty() {
             return Err(LIQ_UNSUPPORTED);

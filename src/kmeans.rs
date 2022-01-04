@@ -47,6 +47,7 @@ impl Kmeans {
         self.weighed_diff_sum
     }
 
+    #[inline(never)]
     pub(crate) fn iteration(hist: &mut HistogramInternal, palette: &mut PalF, adjust_weight: bool) -> f64 {
         if hist.items.is_empty() {
             return 0.;

@@ -1,4 +1,5 @@
 /// Blurs image horizontally (width 2*size+1) and writes it transposed to dst (called twice gives 2d blur)
+#[inline(never)]
 fn transposing_1d_blur(src: &[u8], dst: &mut [u8], width: usize, height: usize, size: u16) {
     for (j, row) in src.chunks_exact(width).enumerate() {
         let mut sum = row[0] as u16 * size;
@@ -24,6 +25,7 @@ fn transposing_1d_blur(src: &[u8], dst: &mut [u8], width: usize, height: usize, 
 }
 
 /// Picks maximum of neighboring pixels (blur + lighten)
+#[inline(never)]
 pub(crate) fn liq_max3(src: &[u8], dst: &mut [u8], width: usize, height: usize) {
     liq_op3(src, dst, width, height, |a, b| a.max(b));
 }
@@ -52,6 +54,7 @@ pub(crate) fn liq_op3(src: &[u8], dst: &mut [u8], width: usize, height: usize, o
 }
 
 /// Picks minimum of neighboring pixels (blur + darken)
+#[inline(never)]
 pub(crate) fn liq_min3(src: &[u8], dst: &mut [u8], width: usize, height: usize) {
     liq_op3(src, dst, width, height, |a, b| a.min(b));
 }

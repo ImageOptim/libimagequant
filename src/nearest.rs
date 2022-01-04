@@ -3,6 +3,7 @@ use crate::pal::PalIndex;
 use crate::pal::{f_pixel, PalF};
 
 impl<'pal> Nearest<'pal> {
+    #[inline(never)]
     pub fn new(palette: &'pal PalF) -> Self {
         let mut indexes: Vec<_> = (0..palette.len())
             .map(|idx| MapIndex { idx: idx as _ })

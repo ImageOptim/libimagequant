@@ -26,6 +26,7 @@ pub(crate) struct Remapped {
     pub(crate) palette_error: Option<f64>,
 }
 
+#[inline(never)]
 pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<u8>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, u8>), liq_error> {
     let width = image.width();
 
@@ -133,6 +134,7 @@ fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel
 /// Uses edge/noise map to apply dithering only to flat areas. Dithering on edges creates jagged lines, and noisy areas are "naturally" dithered.
 ///
 ///  If output_image_is_remapped is true, only pixels noticeably changed by error diffusion will be written to output image.
+#[inline(never)]
 pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), liq_error> {
     let progress_stage1 = if quant.use_dither_map != DitherMapMode::None { 20 } else { 0 };
 

@@ -181,6 +181,7 @@ fn qsort_partition(base: &mut [HistItem]) -> usize {
 
 /// sorts the slice to make the sum of weights lower than `weight_half_sum` one side,
 /// returns index of the edge between <halfvar and >halfvar parts of the set
+#[inline(never)]
 fn hist_item_sort_half(mut base: &mut [HistItem], mut weight_half_sum: f64) -> usize {
     let mut base_index = 0;
     if base.is_empty() { return 0; }
