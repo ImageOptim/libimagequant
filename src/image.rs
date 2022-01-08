@@ -1,4 +1,3 @@
-use std::os::raw::c_void;
 use crate::attr::Attributes;
 use crate::blur::{liq_blur, liq_max3, liq_min3};
 use crate::error::*;
@@ -19,7 +18,6 @@ pub struct Image<'pixels, 'rows> {
     pub(crate) dither_map: Option<Box<[u8]>>,
     pub(crate) background: Option<Box<Image<'pixels, 'rows>>>,
     pub(crate) fixed_colors: Vec<f_pixel>,
-    pub(crate) c_api_free: Option<unsafe extern fn(*mut c_void)>,
 }
 
 impl<'pixels, 'rows> Image<'pixels, 'rows> {
@@ -55,7 +53,6 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
             dither_map: None,
             background: None,
             fixed_colors: Vec::new(),
-            c_api_free: attr.c_api_free,
         };
         // if image is huge or converted pixels are not likely to be reused then don't cache converted pixels
         let low_memory_hint = !attr.use_contrast_maps && attr.use_dither_map == DitherMapMode::None;
@@ -151,8 +148,9 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     }
 
     #[inline]
-    pub(crate) fn set_importance_map_raw(&mut self, map: Option<SeaCow<'static, u8>>) {
-        self.importance_map = map;
+    #[cfg(feature = "_internal_c_ffi")]
+    pub(crate) unsafe fn set_importance_map_raw(&mut self, map: SeaCow<'static, u8>) {
+        self.importance_map = Some(map)
     }
 
     /// Width of the image in pixels

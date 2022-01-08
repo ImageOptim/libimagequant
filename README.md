@@ -18,7 +18,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-imagequant = "4.0.0-beta.1"
+imagequant = "4.0.0-beta.3"
 ```
 
 [See docs.rs for the library API documentation](https://docs.rs/imagequant).
@@ -27,11 +27,23 @@ imagequant = "4.0.0-beta.1"
 
 ### Building for C
 
-1. Get Rust 1.57+ via [rustup](https://rustup.rs).
-2. Run `cargo build --release`
-   This will build `target/release/libimagequant.a` (recommended for static linking) and `target/release/libimagequant.dll/so/dylib`.
+1. Get Rust 1.57 or later via [rustup](https://rustup.rs).
+2. `cd imagequant-sys`
+
+   The C API is exposed by a separate package called [`imagequant-sys`](https://github.com/ImageOptim/libimagequant/tree/main/imagequant-sys).
+3. Run `cargo build --release`
+
+   This will build `target/release/libimagequant.a` or `target\release\libimagequant.lib` that you can use for static linking.
+   Please don't worry about the size of the `.a` file. It includes a few unused objects. It only adds 500KB when linked. Use LTO or `-Wl,--as-needed` if necessary.
 
 The repository includes an Xcode project file that can be used on iOS and macOS.
+
+If you want to build a C dynamic library (DLL, so, dylib), then:
+
+1. `cargo install cargo-c`
+2. `cd imagequant-sys`
+3. `cargo cinstall --destdir=.`
+   This will build `./usr/local/lib/libimagequant.0.0.0.{so,dylib,dll}`
 
 ### C API usage
 
@@ -43,7 +55,7 @@ The repository includes an Xcode project file that can be used on iOS and macOS.
 
 Please note that libimagequant only handles raw uncompressed arrays of pixels in memory and is completely independent of any file format.
 
-    /* See examples/example.c for the full code! */
+    /* See imagequant-sys/example.c for the full code! */
 
     #include "libimagequant.h"
 
@@ -610,10 +622,11 @@ Returns `LIQ_QUALITY_TOO_LOW` if the palette is worse than limit set in `liq_set
 
 Palette generated using this function won't be improved during remapping. If you're generating palette for only one image, it's better to use `liq_image_quantize()`.
 
-### Multithreading
+## Multithreading
 
 * Different threads can perform unrelated quantizations/remappings at the same time (e.g. each thread working on a different image).
 * The same `liq_attr`, `liq_result`, etc. can be accessed from different threads, but not at the same time (e.g. you can create `liq_attr` in one thread and free it in another).
+* The library uses threads internally. You can set `RAYON_NUM_THREADS` environmental variable to control the number of threads used.
 
 ## Working with GIF
 
@@ -627,4 +640,4 @@ You can compile the library for other platforms via `cargo build --target=…`. 
 
 Building for WASM requires support for [threads and atomics](https://github.com/GoogleChromeLabs/wasm-bindgen-rayon). I plan to make threads optional in a later version.
 
-You may need to [configure a linker](https://doc.rust-lang.org/cargo/reference/config.html#target) for Cargo. If that's too much hassle, and you only need to link statically, remove `"cdylib"` from `crate-type` in `Cargo.toml`. For building for Android see [this tutorial](https://mozilla.github.io/firefox-browser-architecture/experiments/2017-09-21-rust-on-android.html) and [cargo-ndk](https://lib.rs/crates/cargo-ndk).
+If you're cross-compiling a dynamic library (so/dylib/DLL), you may need to [configure a linker](https://doc.rust-lang.org/cargo/reference/config.html#target) for Cargo. For building for Android see [this tutorial](https://mozilla.github.io/firefox-browser-architecture/experiments/2017-09-21-rust-on-android.html) and [cargo-ndk](https://lib.rs/crates/cargo-ndk).

@@ -4,9 +4,6 @@
 //!
 //! See `examples/` directory for example code.
 #![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
-#![allow(non_camel_case_types)]
-
-pub mod ffi;
 
 mod attr;
 mod blur;
@@ -21,6 +18,10 @@ mod quant;
 mod remap;
 mod rows;
 mod seacow;
+
+/// Use imagequant-sys crate instead
+#[cfg(feature = "_internal_c_ffi")]
+pub mod capi;
 
 pub use attr::Attributes;
 pub use attr::ControlFlow;
@@ -152,7 +153,7 @@ fn poke_it() {
 
 #[test]
 fn set_importance_map() {
-    let mut liq = new();
+    let liq = new();
     let bitmap = &[RGBA::new(255, 0, 0, 255), RGBA::new(0u8, 0, 255, 255)];
     let mut img = liq.new_image(&bitmap[..], 2, 1, 0.).unwrap();
     let map = &[255, 0];
@@ -182,7 +183,7 @@ fn r_callback_test() {
     let called = Arc::new(AtomicU16::new(0));
     let called2 = called.clone();
     let mut res = {
-        let mut a = new();
+        let a = new();
         let get_row = move |output_row: &mut [MaybeUninit<RGBA>], y: usize| {
             assert!((0..5).contains(&y));
             assert_eq!(123, output_row.len());
@@ -210,12 +211,6 @@ fn sizes() {
     assert!(std::mem::size_of::<Image>() < 300);
     assert!(std::mem::size_of::<Histogram>() < 200);
     assert!(std::mem::size_of::<crate::hist::HistItem>() <= 32);
-}
-
-#[test]
-fn ownership_bitflags() {
-    use seacow::liq_ownership;
-    assert_eq!(4+16, (liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_COPY_PIXELS).bits());
 }
 
 #[doc(hidden)]

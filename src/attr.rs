@@ -1,4 +1,3 @@
-use std::os::raw::c_void;
 use crate::error::{liq_error, LIQ_OK, LIQ_VALUE_OUT_OF_RANGE};
 use crate::hist::Histogram;
 use crate::image::Image;
@@ -30,8 +29,6 @@ pub struct Attributes {
     progress_callback: Option<Arc<dyn Fn(f32) -> ControlFlow + Send + Sync>>,
     log_callback: Option<Arc<dyn Fn(&Attributes, &str) + Send + Sync>>,
     log_flush_callback: Option<Arc<dyn Fn(&Attributes) + Send + Sync>>,
-
-    pub(crate) c_api_free: Option<unsafe extern fn(*mut c_void)>,
 }
 
 impl Attributes {
@@ -61,15 +58,8 @@ impl Attributes {
             progress_callback: None,
             log_callback: None,
             log_flush_callback: None,
-            c_api_free: None,
         };
         attr.set_speed(4);
-        attr
-    }
-
-    pub(crate) fn with_free(free_fn: Option<unsafe extern fn(*mut c_void)>) -> Self {
-        let mut attr = Self::new();
-        attr.c_api_free = free_fn;
         attr
     }
 
@@ -206,7 +196,7 @@ impl Attributes {
     }
 
     /// Generate palette for the image
-    pub fn quantize(&mut self, image: &mut Image<'_, '_>) -> Result<QuantizationResult, liq_error> {
+    pub fn quantize(&self, image: &mut Image<'_, '_>) -> Result<QuantizationResult, liq_error> {
         let mut hist = Histogram::new(self);
         hist.add_image(self, image)?;
         hist.quantize_internal(self, false)
@@ -217,11 +207,13 @@ impl Attributes {
     /// To share data with the callback, use `Arc` or `Atomic*` types and `move ||` closures.
     #[inline]
     pub fn set_log_callback<F: Fn(&Attributes, &str) + Send + Sync + 'static>(&mut self, callback: F) {
+        self.verbose_printf_flush();
         self.log_callback = Some(Arc::new(callback));
     }
 
     #[inline]
     pub fn set_log_flush_callback<F: Fn(&Attributes) + Send + Sync + 'static>(&mut self, callback: F) {
+        self.verbose_printf_flush();
         self.log_flush_callback = Some(Arc::new(callback));
     }
 

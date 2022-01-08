@@ -27,6 +27,7 @@ pub const MAX_TRANSP_A: f32 = 255. / 256. * LIQ_WEIGHT_A;
 /// I've created the newtype wrapper to try a 16-byte alignment, but it didn't improve perf :(
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[allow(non_camel_case_types)]
 pub struct f_pixel(pub ARGBF);
 
 impl f_pixel {

@@ -1,15 +1,12 @@
 //! Exports API for C programs and C-FFI-compatible languages. See `libimagequant.h` or <https://pngquant.org/lib/> for C docs.
-
+//!
+//! This crate is not supposed to be used in Rust directly. For Rust, see the parent [imagequant](//lib.rs/imagequant) crate.
+#![allow(non_camel_case_types)]
 #![allow(clippy::missing_safety_doc)]
 
-use crate::attr::*;
-use crate::error::*;
-use crate::hist::*;
-use crate::image::*;
-use crate::pal::*;
-use crate::quant::*;
-use crate::rows::PixelsSource;
-use crate::seacow::*;
+use imagequant::*;
+use imagequant::capi::*;
+use imagequant::liq_error::*;
 use std::ffi::CString;
 use std::mem::ManuallyDrop;
 use std::mem::MaybeUninit;
@@ -17,34 +14,54 @@ use std::os::raw::c_char;
 use std::os::raw::{c_int, c_uint, c_void};
 use std::ptr;
 
+pub use imagequant::liq_error;
+
 #[repr(C)]
 pub struct liq_attr {
     magic_header: MagicTag,
-    inner: crate::Attributes,
+    inner: Attributes,
+    c_api_free: unsafe extern fn(*mut c_void),
 }
+
 #[repr(C)]
-pub struct liq_image<'pixels, 'rows> {
+pub struct liq_image<'pixels> {
     magic_header: MagicTag,
-    inner: ManuallyDrop<crate::image::Image<'pixels, 'rows>>,
+    inner: ManuallyDrop<Image<'pixels>>,
+    c_api_free: unsafe extern fn(*mut c_void),
 }
+
 #[repr(C)]
 pub struct liq_result {
     magic_header: MagicTag,
     inner: QuantizationResult,
 }
+
 #[repr(C)]
 pub struct liq_histogram {
     magic_header: MagicTag,
     inner: Histogram,
 }
-pub type liq_palette = crate::Palette;
+
+pub type liq_palette = Palette;
 pub type liq_histogram_entry = HistogramEntry;
 pub type liq_color = RGBA;
 
-pub type liq_log_callback_function = unsafe extern "C" fn(liq: &liq_attr, message: *const c_char, user_info: *mut c_void);
-pub type liq_log_flush_callback_function = unsafe extern "C" fn(liq: &liq_attr, user_info: *mut c_void);
-pub type liq_progress_callback_function = unsafe extern "C" fn(progress_percent: f32, user_info: *mut c_void) -> c_int;
-pub type liq_image_get_rgba_row_callback = unsafe extern "C" fn(row_out: *mut MaybeUninit<RGBA>, row: c_int, width: c_int, user_info: *mut c_void);
+pub type liq_log_callback_function = unsafe extern "C" fn(liq: &liq_attr, message: *const c_char, user_info: AnySyncSendPtr);
+pub type liq_log_flush_callback_function = unsafe extern "C" fn(liq: &liq_attr, user_info: AnySyncSendPtr);
+pub type liq_progress_callback_function = unsafe extern "C" fn(progress_percent: f32, user_info: AnySyncSendPtr) -> c_int;
+pub type liq_image_get_rgba_row_callback = unsafe extern "C" fn(row_out: *mut MaybeUninit<RGBA>, row: c_int, width: c_int, user_info: AnySyncSendPtr);
+
+bitflags::bitflags! {
+    #[repr(C)]
+    pub struct liq_ownership: c_int {
+        /// Moves ownership of the rows array. It will free it using `free()` or custom allocator.
+        const LIQ_OWN_ROWS = 4;
+        /// Moves ownership of the pixel data. It will free it using `free()` or custom allocator.
+        const LIQ_OWN_PIXELS = 8;
+        /// Makes a copy of the pixels, so the `liq_image` is not tied to pixel's lifetime.
+        const LIQ_COPY_PIXELS = 16;
+    }
+}
 
 #[repr(transparent)]
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -84,7 +101,7 @@ impl Drop for liq_attr {
         self.magic_header = LIQ_FREED_MAGIC;
     }
 }
-impl Drop for liq_image<'_, '_> {
+impl Drop for liq_image<'_> {
     fn drop(&mut self) {
         if bad_object!(self, LIQ_IMAGE_MAGIC) { return; }
         unsafe { ManuallyDrop::drop(&mut self.inner); }
@@ -107,7 +124,7 @@ impl Drop for liq_histogram {
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_version() -> c_uint {
-    crate::LIQ_VERSION
+    LIQ_VERSION
 }
 
 #[no_mangle]
@@ -135,7 +152,7 @@ pub extern "C" fn liq_set_last_index_transparent(attr: &mut liq_attr, is_last: c
 #[inline(never)]
 pub extern "C" fn liq_get_palette(result: &mut liq_result) -> Option<&liq_palette> {
     if bad_object!(result, LIQ_RESULT_MAGIC) { return None; }
-    Some(result.inner.int_palette())
+    Some(liq_get_palette_impl(&mut result.inner))
 }
 
 /// A `void*` pointer to any data, as long as it's thread-safe
@@ -157,14 +174,15 @@ unsafe impl Sync for AnySyncSendPtr {}
 #[inline(never)]
 pub unsafe extern "C" fn liq_attr_set_progress_callback(attr: &mut liq_attr, callback: liq_progress_callback_function, user_info: AnySyncSendPtr) {
     if bad_object!(attr, LIQ_ATTR_MAGIC) { return; }
-    attr.inner.set_progress_callback(move |f| if callback(f, user_info.0) == 0 { ControlFlow::Break} else { ControlFlow::Continue});
+    let cb = move |f| if callback(f, user_info) == 0 { ControlFlow::Break} else { ControlFlow::Continue};
+    attr.inner.set_progress_callback(cb);
 }
 
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn liq_result_set_progress_callback(result: &mut liq_result, callback: liq_progress_callback_function, user_info: AnySyncSendPtr) {
     if bad_object!(result, LIQ_RESULT_MAGIC) { return; }
-    result.inner.set_progress_callback(move |f| if callback(f, user_info.0) == 0 { ControlFlow::Break} else { ControlFlow::Continue});
+    result.inner.set_progress_callback(move |f| if callback(f, user_info) == 0 { ControlFlow::Break} else { ControlFlow::Continue});
 }
 
 unsafe fn attr_to_liq_attr_ptr(ptr: &Attributes) -> &liq_attr {
@@ -179,10 +197,9 @@ unsafe fn attr_to_liq_attr_ptr(ptr: &Attributes) -> &liq_attr {
 #[inline(never)]
 pub unsafe extern "C" fn liq_set_log_callback(attr: &mut liq_attr, callback: liq_log_callback_function, user_info: AnySyncSendPtr) {
     if bad_object!(attr, LIQ_ATTR_MAGIC) { return; }
-    attr.inner.verbose_printf_flush();
     attr.inner.set_log_callback(move |attr, msg| {
         if let Ok(tmp) = CString::new(msg) {
-            callback(attr_to_liq_attr_ptr(attr), tmp.as_ptr(), user_info.0)
+            callback(attr_to_liq_attr_ptr(attr), tmp.as_ptr(), user_info)
         }
     });
 }
@@ -191,7 +208,7 @@ pub unsafe extern "C" fn liq_set_log_callback(attr: &mut liq_attr, callback: liq
 #[inline(never)]
 pub unsafe extern "C" fn liq_set_log_flush_callback(attr: &mut liq_attr, callback: liq_log_flush_callback_function, user_info: AnySyncSendPtr) {
     if bad_object!(attr, LIQ_ATTR_MAGIC) { return; }
-    attr.inner.set_log_flush_callback(move |attr| callback(attr_to_liq_attr_ptr(attr), user_info.0));
+    attr.inner.set_log_flush_callback(move |attr| callback(attr_to_liq_attr_ptr(attr), user_info));
 }
 
 #[no_mangle]
@@ -261,10 +278,10 @@ pub extern "C" fn liq_get_max_quality(attr: &liq_attr) -> c_uint {
 pub extern "C" fn liq_quantize_image(attr: &mut liq_attr, img: &mut liq_image) -> Option<Box<liq_result>> {
     if bad_object!(attr, LIQ_ATTR_MAGIC) ||
        bad_object!(img, LIQ_IMAGE_MAGIC) { return None; }
+    let img = &mut img.inner;
+    let attr = &mut attr.inner;
 
-    let mut hist = Histogram::new(&attr.inner);
-    hist.add_image(&attr.inner, &mut img.inner).ok()?;
-    hist.quantize_internal(&attr.inner, false).ok().map(|inner| Box::new(liq_result {
+    attr.quantize(img).ok().map(|inner| Box::new(liq_result {
         magic_header: LIQ_RESULT_MAGIC,
         inner,
     }))
@@ -283,9 +300,7 @@ pub unsafe extern "C" fn liq_write_remapped_image(result: &mut liq_result, input
     let required_size = (input_image.width()) * (input_image.height());
     if buffer_size < required_size { return LIQ_BUFFER_TOO_SMALL; }
     let buffer_bytes = std::slice::from_raw_parts_mut(buffer_bytes, required_size);
-
-    let rows = RowBitmapMut::new_contiguous(buffer_bytes, input_image.width());
-    result.write_remapped_image_rows_internal(input_image, rows).err().unwrap_or(LIQ_OK)
+    liq_write_remapped_image_impl(result, input_image, buffer_bytes).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -297,11 +312,9 @@ pub unsafe extern "C" fn liq_write_remapped_image_rows(result: &mut liq_result, 
     let result = &mut result.inner;
 
     if liq_received_invalid_pointer(row_pointers.cast()) { return LIQ_INVALID_POINTER; }
-
     let rows = std::slice::from_raw_parts_mut(row_pointers, input_image.height());
-    let rows = RowBitmapMut::new(rows, input_image.width());
 
-    result.write_remapped_image_rows_internal(input_image, rows).err().unwrap_or(LIQ_OK)
+    liq_write_remapped_image_rows_impl(result, input_image, rows).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -324,14 +337,14 @@ pub extern "C" fn liq_histogram_add_fixed_color(hist: &mut liq_histogram, color:
 #[inline(never)]
 pub extern "C" fn liq_image_get_width(img: &liq_image) -> c_uint {
     if bad_object!(img, LIQ_IMAGE_MAGIC) { return !0; }
-    img.inner.px.width
+    img.inner.width() as _
 }
 
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_image_get_height(img: &liq_image) -> c_uint {
     if bad_object!(img, LIQ_IMAGE_MAGIC) { return !0; }
-    img.inner.px.height
+    img.inner.height() as _
 }
 
 #[no_mangle]
@@ -340,7 +353,7 @@ pub extern "C" fn liq_image_destroy(_: Option<Box<liq_image>>) {}
 
 #[no_mangle]
 #[inline(never)]
-pub extern "C" fn liq_image_set_background<'pixels, 'rows>(img: &mut liq_image<'pixels, 'rows>, background: Box<liq_image<'pixels, 'rows>>) -> liq_error {
+pub extern "C" fn liq_image_set_background<'pixels>(img: &mut liq_image<'pixels>, background: Box<liq_image<'pixels>>) -> liq_error {
     if bad_object!(img, LIQ_IMAGE_MAGIC) ||
        bad_object!(background, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
     let background = unsafe { ManuallyDrop::take(&mut ManuallyDrop::new(background).inner) };
@@ -351,38 +364,40 @@ pub extern "C" fn liq_image_set_background<'pixels, 'rows>(img: &mut liq_image<'
 #[inline(never)]
 pub unsafe extern "C" fn liq_image_set_importance_map(img: &mut liq_image, importance_map: *mut u8, buffer_size: usize, ownership: liq_ownership) -> liq_error {
     if bad_object!(img, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
+    let free_fn = img.c_api_free;
     let img = &mut img.inner;
 
-    let buf = if buffer_size > 0 {
-        if liq_received_invalid_pointer(importance_map) { return LIQ_INVALID_POINTER; }
-        let required_size = img.width() * img.height();
-        if buffer_size < required_size {
-            return LIQ_BUFFER_TOO_SMALL;
-        }
+    if buffer_size == 0 || liq_received_invalid_pointer(importance_map) { return LIQ_INVALID_POINTER; }
+    let required_size = img.width() * img.height();
+    if buffer_size < required_size {
+        return LIQ_BUFFER_TOO_SMALL;
+    }
 
-        let importance_map = std::slice::from_raw_parts_mut(importance_map, required_size);
-        Some(if ownership == liq_ownership::LIQ_COPY_PIXELS {
-            SeaCow::boxed(importance_map[..].into())
-        } else if ownership == liq_ownership::LIQ_OWN_PIXELS {
-            SeaCow::c_owned(importance_map.as_mut_ptr(), importance_map.len(), img.c_api_free.unwrap_or(libc::free))
-        } else {
-            return LIQ_UNSUPPORTED;
-        })
+    let importance_map = std::slice::from_raw_parts_mut(importance_map, required_size);
+    if ownership == liq_ownership::LIQ_COPY_PIXELS {
+        img.set_importance_map(importance_map).err().unwrap_or(LIQ_OK)
+    } else if ownership == liq_ownership::LIQ_OWN_PIXELS {
+        liq_image_set_importance_map_owned(img, importance_map, free_fn);
+        LIQ_OK
     } else {
-        None
-    };
-
-    img.set_importance_map_raw(buf);
-    LIQ_OK
+        LIQ_UNSUPPORTED
+    }
 }
 
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn liq_image_set_memory_ownership(img: &mut liq_image, ownership_flags: liq_ownership) -> liq_error {
     if bad_object!(img, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
-    let img = &mut img.inner;
-    let free_fn = img.c_api_free.unwrap_or(libc::free);
-    img.px.set_memory_ownership(ownership_flags, free_fn).err().unwrap_or(LIQ_OK)
+
+    let both = liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_OWN_PIXELS;
+
+    if ownership_flags.is_empty() || (ownership_flags | both) != both {
+        return LIQ_VALUE_OUT_OF_RANGE;
+    }
+
+    let own_rows = ownership_flags.contains(liq_ownership::LIQ_OWN_ROWS);
+    let own_pixels = ownership_flags.contains(liq_ownership::LIQ_OWN_PIXELS);
+    liq_image_set_memory_ownership_impl(&mut img.inner, own_rows, own_pixels, img.c_api_free).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -402,23 +417,21 @@ pub extern "C" fn liq_histogram_destroy(_hist: Option<Box<liq_histogram>>) {}
 #[no_mangle]
 #[inline(never)]
 #[deprecated(note = "custom allocators are no longer supported")]
-pub extern "C" fn liq_attr_create_with_allocator(_unused: *mut c_void, free: Option<unsafe extern fn(*mut c_void)>) -> Option<Box<liq_attr>> {
-    Some(Box::new(liq_attr {
+pub extern "C" fn liq_attr_create_with_allocator(_unused: *mut c_void, free: unsafe extern fn(*mut c_void)) -> Option<Box<liq_attr>> {
+    let attr = Box::new(liq_attr {
         magic_header: LIQ_ATTR_MAGIC,
-        inner: Attributes::with_free(free),
-
-    }))
+        inner: Attributes::new(),
+        c_api_free: free,
+    });
+    debug_assert_eq!((&*attr) as *const liq_attr, unsafe { attr_to_liq_attr_ptr(&attr.inner) } as *const liq_attr);
+    Some(attr)
 }
 
 #[no_mangle]
 #[inline(never)]
+#[allow(deprecated)]
 pub extern "C" fn liq_attr_create() -> Option<Box<liq_attr>> {
-    let attr = Box::new(liq_attr {
-        magic_header: LIQ_ATTR_MAGIC,
-        inner: Attributes::new(),
-    });
-    debug_assert_eq!((&*attr) as *const liq_attr, unsafe { attr_to_liq_attr_ptr(&attr.inner) } as *const liq_attr);
-    Some(attr)
+    liq_attr_create_with_allocator(ptr::null_mut(), libc::free)
 }
 
 #[no_mangle]
@@ -428,6 +441,7 @@ pub extern "C" fn liq_attr_copy(attr: &liq_attr) -> Option<Box<liq_attr>> {
     Some(Box::new(liq_attr {
         magic_header: LIQ_ATTR_MAGIC,
         inner: attr.inner.clone(),
+        c_api_free: attr.c_api_free,
     }))
 }
 
@@ -490,15 +504,13 @@ pub extern "C" fn liq_get_remapping_quality(result: &liq_result) -> c_int {
 
 #[no_mangle]
 #[inline(never)]
-pub fn liq_image_quantize(img: &mut liq_image, attr: &liq_attr, write_only_output: &mut MaybeUninit<Option<Box<liq_result>>>) -> liq_error {
+pub fn liq_image_quantize(img: &mut liq_image, attr: &mut liq_attr, write_only_output: &mut MaybeUninit<Option<Box<liq_result>>>) -> liq_error {
     if bad_object!(attr, LIQ_ATTR_MAGIC) ||
        bad_object!(img, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
-    let attr = &attr.inner;
+    let attr = &mut attr.inner;
     let img = &mut img.inner;
 
-    let mut hist = Histogram::new(attr);
-    let res = hist.add_image(attr, img)
-        .and_then(|_| hist.quantize_internal(attr, false))
+    let res = attr.quantize(img)
         .map(|inner| liq_result {
             magic_header: LIQ_RESULT_MAGIC,
             inner,
@@ -514,7 +526,7 @@ pub fn liq_histogram_quantize(hist: &mut liq_histogram, attr: &liq_attr, write_o
     let attr = &attr.inner;
     let hist = &mut hist.inner;
 
-    let res = hist.quantize_internal(attr, true)
+    let res = hist.quantize(attr)
         .map(|inner| liq_result {
             magic_header: LIQ_RESULT_MAGIC,
             inner,
@@ -534,15 +546,13 @@ pub(crate) fn check_image_size(attr: &liq_attr, width: u32, height: u32) -> bool
     if bad_object!(attr, LIQ_ATTR_MAGIC) { return false; }
 
     if width == 0 || height == 0 {
-        attr.inner.verbose_print("  error: width and height must be > 0");
         return false;
     }
 
     if width as usize > c_int::MAX as usize / std::mem::size_of::<liq_color>() / height as usize ||
-       width as usize > c_int::MAX as usize / 16 / std::mem::size_of::<f_pixel>() ||
+       width as usize > c_int::MAX as usize / 16 / std::mem::size_of::<f32>() ||
        height as usize > c_int::MAX as usize / std::mem::size_of::<usize>()
     {
-        attr.inner.verbose_print("  error: image too large");
         return false;
     }
     true
@@ -551,44 +561,41 @@ pub(crate) fn check_image_size(attr: &liq_attr, width: u32, height: u32) -> bool
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn liq_image_create_custom(attr: &liq_attr, row_callback: liq_image_get_rgba_row_callback, user_info: AnySyncSendPtr, width: c_uint, height: c_uint, gamma: f64)
- -> Option<Box<liq_image<'static, 'static>>> {
-    let db: Box<dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync> = Box::new(move |row, y| row_callback(row.as_mut_ptr(), y as _, row.len() as _, user_info.0));
-    Image::new_internal(&attr.inner, PixelsSource::Callback(db), width, height, gamma).ok()
-        .map(|inner| Box::new(liq_image {
+ -> Option<Box<liq_image<'static>>> {
+    let cb: Box<dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync> = Box::new(move |row, y| row_callback(row.as_mut_ptr(), y as _, row.len() as _, user_info));
+    liq_image_create_custom_impl(&attr.inner, cb, width as _, height as _, gamma)
+        .map(move |inner| Box::new(liq_image {
             magic_header: LIQ_IMAGE_MAGIC,
             inner: ManuallyDrop::new(inner),
+            c_api_free: attr.c_api_free,
         }))
 }
 
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn liq_image_create_rgba_rows<'rows>(attr: &liq_attr, rows: *const *const u8, width: c_uint, height: c_uint, gamma: f64) -> Option<Box<liq_image<'rows, 'static>>> {
+pub unsafe extern "C" fn liq_image_create_rgba_rows<'rows>(attr: &liq_attr, rows: *const *const RGBA, width: c_uint, height: c_uint, gamma: f64) -> Option<Box<liq_image<'rows>>> {
     if !check_image_size(attr, width, height) { return None; }
     if rows.is_null() { return None; }
-    let rows = std::slice::from_raw_parts(rows as *const *const liq_color, height as _);
-    let rows = SeaCow::borrowed(rows);
-    let rows_slice = rows.as_slice();
-    if rows_slice.iter().any(|r| r.is_null()) {
-        return None;
-    }
-    Image::new_internal(&attr.inner, PixelsSource::Pixels { rows, pixels: None }, width, height, gamma).ok()
-        .map(|inner| Box::new(liq_image {
+    let rows = std::slice::from_raw_parts(rows, height as _);
+    liq_image_create_rgba_rows_impl(&attr.inner, rows, width as _,  height as _, gamma)
+        .map(move |inner| Box::new(liq_image {
             magic_header: LIQ_IMAGE_MAGIC,
             inner: ManuallyDrop::new(inner),
+            c_api_free: attr.c_api_free,
         }))
 }
 
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn liq_image_create_rgba(attr: &liq_attr, bitmap: *const liq_color, width: c_uint, height: c_uint, gamma: f64) -> Option<Box<liq_image>> {
+pub unsafe extern "C" fn liq_image_create_rgba<'pixels>(attr: &liq_attr, bitmap: *const liq_color, width: c_uint, height: c_uint, gamma: f64) -> Option<Box<liq_image<'pixels>>> {
     if liq_received_invalid_pointer(bitmap.cast()) { return None; }
     if !check_image_size(attr, width, height) { return None; }
-
-    let rows = SeaCow::boxed((0..height as usize).map(move |i| bitmap.add(width as usize * i)).collect());
-    Image::new_internal(&attr.inner, PixelsSource::Pixels { rows, pixels: None }, width, height, gamma).ok()
-        .map(|inner| Box::new(liq_image {
+    let rows = (0..height as usize).map(move |i| bitmap.add(width as usize * i)).collect();
+    liq_image_create_rgba_bitmap_impl(&attr.inner, rows, width as _, height as _, gamma)
+        .map(move |inner| Box::new(liq_image {
             magic_header: LIQ_IMAGE_MAGIC,
             inner: ManuallyDrop::new(inner),
+            c_api_free: attr.c_api_free,
         }))
 }
 
@@ -625,7 +632,7 @@ pub extern "C" fn liq_histogram_add_image(input_hist: &mut liq_histogram, attr: 
 
 #[no_mangle]
 #[inline(never)]
-pub unsafe fn liq_executing_user_callback(callback: liq_image_get_rgba_row_callback, temp_row: &mut [MaybeUninit<liq_color>], row: usize, user_info: *mut std::os::raw::c_void) {
+pub unsafe fn liq_executing_user_callback(callback: liq_image_get_rgba_row_callback, temp_row: &mut [MaybeUninit<liq_color>], row: usize, user_info: AnySyncSendPtr) {
     callback(temp_row.as_mut_ptr(), row as _, temp_row.len() as _, user_info);
 }
 
@@ -710,19 +717,18 @@ fn link_every_symbol() {
 #[test]
 fn c_callback_test_c() {
     use std::mem::MaybeUninit;
-    use rgb::RGBA8 as RGBA;
 
     let mut called = 0;
     let mut res = unsafe {
         let mut a = liq_attr_create().unwrap();
-        unsafe extern "C" fn get_row(output_row: *mut MaybeUninit<RGBA>, y: c_int, width: c_int, user_data: *mut c_void) {
+        unsafe extern "C" fn get_row(output_row: *mut MaybeUninit<RGBA>, y: c_int, width: c_int, user_data: AnySyncSendPtr) {
             assert!((0..5).contains(&y));
             assert_eq!(123, width);
             for i in 0..width as isize {
                 let n = i as u8;
                 (*output_row.offset(i as isize)).write(RGBA::new(n, n, n, n));
             }
-            let user_data = user_data as *mut i32;
+            let user_data = user_data.0 as *mut i32;
             *user_data += 1;
         }
         let mut img = liq_image_create_custom(&a, get_row, AnySyncSendPtr((&mut called) as *mut _ as *mut c_void), 123, 5, 0.).unwrap();
@@ -731,4 +737,11 @@ fn c_callback_test_c() {
     assert!(called > 5 && called < 50);
     let pal = liq_get_palette(&mut res).unwrap();
     assert_eq!(123, pal.count);
+}
+
+
+
+#[test]
+fn ownership_bitflags() {
+    assert_eq!(4+16, (liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_COPY_PIXELS).bits());
 }

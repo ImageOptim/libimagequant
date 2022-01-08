@@ -1,7 +1,6 @@
-use std::os::raw::c_void;
 use crate::error::*;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
-use crate::seacow::{liq_ownership, SeaCow};
+use crate::seacow::SeaCow;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
 use std::mem::MaybeUninit;
 
@@ -149,21 +148,16 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 
     /// Not recommended
-    pub(crate) unsafe fn set_memory_ownership(&mut self, ownership_flags: liq_ownership, free_fn: unsafe extern fn(*mut c_void)) -> Result<(), liq_error> {
-        let both = liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_OWN_PIXELS;
-
-        if ownership_flags.is_empty() || (ownership_flags | both) != both {
-            return Err(LIQ_VALUE_OUT_OF_RANGE);
-        }
-
-        if ownership_flags.contains(liq_ownership::LIQ_OWN_ROWS) {
+    #[cfg(feature = "_internal_c_ffi")]
+    pub(crate) unsafe fn set_memory_ownership(&mut self, own_rows: bool, own_pixels: bool, free_fn: unsafe extern fn(*mut std::os::raw::c_void)) -> Result<(), liq_error> {
+        if own_rows {
             match &mut self.pixels {
                 PixelsSource::Pixels { rows, .. } => rows.make_owned(free_fn),
                 PixelsSource::Callback(_) => return Err(LIQ_VALUE_OUT_OF_RANGE),
             }
         }
 
-        if ownership_flags.contains(liq_ownership::LIQ_OWN_PIXELS) {
+        if own_pixels {
             let len = self.width() * self.height();
             match &mut self.pixels {
                 PixelsSource::Pixels { pixels: Some(pixels), .. } => pixels.make_owned(free_fn),

@@ -1,6 +1,6 @@
+#[cfg(feature = "_internal_c_ffi")]
 use std::os::raw::c_void;
 use std::mem::MaybeUninit;
-use std::os::raw::c_int;
 
 pub struct SeaCow<'a, T> {
     inner: SeaCowInner<'a, T>,
@@ -29,6 +29,7 @@ impl<'a, T> SeaCow<'a, T> {
 
     /// The pointer must be `malloc`-allocated
     #[inline]
+    #[cfg(feature = "_internal_c_ffi")]
     pub unsafe fn c_owned(ptr: *mut T, len: usize, free_fn: unsafe extern fn(*mut c_void)) -> Self {
         debug_assert!(!ptr.is_null());
         debug_assert!(len > 0);
@@ -39,6 +40,7 @@ impl<'a, T> SeaCow<'a, T> {
     }
 
     #[inline]
+    #[cfg(feature = "_internal_c_ffi")]
     pub(crate) fn make_owned(&mut self, free_fn: unsafe extern fn(*mut c_void)) {
         if let SeaCowInner::Borrowed(slice) = self.inner {
             self.inner = SeaCowInner::Owned { ptr: slice.as_ptr() as *mut _, len: slice.len(), free_fn };
@@ -47,11 +49,13 @@ impl<'a, T> SeaCow<'a, T> {
 }
 
 enum SeaCowInner<'a, T> {
+    #[cfg(feature = "_internal_c_ffi")]
     Owned { ptr: *mut T, len: usize, free_fn: unsafe extern fn(*mut c_void) },
     Borrowed(&'a [T]),
     Boxed(Box<[T]>),
 }
 
+#[cfg(feature = "_internal_c_ffi")]
 impl<'a, T> Drop for SeaCowInner<'a, T> {
     fn drop(&mut self) {
         if let Self::Owned { ptr, free_fn, .. } = self {
@@ -65,6 +69,7 @@ impl<'a, T> Drop for SeaCowInner<'a, T> {
 impl<'a, T> SeaCow<'a, T> {
     pub fn as_slice(&self) -> &[T] {
         match &self.inner {
+            #[cfg(feature = "_internal_c_ffi")]
             SeaCowInner::Owned { ptr, len, .. } => unsafe { std::slice::from_raw_parts(*ptr, *len) },
             SeaCowInner::Borrowed(a) => a,
             SeaCowInner::Boxed(x) => x,
@@ -73,6 +78,7 @@ impl<'a, T> SeaCow<'a, T> {
 
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         match &mut self.inner {
+            #[cfg(feature = "_internal_c_ffi")]
             SeaCowInner::Owned { ptr, len, .. } => (unsafe { std::slice::from_raw_parts_mut(*ptr, *len) }),
             SeaCowInner::Boxed(x) => (x),
             SeaCowInner::Borrowed(_) => panic!("can't"),
@@ -136,6 +142,7 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
 
     /// Innter pointers must be valid for `'a` too, and at least `width` large each
     #[inline]
+    #[cfg(feature = "_internal_c_ffi")]
     pub unsafe fn new(rows: &'a mut [*mut T], width: usize) -> Self {
         Self {
             rows: MutCow::Borrowed(rows),
@@ -152,17 +159,5 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
         send_slice.iter().map(move |row| {
             unsafe { std::slice::from_raw_parts_mut(row.0, width) }
         })
-    }
-}
-
-bitflags::bitflags! {
-    #[repr(C)]
-    pub struct liq_ownership: c_int {
-        /// Moves ownership of the rows array. It will free it using `free()` or custom allocator.
-        const LIQ_OWN_ROWS = 4;
-        /// Moves ownership of the pixel data. It will free it using `free()` or custom allocator.
-        const LIQ_OWN_PIXELS = 8;
-        /// Makes a copy of the pixels, so the `liq_image` is not tied to pixel's lifetime.
-        const LIQ_COPY_PIXELS = 16;
     }
 }

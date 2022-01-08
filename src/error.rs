@@ -3,6 +3,7 @@ use std::fmt;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[allow(non_camel_case_types)]
 pub enum liq_error {
     LIQ_OK = 0,
     LIQ_QUALITY_TOO_LOW = 99,
