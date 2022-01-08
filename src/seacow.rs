@@ -1,3 +1,4 @@
+use std::os::raw::c_void;
 use std::mem::MaybeUninit;
 use std::os::raw::c_int;
 
@@ -28,34 +29,34 @@ impl<'a, T> SeaCow<'a, T> {
 
     /// The pointer must be `malloc`-allocated
     #[inline]
-    pub unsafe fn c_owned(ptr: *mut T, len: usize) -> Self {
+    pub unsafe fn c_owned(ptr: *mut T, len: usize, free_fn: unsafe extern fn(*mut c_void)) -> Self {
         debug_assert!(!ptr.is_null());
         debug_assert!(len > 0);
 
         Self {
-            inner: SeaCowInner::Owned { ptr, len },
+            inner: SeaCowInner::Owned { ptr, len, free_fn },
         }
     }
 
     #[inline]
-    pub(crate) fn make_owned(&mut self) {
+    pub(crate) fn make_owned(&mut self, free_fn: unsafe extern fn(*mut c_void)) {
         if let SeaCowInner::Borrowed(slice) = self.inner {
-            self.inner = SeaCowInner::Owned { ptr: slice.as_ptr() as *mut _, len: slice.len() };
+            self.inner = SeaCowInner::Owned { ptr: slice.as_ptr() as *mut _, len: slice.len(), free_fn };
         }
     }
 }
 
 enum SeaCowInner<'a, T> {
-    Owned { ptr: *mut T, len: usize },
+    Owned { ptr: *mut T, len: usize, free_fn: unsafe extern fn(*mut c_void) },
     Borrowed(&'a [T]),
     Boxed(Box<[T]>),
 }
 
 impl<'a, T> Drop for SeaCowInner<'a, T> {
     fn drop(&mut self) {
-        if let Self::Owned { ptr, .. } = self {
+        if let Self::Owned { ptr, free_fn, .. } = self {
             unsafe {
-                libc::free((*ptr).cast());
+                (free_fn)((*ptr).cast());
             }
         }
     }
@@ -64,7 +65,7 @@ impl<'a, T> Drop for SeaCowInner<'a, T> {
 impl<'a, T> SeaCow<'a, T> {
     pub fn as_slice(&self) -> &[T] {
         match &self.inner {
-            SeaCowInner::Owned { ptr, len } => unsafe { std::slice::from_raw_parts(*ptr, *len) },
+            SeaCowInner::Owned { ptr, len, .. } => unsafe { std::slice::from_raw_parts(*ptr, *len) },
             SeaCowInner::Borrowed(a) => a,
             SeaCowInner::Boxed(x) => x,
         }
@@ -72,7 +73,7 @@ impl<'a, T> SeaCow<'a, T> {
 
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         match &mut self.inner {
-            SeaCowInner::Owned { ptr, len } => (unsafe { std::slice::from_raw_parts_mut(*ptr, *len) }),
+            SeaCowInner::Owned { ptr, len, .. } => (unsafe { std::slice::from_raw_parts_mut(*ptr, *len) }),
             SeaCowInner::Boxed(x) => (x),
             SeaCowInner::Borrowed(_) => panic!("can't"),
         }

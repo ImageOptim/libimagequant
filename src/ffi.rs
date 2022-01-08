@@ -1,3 +1,5 @@
+//! Exports API for C programs and C-FFI-compatible languages. See `libimagequant.h` or <https://pngquant.org/lib/> for C docs.
+
 #![allow(clippy::missing_safety_doc)]
 
 use crate::attr::*;
@@ -28,7 +30,7 @@ pub type liq_image_get_rgba_row_callback = unsafe extern "C" fn(row_out: *mut Ma
 
 #[repr(transparent)]
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub struct MagicTag(*const u8);
+pub(crate) struct MagicTag(*const u8);
 // Safety: Rust overreacts about C pointers. Data behind this ptr isn't used.
 unsafe impl Sync for MagicTag {}
 unsafe impl Send for MagicTag {}
@@ -299,7 +301,7 @@ pub unsafe extern "C" fn liq_image_set_importance_map(img: &mut Image, importanc
         Some(if ownership == liq_ownership::LIQ_COPY_PIXELS {
             SeaCow::boxed(importance_map[..].into())
         } else if ownership == liq_ownership::LIQ_OWN_PIXELS {
-            SeaCow::c_owned(importance_map.as_mut_ptr(), importance_map.len())
+            SeaCow::c_owned(importance_map.as_mut_ptr(), importance_map.len(), img.c_api_free.unwrap_or(libc::free))
         } else {
             return LIQ_UNSUPPORTED;
         })
@@ -315,7 +317,7 @@ pub unsafe extern "C" fn liq_image_set_importance_map(img: &mut Image, importanc
 #[inline(never)]
 pub unsafe extern "C" fn liq_image_set_memory_ownership(img: &mut Image, ownership_flags: liq_ownership) -> liq_error {
     if bad_object!(img, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
-    img.px.set_memory_ownership(ownership_flags).err().unwrap_or(LIQ_OK)
+    img.px.set_memory_ownership(ownership_flags, img.c_api_free.unwrap_or(libc::free)).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -332,8 +334,8 @@ pub extern "C" fn liq_histogram_destroy(_hist: Option<Box<Histogram>>) {}
 #[no_mangle]
 #[inline(never)]
 #[deprecated(note = "custom allocators are no longer supported")]
-pub extern "C" fn liq_attr_create_with_allocator(mut _unused: *mut c_void, mut _ignored: *mut c_void) -> Option<Box<liq_attr>> {
-    liq_attr_create()
+pub extern "C" fn liq_attr_create_with_allocator(_unused: *mut c_void, free: Option<unsafe extern fn(*mut c_void)>) -> Option<Box<liq_attr>> {
+    Some(Box::new(Attributes::with_free(free)))
 }
 
 #[no_mangle]

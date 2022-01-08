@@ -1,3 +1,4 @@
+use std::os::raw::c_void;
 use crate::error::{liq_error, LIQ_OK, LIQ_VALUE_OUT_OF_RANGE};
 use crate::ffi::MagicTag;
 use crate::ffi::LIQ_ATTR_MAGIC;
@@ -33,6 +34,8 @@ pub struct Attributes {
     progress_callback: Option<Arc<dyn Fn(f32) -> ControlFlow + Send + Sync>>,
     log_callback: Option<Arc<dyn Fn(&Attributes, &str) + Send + Sync>>,
     log_flush_callback: Option<Arc<dyn Fn(&Attributes) + Send + Sync>>,
+
+    pub(crate) c_api_free: Option<unsafe extern fn(*mut c_void)>,
 }
 
 impl Attributes {
@@ -63,8 +66,15 @@ impl Attributes {
             progress_callback: None,
             log_callback: None,
             log_flush_callback: None,
+            c_api_free: None,
         };
         attr.set_speed(4);
+        attr
+    }
+
+    pub(crate) fn with_free(free_fn: Option<unsafe extern fn(*mut c_void)>) -> Self {
+        let mut attr = Self::new();
+        attr.c_api_free = free_fn;
         attr
     }
 

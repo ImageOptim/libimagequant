@@ -1,3 +1,4 @@
+use std::os::raw::c_void;
 use crate::error::*;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
 use crate::seacow::{liq_ownership, SeaCow};
@@ -148,7 +149,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 
     /// Not recommended
-    pub(crate) unsafe fn set_memory_ownership(&mut self, ownership_flags: liq_ownership) -> Result<(), liq_error> {
+    pub(crate) unsafe fn set_memory_ownership(&mut self, ownership_flags: liq_ownership, free_fn: unsafe extern fn(*mut c_void)) -> Result<(), liq_error> {
         let both = liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_OWN_PIXELS;
 
         if ownership_flags.is_empty() || (ownership_flags | both) != both {
@@ -157,7 +158,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
 
         if ownership_flags.contains(liq_ownership::LIQ_OWN_ROWS) {
             match &mut self.pixels {
-                PixelsSource::Pixels { rows, .. } => rows.make_owned(),
+                PixelsSource::Pixels { rows, .. } => rows.make_owned(free_fn),
                 PixelsSource::Callback(_) => return Err(LIQ_VALUE_OUT_OF_RANGE),
             }
         }
@@ -165,11 +166,11 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
         if ownership_flags.contains(liq_ownership::LIQ_OWN_PIXELS) {
             let len = self.width() * self.height();
             match &mut self.pixels {
-                PixelsSource::Pixels { pixels: Some(pixels), .. } => pixels.make_owned(),
+                PixelsSource::Pixels { pixels: Some(pixels), .. } => pixels.make_owned(free_fn),
                 PixelsSource::Pixels { pixels, rows } => {
                     // the row with the lowest address is assumed to be at the start of the bitmap
                     let ptr = rows.as_slice().iter().copied().min().ok_or(LIQ_UNSUPPORTED)?;
-                    *pixels = Some(SeaCow::c_owned(ptr as *mut _, len));
+                    *pixels = Some(SeaCow::c_owned(ptr as *mut _, len, free_fn));
                 },
                 PixelsSource::Callback(_) => return Err(LIQ_VALUE_OUT_OF_RANGE),
             }

@@ -502,9 +502,9 @@ The callback should return `1` to continue the operation, and `0` to abort curre
 
     liq_attr* liq_attr_create_with_allocator(void* (*malloc)(size_t), void (*free)(void*));
 
-Same as `liq_attr_create`, but uses given `malloc` and `free` replacements to allocate all memory used by the library.
+This function is deprecated. Same as `liq_attr_create`, but specifies `free` to use for `liq_image_set_memory_ownership`. The `malloc` argument is not used.
 
-The `malloc` function must return 16-byte aligned memory on x86 (and on other architectures memory aligned for `double` and pointers). Conversely, if your stdlib's `malloc` doesn't return appropriately aligned memory, you should use this function to provide aligned replacements.
+The library will use Rust's [global allocator](https://doc.rust-lang.org/std/alloc/index.html).
 
 ----
 
