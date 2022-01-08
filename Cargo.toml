@@ -13,6 +13,9 @@ include = ["COPYRIGHT", "src/*.rs", "*.h", "README.md", "Cargo.toml"]
 readme = "README.md"
 edition = "2018"
 
+[features]
+capi = []
+
 [lib]
 crate-type = ["cdylib", "staticlib", "lib"]
 doctest = false
@@ -29,3 +32,17 @@ thread_local = "1.1.3"
 
 [dev-dependencies]
 lodepng = "3.4.7"
+
+[package.metadata.capi.library]
+version = "0.0.0"
+
+[package.metadata.capi.pkg_config]
+description = "Convert 24/32-bit images to 8-bit palette with alpha channel."
+
+[package.metadata.capi.header]
+name = "libimagequant"
+subdirectory = ""
+generation = false
+
+[package.metadata.capi.install.include]
+asset = [{from = "libimagequant.h"}]
