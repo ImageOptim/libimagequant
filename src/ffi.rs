@@ -413,8 +413,8 @@ pub fn liq_image_quantize(img: &mut Image, attr: &liq_attr, write_only_output: &
        bad_object!(img, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
 
     let mut hist = Histogram::new(attr);
-    if let Err(err) = hist.add_image(attr, img) { return err; }
-    store_boxed_result(hist.quantize_internal(attr, false), write_only_output)
+    let res = hist.add_image(attr, img).and_then(|_| hist.quantize_internal(attr, false));
+    store_boxed_result(res, write_only_output)
 }
 
 #[no_mangle]
