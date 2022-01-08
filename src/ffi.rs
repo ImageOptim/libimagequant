@@ -596,3 +596,29 @@ fn link_every_symbol() {
         + liq_version as *const c_void as usize;
     assert_ne!(!0, x);
 }
+
+#[test]
+fn c_callback_test_c() {
+    use std::mem::MaybeUninit;
+    use rgb::RGBA8 as RGBA;
+
+    let mut called = 0;
+    let mut res = unsafe {
+        let mut a = liq_attr_create().unwrap();
+        unsafe extern "C" fn get_row(output_row: *mut MaybeUninit<RGBA>, y: c_int, width: c_int, user_data: *mut c_void) {
+            assert!((0..5).contains(&y));
+            assert_eq!(123, width);
+            for i in 0..width as isize {
+                let n = i as u8;
+                (*output_row.offset(i as isize)).write(RGBA::new(n, n, n, n));
+            }
+            let user_data = user_data as *mut i32;
+            *user_data += 1;
+        }
+        let mut img = liq_image_create_custom(&a, get_row, AnySyncSendPtr((&mut called) as *mut _ as *mut c_void), 123, 5, 0.).unwrap();
+        liq_quantize_image(&mut a, &mut img).unwrap()
+    };
+    assert!(called > 5 && called < 50);
+    let pal = liq_get_palette(&mut res).unwrap();
+    assert_eq!(123, pal.count);
+}
