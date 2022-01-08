@@ -2,9 +2,6 @@ use std::os::raw::c_void;
 use crate::attr::Attributes;
 use crate::blur::{liq_blur, liq_max3, liq_min3};
 use crate::error::*;
-use crate::ffi::MagicTag;
-use crate::ffi::LIQ_FREED_MAGIC;
-use crate::ffi::LIQ_IMAGE_MAGIC;
 use crate::pal::{f_pixel, gamma_lut, PalF, MIN_OPAQUE_A, RGBA};
 use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
@@ -16,7 +13,6 @@ use std::mem::MaybeUninit;
 
 /// Describes image dimensions for the library.
 pub struct Image<'pixels, 'rows> {
-    pub(crate) magic_header: MagicTag,
     pub(crate) px: DynamicRows<'pixels, 'rows>,
     pub(crate) importance_map: Option<SeaCow<'static, u8>>,
     pub(crate) edges: Option<Box<[u8]>>,
@@ -48,7 +44,6 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
             return Err(LIQ_VALUE_OUT_OF_RANGE);
         }
         let img = Image {
-            magic_header: LIQ_IMAGE_MAGIC,
             px: DynamicRows::new(
                 width,
                 height,
@@ -309,10 +304,3 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
         Image::new_internal(attr, PixelsSource::Pixels { rows, pixels: Some(pixels) }, width as u32, height as u32, gamma)
     }
 }
-
-impl<'pixels, 'rows> Drop for Image<'pixels, 'rows> {
-    fn drop(&mut self) {
-        self.magic_header = LIQ_FREED_MAGIC;
-    }
-}
-

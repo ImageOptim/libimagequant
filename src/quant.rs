@@ -1,7 +1,5 @@
 use crate::attr::{Attributes, ControlFlow};
 use crate::error::*;
-use crate::ffi::MagicTag;
-use crate::ffi::{LIQ_FREED_MAGIC, LIQ_RESULT_MAGIC};
 use crate::hist::{FixedColorsSet, HistogramInternal};
 use crate::image::Image;
 use crate::kmeans::Kmeans;
@@ -17,7 +15,6 @@ use std::fmt;
 use std::mem::MaybeUninit;
 
 pub struct QuantizationResult {
-    pub(crate) magic_header: MagicTag,
     remapped: Option<Box<Remapped>>,
     pub(crate) palette: PalF,
     progress_callback: Option<Box<dyn Fn(f32) -> ControlFlow + Send + Sync>>,
@@ -56,7 +53,6 @@ impl QuantizationResult {
         sort_palette(attr, &mut palette);
 
         Ok(Self {
-            magic_header: LIQ_RESULT_MAGIC,
             palette,
             gamma,
             palette_error,
@@ -348,15 +344,6 @@ fn palette_from_histogram(hist: &HistogramInternal, max_colors: PalLen, fixed_co
     }
 
     (hist_pal.with_fixed_colors(max_colors, fixed_colors), Some(0.))
-}
-
-impl Drop for QuantizationResult {
-    fn drop(&mut self) {
-        self.int_palette.count = 0;
-        self.int_palette.entries.fill_with(Default::default);
-
-        self.magic_header = LIQ_FREED_MAGIC;
-    }
 }
 
 pub(crate) fn quality_to_mse(quality: u8) -> f64 {

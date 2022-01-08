@@ -1,6 +1,4 @@
 use crate::error::*;
-use crate::ffi::MagicTag;
-use crate::ffi::{LIQ_FREED_MAGIC, LIQ_HISTOGRAM_MAGIC};
 use crate::image::Image;
 use crate::pal::PalIndex;
 use crate::pal::ARGBF;
@@ -28,7 +26,6 @@ pub struct HistogramEntry {
 
 /// Generate one shared palette for multiple images.
 pub struct Histogram {
-    pub(crate) magic_header: MagicTag,
     gamma: Option<f64>,
     fixed_colors: FixedColorsSet,
 
@@ -90,7 +87,6 @@ impl Histogram {
             max_histogram_entries: attr.max_histogram_entries,
             fixed_colors: HashSet::with_hasher(RgbaHasher(0)),
             hashmap: HashMap::with_hasher(RgbaHasher(0)),
-            magic_header: LIQ_HISTOGRAM_MAGIC,
             gamma: None,
             total_area: 0,
         }
@@ -343,12 +339,6 @@ struct TempHistItem {
 union RGBAInt {
     rgba: RGBA,
     int: u32,
-}
-
-impl Drop for Histogram {
-    fn drop(&mut self) {
-        self.magic_header = LIQ_FREED_MAGIC;
-    }
 }
 
 /// Clusters form initial boxes for quantization, to ensure extreme colors are better represented

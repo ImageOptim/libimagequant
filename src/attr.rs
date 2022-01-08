@@ -1,8 +1,5 @@
 use std::os::raw::c_void;
 use crate::error::{liq_error, LIQ_OK, LIQ_VALUE_OUT_OF_RANGE};
-use crate::ffi::MagicTag;
-use crate::ffi::LIQ_ATTR_MAGIC;
-use crate::ffi::LIQ_FREED_MAGIC;
 use crate::hist::Histogram;
 use crate::image::Image;
 use crate::pal::PalLen;
@@ -13,7 +10,6 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Attributes {
-    pub(crate) magic_header: MagicTag,
     pub(crate) max_colors: PalLen,
     target_mse: f64,
     max_mse: Option<f64>,
@@ -46,7 +42,6 @@ impl Attributes {
     #[must_use]
     pub fn new() -> Self {
         let mut attr = Self {
-            magic_header: LIQ_ATTR_MAGIC,
             target_mse: 0.,
             max_mse: None,
             max_colors: 256,
@@ -326,7 +321,6 @@ impl Attributes {
 impl Drop for Attributes {
     fn drop(&mut self) {
         self.verbose_printf_flush();
-        self.magic_header = LIQ_FREED_MAGIC;
     }
 }
 
