@@ -39,8 +39,8 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
         height: u32,
         gamma: f64,
     ) -> Result<Self, liq_error> {
-        if !crate::ffi::check_image_size(attr, width, height) {
-            return Err(LIQ_BUFFER_TOO_SMALL);
+        if !Self::check_image_size(width, height) {
+            return Err(LIQ_VALUE_OUT_OF_RANGE);
         }
 
         if !(0. ..=1.).contains(&gamma) {
@@ -69,6 +69,17 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
             attr.verbose_print("  conserving memory"); // for simplicity of this API there's no explicit pixels argument,
         }
         Ok(img)
+    }
+
+    fn check_image_size(width: u32, height: u32) -> bool {
+        if width == 0 || height == 0 {
+            return false;
+        }
+        if width.max(height) as usize > i32::MAX as usize ||
+            width as usize > isize::MAX as usize / std::mem::size_of::<f_pixel>() / height as usize {
+            return false;
+        }
+        true
     }
 
     pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, u8>, palette: &mut PalF) {
