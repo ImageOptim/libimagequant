@@ -81,7 +81,7 @@ pub extern "C" fn liq_get_min_opacity(_: &liq_attr) -> c_int {
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_set_last_index_transparent(attr: &mut liq_attr, is_last: c_int) {
-    if bad_object!(attr, LIQ_ATTR_MAGIC) { return };
+    if bad_object!(attr, LIQ_ATTR_MAGIC) { return; }
     attr.set_last_index_transparent(is_last != 0);
 }
 
@@ -441,9 +441,10 @@ pub(crate) fn check_image_size(attr: &liq_attr, width: u32, height: u32) -> bool
         attr.verbose_print("  error: width and height must be > 0");
         return false;
     }
-    if width as usize > c_int::MAX as usize / std::mem::size_of::<liq_color>() / height as usize
-        || width as usize > c_int::MAX as usize / 16 / std::mem::size_of::<f_pixel>()
-        || height as usize > c_int::MAX as usize / std::mem::size_of::<usize>()
+
+    if width as usize > c_int::MAX as usize / std::mem::size_of::<liq_color>() / height as usize ||
+       width as usize > c_int::MAX as usize / 16 / std::mem::size_of::<f_pixel>() ||
+       height as usize > c_int::MAX as usize / std::mem::size_of::<usize>()
     {
         attr.verbose_print("  error: image too large");
         return false;

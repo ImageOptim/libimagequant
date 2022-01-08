@@ -43,7 +43,6 @@ The repository includes an Xcode project file that can be used on iOS and macOS.
 
 Please note that libimagequant only handles raw uncompressed arrays of pixels in memory and is completely independent of any file format.
 
-<p>
     /* See examples/example.c for the full code! */
 
     #include "libimagequant.h"
