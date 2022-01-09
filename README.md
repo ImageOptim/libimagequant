@@ -22,7 +22,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-imagequant = "4.0.0-beta.4"
+imagequant = "4.0.0-beta.5"
 ```
 
 [See docs.rs for the library API documentation](https://docs.rs/imagequant).
@@ -45,6 +45,7 @@ Files for C/C++ are now in the `imagequant-sys/` subdirectory, not in the root o
 To build the library, install [Rust](https://rustup.rs), and run:
 
 ```bash
+cd imagequant-sys
 cargo build --release
 ```
 
@@ -64,6 +65,7 @@ This library is now a typical Rust/Cargo library. If you want to set up [off-lin
 `configure` is gone (there are no C compilers or deps to configure any more!), but `make install` still exists. You can configure prefix, etc. as make variables:
 
 ```bash
+cd imagequant-sys
 make shared
 make DESTDIR=. PREFIX=/usr/local install
 ```
@@ -75,6 +77,7 @@ Rust 1.56 is a build-time dependency (the `Makefile` uses `cargo build`). No run
 In case the `Makefile` doesn't build a proper library, please send pull requests. But another option is to use [`cargo-c`](//lib.rs/cargo-c) tool that is smarter about linking so/dylib properly, and generates an accurate pkg-config file.
 
 ```bash
+cd imagequant-sys
 cargo install cargo-c
 cargo cinstall --prefix=/usr/local --destdir=.
 ```
