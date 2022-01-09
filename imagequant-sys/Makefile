@@ -1,34 +1,30 @@
--include config.mk
+# You can configure these
+PREFIX ?= /usr/local
+LIBDIR ?= $(PREFIX)/lib
+INCLUDEDIR ?= $(PREFIX)/include
+PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
+DESTDIR ?= ""
 
-STATICLIB=libimagequant.a
-SHAREDLIB=libimagequant.$(SOLIBSUFFIX)
 SOVER=0
-ifeq ($(SOLIBSUFFIX),dylib)
+VERSION=$(shell grep '^version = "4' Cargo.toml | grep -Eo "4\.[0-9.]+")
+ifeq ($(shell uname -s),Darwin)
+	SOLIBSUFFIX=dylib
 	SHAREDLIBVER=libimagequant.$(SOVER).$(SOLIBSUFFIX)
 	FIX_INSTALL_NAME=install_name_tool -id $(LIBDIR)/$(SHAREDLIBVER) $(DESTDIR)$(LIBDIR)/$(SHAREDLIBVER)
 else
+	SOLIBSUFFIX=so
 	SHAREDLIBVER=libimagequant.$(SOLIBSUFFIX).$(SOVER)
 	FIX_INSTALL_NAME=
 endif
+STATICLIB=libimagequant.a
+SHAREDLIB=libimagequant.$(SOLIBSUFFIX)
 
 JNILIB=libimagequant.jnilib
-DLL=imagequant.dll
-DLLIMP=imagequant_dll.a
-DLLDEF=imagequant_dll.def
-JNIDLL=libimagequant.dll
-JNIDLLIMP=libimagequant_dll.a
-JNIDLLDEF=libimagequant_dll.def
-
-OBJS = pam.o mediancut.o blur.o remap.o mempool.o kmeans.o nearest.o libimagequant.o
-SHAREDOBJS = $(subst .o,.lo,$(OBJS))
 
 JAVACLASSES = org/pngquant/LiqObject.class org/pngquant/PngQuant.class org/pngquant/Image.class org/pngquant/Result.class
 JAVAHEADERS = $(JAVACLASSES:.class=.h)
 JAVAINCLUDE = -I'$(JAVA_HOME)/include' -I'$(JAVA_HOME)/include/linux' -I'$(JAVA_HOME)/include/win32' -I'$(JAVA_HOME)/include/darwin'
 
-DISTFILES = $(OBJS:.o=.c) *.h README.md CHANGELOG COPYRIGHT Makefile configure imagequant.pc.in
-TARNAME = libimagequant-$(VERSION)
-TARFILE = $(TARNAME)-src.tar.bz2
 PKGCONFIG = imagequant.pc
 
 all: static shared
@@ -37,38 +33,24 @@ static: $(STATICLIB)
 
 shared: $(SHAREDLIB)
 
-dll:
-	$(MAKE) CFLAGS="$(CFLAGS) -DIMAGEQUANT_EXPORTS" $(DLL)
-
 java: $(JNILIB)
 
-java-dll:
-	$(MAKE) CFLAGS="$(CFLAGS) -DIMAGEQUANT_EXPORTS" $(JNIDLL)
+target:: Cargo.toml
+	cargo build --release
 
-$(DLL) $(DLLIMP): $(OBJS)
-	$(CC) -fPIC -shared -o $(DLL) $^ $(LDFLAGS) -Wl,--out-implib,$(DLLIMP),--output-def,$(DLLDEF)
+$(STATICLIB): target
+	cp target/release/$(STATICLIB) $(STATICLIB)
 
-$(STATICLIB): $(OBJS)
-	$(AR) $(ARFLAGS) $@ $^
-
-$(SHAREDOBJS):
-	$(CC) -fPIC $(CFLAGS) -c $(@:.lo=.c) -o $@
-
-libimagequant.so: $(SHAREDOBJS)
-	$(CC) -shared -Wl,-soname,$(SHAREDLIBVER) -o $(SHAREDLIBVER) $^ $(LDFLAGS)
+libimagequant.so: $(STATICLIB)
+	$(CC) -shared -Wl,-soname,$(SHAREDLIBVER) -o $(SHAREDLIBVER) $(STATICLIB) $(LDFLAGS)
 	ln -fs $(SHAREDLIBVER) $(SHAREDLIB)
 
-libimagequant.dylib: $(SHAREDOBJS)
-	$(CC) -shared -o $(SHAREDLIBVER) $^ $(LDFLAGS)
+libimagequant.dylib: target
+	$(CC) -shared -o $(SHAREDLIBVER) $(STATICLIB) $(LDFLAGS)
 	ln -fs $(SHAREDLIBVER) $(SHAREDLIB)
-
-$(OBJS): $(wildcard *.h) config.mk
 
 $(JNILIB): $(JAVAHEADERS) $(STATICLIB) org/pngquant/PngQuant.c
 	$(CC) -g $(CFLAGS) $(LDFLAGS) $(JAVAINCLUDE) -shared -o $@ org/pngquant/PngQuant.c $(STATICLIB)
-
-$(JNIDLL) $(JNIDLLIMP): $(JAVAHEADERS) $(OBJS) org/pngquant/PngQuant.c
-	$(CC) -fPIC -shared -I. $(JAVAINCLUDE) -o $(JNIDLL) $^ $(LDFLAGS) -Wl,--out-implib,$(JNIDLLIMP),--output-def,$(JNIDLLDEF)
 
 $(JAVACLASSES): %.class: %.java
 	javac $<
@@ -76,24 +58,8 @@ $(JAVACLASSES): %.class: %.java
 $(JAVAHEADERS): %.h: %.class
 	javah -o $@ $(subst /,., $(patsubst %.class,%,$<)) && touch $@
 
-dist: $(TARFILE) cargo
-
-$(TARFILE): $(DISTFILES)
-	rm -rf $(TARFILE) $(TARNAME)
-	mkdir $(TARNAME)
-	cp $(DISTFILES) $(TARNAME)
-	tar -cjf $(TARFILE) --numeric-owner --exclude='._*' $(TARNAME)
-	rm -rf $(TARNAME)
-	-shasum $(TARFILE)
-
-cargo:
-	rm -rf msvc-dist
-	git clone . -b msvc msvc-dist
-	rm -rf msvc-dist/Cargo.toml msvc-dist/org msvc-dist/rust msvc-dist/README.md msvc-dist/COPYRIGHT
-	cargo test
-
 example: example.c lodepng.h lodepng.c $(STATICLIB)
-	$(CC) -g $(CFLAGS) -Wall example.c $(STATICLIB) -o example -lm
+	$(CC) -g $(CFLAGS) -Wall example.c $(STATICLIB) -lm -o example
 
 lodepng.h:
 	curl -o lodepng.h -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h
@@ -102,12 +68,11 @@ lodepng.c:
 	curl -o lodepng.c -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp
 
 clean:
-	rm -f $(OBJS) $(SHAREDOBJS) $(SHAREDLIBVER) $(SHAREDLIB) $(STATICLIB) $(TARFILE) $(DLL) '$(DLLIMP)' '$(DLLDEF)'
+	rm -f $(SHAREDLIBVER) $(SHAREDLIB) $(STATICLIB)
 	rm -f $(JAVAHEADERS) $(JAVACLASSES) $(JNILIB) example
-	rm -rf target rust-api/target rust-sys/target
+	rm -rf target
 
 distclean: clean
-	rm -f config.mk
 	rm -f imagequant.pc
 
 install: all $(PKGCONFIG)
@@ -128,13 +93,8 @@ uninstall:
 	rm -f $(DESTDIR)$(PKGCONFIGDIR)/$(PKGCONFIG)
 	rm -f $(DESTDIR)$(INCLUDEDIR)/libimagequant.h
 
-config.mk:
-ifeq ($(filter %clean %distclean, $(MAKECMDGOALS)), )
-	./configure
-endif
-
-$(PKGCONFIG): config.mk
+$(PKGCONFIG): Cargo.toml
 	sed 's|@PREFIX@|$(PREFIX)|;s|@VERSION@|$(VERSION)|' < imagequant.pc.in > $(PKGCONFIG)
 
-.PHONY: all static shared clean dist distclean dll java cargo
+.PHONY: all static shared clean dist distclean dll java target
 .DELETE_ON_ERROR:
