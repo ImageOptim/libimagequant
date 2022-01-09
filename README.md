@@ -1,88 +1,51 @@
-# libimagequant—Image Quantization Library
+# [libimagequant](https://pngquant.org/lib/) — Image Quantization Library
 
-Small, portable C library for high-quality conversion of RGBA images to 8-bit indexed-color (palette) images.
-It's powering [pngquant2](https://pngquant.org).
+Imagequant library converts RGBA images to palette-based 8-bit indexed images, *including* alpha component. It's ideal for generating tiny PNG images and [nice-looking GIFs](https://gif.ski).
+
+Image encoding/decoding isn't handled by the library itself, bring your own encoder. If you're looking for a command-line tool, see [pngquant](https://pngquant.org).
 
 ## License
 
 Libimagequant is dual-licensed:
 
-* For Free/Libre Open Source Software it's available under GPL v3 or later with additional [copyright notices](https://raw.github.com/ImageOptim/libimagequant/master/COPYRIGHT) for older parts of the code.
+* For Free/Libre Open Source Software it's available under GPL v3 or later with additional [copyright notices](https://raw.github.com/ImageOptim/libimagequant/master/COPYRIGHT) for historical reasons.
 * For use in closed-source software, AppStore distribution, and other non-GPL uses, you can [obtain a commercial license](https://supso.org/projects/pngquant). Feel free to ask kornel@pngquant.org for details and custom licensing terms if you need them.
 
-## Download
 
-The [library](https://pngquant.org/lib) is currently a part of the [pngquant2 project](https://pngquant.org). [Repository](https://github.com/ImageOptim/libimagequant).
+## Rust documentation
 
-## Compiling and Linking
+Add to `Cargo.toml`:
 
-The library can be linked with ANSI C, C++, [C#](https://github.com/ImageOptim/libimagequant/blob/master/libimagequant.cs), [Rust](https://github.com/pornel/libimagequant-rust), [Java](https://github.com/ImageOptim/libimagequant/tree/master/org/pngquant) and [Golang](https://github.com/larrabee/go-imagequant) programs. It has no external dependencies.
+```toml
+[dependencies]
+imagequant = "4.0.0-beta.3"
+```
 
-To build on Unix-like systems run:
+[See docs.rs for the library API documentation](https://docs.rs/imagequant).
 
-    make static
+## C documentation
 
-it will create `libimagequant.a` which you can link with your program.
+### Building for C
 
-    gcc yourprogram.c /path/to/libimagequant.a
+1. Get Rust 1.57 or later via [rustup](https://rustup.rs).
+2. `cd imagequant-sys`
 
-On BSD, use `gmake` (GNU make) rather than the native `make`.
+   The C API is exposed by a separate package called [`imagequant-sys`](https://github.com/ImageOptim/libimagequant/tree/main/imagequant-sys).
+3. Run `cargo build --release`
 
-Alternatively you can compile the library with your program simply by including all `.c` files (and define `NDEBUG` to get a fast version):
+   This will build `target/release/libimagequant.a` or `target\release\libimagequant.lib` that you can use for static linking.
+   Please don't worry about the size of the `.a` file. It includes a few unused objects. It only adds 500KB when linked. Use LTO or `-Wl,--as-needed` if necessary.
 
-    gcc -std=c99 -O3 -DNDEBUG libimagequant/*.c yourprogram.c
+The repository includes an Xcode project file that can be used on iOS and macOS.
 
-### Building for use in Rust programs
+If you want to build a C dynamic library (DLL, so, dylib), then:
 
-In [Rust](https://www.rust-lang.org/) you can use Cargo to build the library. Add [`imagequant`](https://crates.io/crates/imagequant) to dependencies of the Rust program. You can also use `cargo build` in [`imagequant-sys`](https://crates.io/crates/imagequant-sys) to build `libimagequant.a` for any C-compatible language.
+1. `cargo install cargo-c`
+2. `cd imagequant-sys`
+3. `cargo cinstall --destdir=.`
+   This will build `./usr/local/lib/libimagequant.0.0.0.{so,dylib,dll}`
 
-### Building for Java JNI
-
-To build Java JNI interface, ensure `JAVA_HOME` is set to your JDK directory, and run:
-
-    # export JAVA_HOME=$(locate include/jni.h) # you may need to set JAVA_HOME first
-    make java
-
-It will create `libimagequant.jnilib` and classes in `org/pngquant/`.
-
-On Windows run `make java-dll` and it'll create `libimagequant.dll` instead.
-
-### Compiling on Windows/Visual Studio
-
-The library can be compiled with any C compiler that has at least basic support for C99 (GCC, clang, ICC, C++ Builder, even Tiny C Compiler), but Visual Studio 2012 and older are not up to date with the 1999 C standard. Use Visual Studio **2015** and the [MSVC-compatible branch of the library](https://github.com/ImageOptim/libimagequant/tree/msvc).
-
-To build on Windows, install CMake and use it to generate a makefile/project for your build system.
-
-Build instructions
-
-    mkdir build
-    cd build
-    cmake ..
-    cmake --build .
-
-To generate a 64-bit Visual Studio project instead:
-
-    mkdir build
-    cd build
-    cmake -G "Visual Studio 15 2017 Win64" ..
-    cmake --build .
-
-### Building as shared library
-
-To build on Unix-like systems run:
-
-    ./configure --prefix=/usr
-    make libimagequant.so
-
-To install on Unix-like systems run:
-
-    make install
-
-
-
-## Overview
-
-The basic flow is:
+### C API usage
 
 1. Create attributes object and configure the library.
 2. Create image object from RGBA pixels or data source.
@@ -92,8 +55,7 @@ The basic flow is:
 
 Please note that libimagequant only handles raw uncompressed arrays of pixels in memory and is completely independent of any file format.
 
-<p>
-    /* See example.c for the full code! */
+    /* See imagequant-sys/example.c for the full code! */
 
     #include "libimagequant.h"
 
@@ -130,7 +92,7 @@ Note that "image" here means raw uncompressed pixels. If you have a compressed i
 
 You'll find full example code in "example.c" file in the library source directory.
 
-## Functions
+## C Functions
 
 ----
 
@@ -552,9 +514,9 @@ The callback should return `1` to continue the operation, and `0` to abort curre
 
     liq_attr* liq_attr_create_with_allocator(void* (*malloc)(size_t), void (*free)(void*));
 
-Same as `liq_attr_create`, but uses given `malloc` and `free` replacements to allocate all memory used by the library.
+This function is deprecated. Same as `liq_attr_create`, but specifies `free` to use for `liq_image_set_memory_ownership`. The `malloc` argument is not used.
 
-The `malloc` function must return 16-byte aligned memory on x86 (and on other architectures memory aligned for `double` and pointers). Conversely, if your stdlib's `malloc` doesn't return appropriately aligned memory, you should use this function to provide aligned replacements.
+The library will use Rust's [global allocator](https://doc.rust-lang.org/std/alloc/index.html).
 
 ----
 
@@ -660,33 +622,22 @@ Returns `LIQ_QUALITY_TOO_LOW` if the palette is worse than limit set in `liq_set
 
 Palette generated using this function won't be improved during remapping. If you're generating palette for only one image, it's better to use `liq_image_quantize()`.
 
+## Multithreading
+
+* Different threads can perform unrelated quantizations/remappings at the same time (e.g. each thread working on a different image).
+* The same `liq_attr`, `liq_result`, etc. can be accessed from different threads, but not at the same time (e.g. you can create `liq_attr` in one thread and free it in another).
+* The library uses threads internally. You can set `RAYON_NUM_THREADS` environmental variable to control the number of threads used.
+
 ## Working with GIF
 
 The library can generate palettes for GIF images. To ensure correct transparency is used you need to preprocess the image yourself and replace alpha values other than 0 or 255 with one of these.
 
 For animated GIFs see `liq_image_set_background()` which remaps images for GIF's "keep" frame disposal method. See [gif.ski](https://gif.ski).
 
-## Multithreading
+## Cross-compilation
 
-The library is stateless and doesn't use any global or thread-local storage. It doesn't use any locks.
+You can compile the library for other platforms via `cargo build --target=…`. See `rustup target list` for the list of platforms.
 
-* Different threads can perform unrelated quantizations/remappings at the same time (e.g. each thread working on a different image).
-* The same `liq_attr`, `liq_result`, etc. can be accessed from different threads, but not at the same time (e.g. you can create `liq_attr` in one thread and free it in another).
+Building for WASM requires support for [threads and atomics](https://github.com/GoogleChromeLabs/wasm-bindgen-rayon). I plan to make threads optional in a later version.
 
-The library needs to sort unique colors present in the image. Although the sorting algorithm does few things to make stack usage minimal in typical cases, there is no guarantee against extremely degenerate cases, so threads should have automatically growing stack.
-
-### OpenMP
-
-The library can parallelize some operations if compiled with OpenMP.
-
-GCC 9 or later is required for correct OpenMP support. Older compilers *will cause bugs* when OpenMP is enabled.
-
-You must not increase number of maximum threads after `liq_image` has been created, as it allocates some per-thread buffers.
-
-Callback of `liq_image_create_custom()` may be called from different threads at the same time.
-
-## Acknowledgements
-
-Thanks to Irfan Skiljan for helping test the first version of the library.
-
-The library is developed by [Kornel Lesiński](mailto:%20kornel@pngquant.org).
+If you're cross-compiling a dynamic library (so/dylib/DLL), you may need to [configure a linker](https://doc.rust-lang.org/cargo/reference/config.html#target) for Cargo. For building for Android see [this tutorial](https://mozilla.github.io/firefox-browser-architecture/experiments/2017-09-21-rust-on-android.html) and [cargo-ndk](https://lib.rs/crates/cargo-ndk).
