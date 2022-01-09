@@ -1,3 +1,38 @@
+# [libimagequant](https://pngquant.org/lib/) — Image Quantization Library
+
+Imagequant library converts RGBA images to palette-based 8-bit indexed images, *including* alpha component. It's ideal for generating tiny PNG images and [nice-looking GIFs](https://gif.ski).
+
+Image encoding/decoding isn't handled by the library itself, bring your own encoder. If you're looking for a command-line tool, see [pngquant](https://pngquant.org).
+
+## Getting started in C
+
+This library can be used in C programs via [imagequant-sys](https://github.com/ImageOptim/libimagequant/tree/main/imagequant-sys) [Rust](https://www.rust-lang.org/) package.
+
+```bash
+git clone https://github.com/ImageOptim/libimagequant
+cd imagequant-sys
+cargo build --release
+```
+
+See [library documentation for more details](https://pngquant.org/lib/).
+
+## Getting started in Rust
+
+Add to `Cargo.toml`:
+
+```toml
+[dependencies]
+imagequant = "4.0.0-beta.4"
+```
+
+[See docs.rs for the library API documentation](https://docs.rs/imagequant).
+
+## License
+
+Libimagequant is dual-licensed:
+
+* For Free/Libre Open Source Software it's available under GPL v3 or later with additional [copyright notices](https://raw.github.com/ImageOptim/libimagequant/master/COPYRIGHT) for historical reasons.
+* For use in closed-source software, AppStore distribution, and other non-GPL uses, you can [obtain a commercial license](https://supso.org/projects/pngquant). Feel free to ask kornel@pngquant.org for details and custom licensing terms if you need them.
 
 ## Upgrading instructions
 
@@ -52,5 +87,4 @@ pngquant v2 can use this library as a dynamic library. However, pngquant v4 does
 
 ### Upgrading for Rust users
 
-If you've used the `imagequant-sys` crate, switch to the higher-level `imagequant` crate. The `imagequant` v4 is almost entirely backwards-compatible, with only tiny changes that the Rust compiler will point out (e.g. changed use of `c_int` to `u32`). See [docs](https://docs.rs/imagequant/4.0.0-beta.3/imagequant/index.html).
-
+If you've used the [`imagequant-sys`](//lib.rs/imagequant-sys) crate, switch to the higher-level [`imagequant`](//lib.rs/imagequant) crate. The `imagequant` v4 is almost entirely backwards-compatible, with only tiny changes that the Rust compiler will point out (e.g. changed use of `c_int` to `u32`). See [docs](https://docs.rs/imagequant/4.0.0-beta.4/imagequant/index.html).
