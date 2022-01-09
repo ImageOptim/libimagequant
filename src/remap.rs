@@ -6,6 +6,7 @@ use crate::pal::{ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A, PalF, PalIndex, Palette, f
 use crate::quant::{quality_to_mse, QuantizationResult};
 use crate::rows::temp_buf;
 use crate::seacow::{RowBitmap, RowBitmapMut};
+use fallible_collections::FallibleVec;
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
 use rgb::ComponentMap;
@@ -30,7 +31,7 @@ pub(crate) struct Remapped {
 pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<u8>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, u8>), liq_error> {
     let width = image.width();
 
-    let n = Nearest::new(palette);
+    let n = Nearest::new(palette)?;
     let colors = palette.as_slice();
     let palette_len = colors.len();
 
@@ -44,9 +45,9 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
     }
 
     let tls = ThreadLocal::new();
-    let per_thread_buffers = move || (RefCell::new((Kmeans::new(palette_len), temp_buf(width), temp_buf(width), temp_buf(width))));
+    let per_thread_buffers = move || -> Result<_, liq_error> { Ok(RefCell::new((Kmeans::new(palette_len)?, temp_buf(width)?, temp_buf(width)?, temp_buf(width)?))) };
 
-    let tls_tmp1 = tls.get_or(per_thread_buffers);
+    let tls_tmp1 = tls.get_or_try(per_thread_buffers)?;
     let mut tls_tmp = tls_tmp1.borrow_mut();
 
     let input_rows = image.px.rows_iter(&mut tls_tmp.1)?;
@@ -55,7 +56,11 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
 
     let remapping_error = output_pixels.rows_mut().enumerate().par_bridge().map(|(row, output_pixels_row)| {
         let mut remapping_error = 0.;
-        let (kmeans, temp_row, temp_row_f, temp_row_f_bg) = &mut *tls.get_or(per_thread_buffers).borrow_mut();
+        let tls_res = match tls.get_or_try(per_thread_buffers) {
+            Ok(res) => res,
+            Err(_) => return f64::NAN,
+        };
+        let (kmeans, temp_row, temp_row_f, temp_row_f_bg) = &mut *tls_res.borrow_mut();
 
         let output_pixels_row = &mut output_pixels_row[..width];
         let row_pixels = &input_rows.row_f2(temp_row, temp_row_f, row)[..width];
@@ -83,6 +88,10 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
         remapping_error
     })
     .sum::<f64>();
+
+    if remapping_error.is_nan() {
+        return Err(LIQ_OUT_OF_MEMORY);
+    }
 
     if let Some(kmeans) = tls.into_iter()
         .map(|t| RefCell::into_inner(t).0)
@@ -141,7 +150,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     let width = input_image.width();
     let height = input_image.height();
 
-    let mut temp_row = temp_buf(width);
+    let mut temp_row = temp_buf(width)?;
 
     let dither_map = if quant.use_dither_map != DitherMapMode::None {
         input_image.dither_map.as_deref().or(input_image.edges.as_deref()).unwrap_or(&[])
@@ -152,9 +161,10 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     let mut background = input_image.background.as_mut().map(|bg| bg.px.rows_iter(&mut temp_row)).transpose()?;
 
     let errwidth = width + 2; // +2 saves from checking out of bounds access
-    let mut thiserr_data = vec![f_pixel::default(); errwidth * 2];
+    let mut thiserr_data: Vec<_> = FallibleVec::try_with_capacity(errwidth * 2)?;
+    thiserr_data.resize(errwidth * 2, f_pixel::default());
     let (mut thiserr, mut nexterr) = thiserr_data.split_at_mut(errwidth);
-    let n = Nearest::new(&quant.palette);
+    let n = Nearest::new(&quant.palette)?;
     let palette = quant.palette.as_slice();
 
     let transparent_index = if background.is_some() { n.search(&f_pixel::default(), 0).0 } else { 0 };
@@ -167,7 +177,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
         base_dithering_level *= 1. / 255.; // dither_map is in 0-255 scale
     }
     let mut scan_forward = true;
-    let mut temp_row = temp_buf(width);
+    let mut temp_row = temp_buf(width)?;
 
     for (row, output_pixels_row) in output_pixels.rows_mut().enumerate() {
         if quant.remap_progress(progress_stage1 as f32 + row as f32 * (100. - progress_stage1 as f32) / height as f32) {

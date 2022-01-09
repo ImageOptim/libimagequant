@@ -2,7 +2,8 @@ use crate::hist::{HistItem, HistogramInternal};
 use crate::pal::{f_pixel, PalF, PalPop};
 use crate::pal::{PalLen, ARGBF};
 use crate::quant::quality_to_mse;
-use crate::OrdFloat;
+use crate::{OrdFloat, liq_error};
+use fallible_collections::FallibleVec;
 use rgb::ComponentMap;
 use rgb::ComponentSlice;
 use std::cmp::Reverse;
@@ -221,14 +222,14 @@ impl<'hist> MedianCutter<'hist> {
         true
     }
 
-    pub fn new(hist: &'hist mut HistogramInternal, target_colors: PalLen) -> Self {
+    pub fn new(hist: &'hist mut HistogramInternal, target_colors: PalLen) -> Result<Self, liq_error> {
         let hist_total_perceptual_weight = hist.total_perceptual_weight;
 
         debug_assert!(hist.clusters[0].begin == 0);
         debug_assert!(hist.clusters.last().unwrap().end as usize == hist.items.len());
 
         let mut hist_items = &mut hist.items[..];
-        let mut boxes = Vec::with_capacity(target_colors as usize);
+        let mut boxes: Vec<_> = FallibleVec::try_with_capacity(target_colors as usize)?;
 
         let used_boxes = hist.clusters.iter().filter(|b| b.begin != b.end).count();
         if used_boxes <= target_colors as usize / 3 {
@@ -247,11 +248,11 @@ impl<'hist> MedianCutter<'hist> {
             boxes.push(MBox::new(hist_items));
         };
 
-        Self {
+        Ok(Self {
             boxes,
             hist_total_perceptual_weight,
             target_colors,
-        }
+        })
     }
 
     fn into_palette(mut self) -> PalF {
@@ -306,8 +307,8 @@ impl<'hist> MedianCutter<'hist> {
     }
 }
 
-pub(crate) fn mediancut(hist: &mut HistogramInternal, target_colors: PalLen, target_mse: f64, max_mse_per_color: f64) -> PalF {
-    MedianCutter::new(hist, target_colors).cut(target_mse, max_mse_per_color)
+pub(crate) fn mediancut(hist: &mut HistogramInternal, target_colors: PalLen, target_mse: f64, max_mse_per_color: f64) -> Result<PalF, liq_error> {
+    Ok(MedianCutter::new(hist, target_colors)?.cut(target_mse, max_mse_per_color))
 }
 
 fn weighed_average_color(hist: &[HistItem]) -> f_pixel {

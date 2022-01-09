@@ -1,12 +1,13 @@
 use crate::attr::Attributes;
 use crate::blur::{liq_blur, liq_max3, liq_min3};
 use crate::error::*;
-use crate::pal::{f_pixel, gamma_lut, PalF, MIN_OPAQUE_A, RGBA};
+use crate::pal::{MAX_COLORS, MIN_OPAQUE_A, PalF, RGBA, f_pixel, gamma_lut};
 use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
 use crate::seacow::RowBitmap;
 use crate::seacow::SeaCow;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
+use fallible_collections::FallibleVec;
 use rgb::ComponentMap;
 use std::mem::MaybeUninit;
 
@@ -175,7 +176,10 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     ///
     /// Returns error if more than 256 colors are added. If image is quantized to fewer colors than the number of fixed colors added, then excess fixed colors will be ignored.
     pub fn add_fixed_color(&mut self, color: RGBA) -> liq_error {
-        if self.fixed_colors.len() > 255 { return LIQ_UNSUPPORTED; }
+        if self.fixed_colors.len() >= MAX_COLORS { return LIQ_UNSUPPORTED; }
+        if FallibleVec::try_reserve(&mut self.fixed_colors, 16).is_err() {
+            return LIQ_OUT_OF_MEMORY;
+        }
         let lut = gamma_lut(self.px.gamma);
         self.fixed_colors.push(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}));
         LIQ_OK
@@ -196,10 +200,22 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
             return Ok(()); // shrug
         }
 
-        let noise = &mut self.importance_map.get_or_insert_with(move || SeaCow::boxed(vec![0; height * width].into_boxed_slice())).as_mut_slice()[..width * height];
-        let edges = &mut self.edges.get_or_insert_with(move || vec![0; width * height].into_boxed_slice())[..width * height];
+        let noise = match self.importance_map.as_mut() {
+            Some(n) => n,
+            None => {
+                let vec = try_zero_vec(width * height)?;
+                self.importance_map.get_or_insert_with(move || SeaCow::boxed(vec.into_boxed_slice()))
+            },
+        }.as_mut_slice();
+        let edges = match self.edges.as_mut() {
+            Some(e) => e,
+            None => {
+                let vec = try_zero_vec(width * height)?;
+                self.edges.get_or_insert_with(move || vec.into_boxed_slice())
+            },
+        };
 
-        let mut tmp = vec![0; width * height];
+        let mut tmp = try_zero_vec(width * height)?;
 
         let mut rows_iter = self.px.all_rows_f()?.chunks_exact(width);
 
@@ -207,7 +223,7 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
         let mut curr_row = next_row;
         let mut prev_row;
 
-        for (noise_row, edges_row) in noise.chunks_exact_mut(width).zip(edges.chunks_exact_mut(width)) {
+        for (noise_row, edges_row) in noise[..width * height].chunks_exact_mut(width).zip(edges[..width * height].chunks_exact_mut(width)) {
             prev_row = curr_row;
             curr_row = next_row;
             next_row = rows_iter.next().unwrap_or(next_row);
@@ -301,4 +317,10 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
         let rows = SeaCow::boxed(slice.chunks(stride).map(|row| row.as_ptr()).collect());
         Image::new_internal(attr, PixelsSource::Pixels { rows, pixels: Some(pixels) }, width as u32, height as u32, gamma)
     }
+}
+
+fn try_zero_vec(len: usize) -> Result<Vec<u8>, liq_error> {
+    let mut vec: Vec<_> = FallibleVec::try_with_capacity(len)?;
+    vec.resize(len, 0);
+    Ok(vec)
 }

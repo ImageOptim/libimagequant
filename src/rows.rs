@@ -1,3 +1,5 @@
+use fallible_collections::FallibleVec;
+
 use crate::error::*;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
 use crate::seacow::SeaCow;
@@ -7,6 +9,8 @@ use std::mem::MaybeUninit;
 pub(crate) type RowCallback = dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync;
 
 pub(crate) enum PixelsSource<'pixels, 'rows> {
+    /// The `pixels` field is never read, but it is used to store the rows.
+    #[allow(dead_code)]
     Pixels { rows: SeaCow<'rows, *const RGBA>, pixels: Option<SeaCow<'pixels, RGBA>> },
     Callback(Box<RowCallback>),
 }
@@ -103,13 +107,13 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
         debug_assert_eq!(temp_row.len(), self.width as _);
 
         if allow_steamed && self.should_use_low_memory() {
-            return Ok(Some(temp_buf(self.width())));
+            return Ok(Some(temp_buf(self.width())?));
         }
 
 
         let width = self.width();
         let lut = gamma_lut(self.gamma);
-        let mut f_pixels = temp_buf(self.width() * self.height());
+        let mut f_pixels = temp_buf(self.width() * self.height())?;
         for (row, f_row) in f_pixels.chunks_exact_mut(width).enumerate() {
             let row_pixels = self.row_rgba(temp_row, row);
             Self::convert_row_to_f(f_row, row_pixels, &lut);
@@ -143,7 +147,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
         if self.f_pixels.is_some() {
             return Ok(self.f_pixels.as_ref().unwrap()); // borrow-checker :(
         }
-        let _ = self.prepare_f_pixels(&mut temp_buf(self.width()), false)?;
+        let _ = self.prepare_f_pixels(&mut temp_buf(self.width())?, false)?;
         self.f_pixels.as_deref().ok_or(LIQ_UNSUPPORTED)
     }
 
@@ -189,10 +193,10 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 }
 
-pub(crate) fn temp_buf<T>(len: usize) -> Box<[MaybeUninit<T>]> {
-    let mut v = Vec::with_capacity(len);
+pub(crate) fn temp_buf<T>(len: usize) -> Result<Box<[MaybeUninit<T>]>, liq_error> {
+    let mut v: Vec<_> = FallibleVec::try_with_capacity(len)?;
     unsafe { v.set_len(len) };
-    v.into_boxed_slice()
+    Ok(v.into_boxed_slice())
 }
 
 #[test]

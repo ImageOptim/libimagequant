@@ -1,6 +1,8 @@
+use crate::liq_error;
 use crate::hist::{HistItem, HistogramInternal};
 use crate::nearest::Nearest;
 use crate::pal::{PalF, PalIndex, PalPop, f_pixel};
+use fallible_collections::FallibleVec;
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSliceMut;
 use rgb::alt::ARGB;
@@ -22,11 +24,13 @@ struct ColorAvg {
 /// K-Means iteration: new palette color is computed from weighted average of colors that map best to that palette entry.
 impl Kmeans {
     #[inline]
-    pub fn new(pal_len: usize) -> Self {
-        Self {
-            averages: vec![ColorAvg::default(); pal_len],
+    pub fn new(pal_len: usize) -> Result<Self, liq_error> {
+        let mut averages: Vec<_> = FallibleVec::try_with_capacity(pal_len)?;
+        averages.resize(pal_len, ColorAvg::default());
+        Ok(Self {
+            averages,
             weighed_diff_sum: 0.,
-        }
+        })
     }
 
     #[inline]
@@ -48,12 +52,12 @@ impl Kmeans {
     }
 
     #[inline(never)]
-    pub(crate) fn iteration(hist: &mut HistogramInternal, palette: &mut PalF, adjust_weight: bool) -> f64 {
+    pub(crate) fn iteration(hist: &mut HistogramInternal, palette: &mut PalF, adjust_weight: bool) -> Result<f64, liq_error> {
         if hist.items.is_empty() {
-            return 0.;
+            return Ok(0.);
         }
 
-        let n = Nearest::new(palette);
+        let n = Nearest::new(palette)?;
         let colors = palette.as_slice();
         let len = colors.len();
 
@@ -63,12 +67,15 @@ impl Kmeans {
         // chunk size is a trade-off between parallelization and overhead
         hist.items.par_chunks_mut(256).for_each(|batch| {
             let kmeans = tls.get_or(move || RefCell::new(Kmeans::new(len)));
-            kmeans.borrow_mut().iterate_batch(batch, &n, colors, adjust_weight);
+            if let Ok(ref mut kmeans) = *kmeans.borrow_mut() {
+                kmeans.iterate_batch(batch, &n, colors, adjust_weight);
+            }
         });
 
         let diff = tls.into_iter()
             .map(RefCell::into_inner)
-            .reduce(Kmeans::merge)
+            .reduce(Kmeans::try_merge)
+            .transpose()?
             .map(|kmeans| {
                 kmeans.finalize(palette) / total
             }).unwrap_or(0.);
@@ -78,7 +85,7 @@ impl Kmeans {
         palette.iter_mut().filter(|(_, p)| !p.is_fixed() && p.popularity() == 0.).zip(hist.items.iter()).for_each(|((c, _), item)| {
             *c = item.color;
         });
-        diff
+        Ok(diff)
     }
 
     fn iterate_batch(&mut self, batch: &mut [HistItem], n: &Nearest, colors: &[f_pixel], adjust_weight: bool) {
@@ -106,5 +113,13 @@ impl Kmeans {
             p.total += n.total;
         });
         self
+    }
+
+    #[inline]
+    pub fn try_merge<E>(old: Result<Self, E>, new: Result<Self, E>) -> Result<Self, E> {
+        match (old, new) {
+            (Ok(old), Ok(new)) => Ok(Kmeans::merge(old, new)),
+            (Err(e), _) | (_, Err(e)) => Err(e),
+        }
     }
 }

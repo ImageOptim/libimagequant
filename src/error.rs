@@ -1,3 +1,4 @@
+use fallible_collections::TryReserveError;
 pub use liq_error::*;
 use std::fmt;
 
@@ -32,6 +33,13 @@ impl fmt::Display for liq_error {
             Self::LIQ_INVALID_POINTER => "INVALID_POINTER",
             Self::LIQ_UNSUPPORTED => "UNSUPPORTED",
         })
+    }
+}
+
+impl From<TryReserveError> for liq_error {
+    #[cold]
+    fn from(_: TryReserveError) -> Self {
+        Self::LIQ_OUT_OF_MEMORY
     }
 }
 

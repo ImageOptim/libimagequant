@@ -30,7 +30,7 @@ impl QuantizationResult {
     pub(crate) fn new(attr: &Attributes, hist: HistogramInternal, freeze_result_colors: bool, fixed_colors: &FixedColorsSet, gamma: f64) -> Result<Self, liq_error> {
         if attr.progress(attr.progress_stage1 as f32) { return Err(LIQ_ABORTED); }
         let (max_mse, target_mse, target_mse_is_zero) = attr.target_mse(hist.items.len());
-        let (mut palette, palette_error) = find_best_palette(attr, target_mse, target_mse_is_zero, max_mse, hist, fixed_colors).ok_or(LIQ_VALUE_OUT_OF_RANGE)?;
+        let (mut palette, palette_error) = find_best_palette(attr, target_mse, target_mse_is_zero, max_mse, hist, fixed_colors)?;
         if freeze_result_colors {
             palette.iter_mut().for_each(|(_, p)| *p = p.to_fixed());
         }
@@ -258,11 +258,11 @@ impl fmt::Debug for QuantizationResult {
 ///
 ///  feedback_loop_trials controls how long the search will take. < 0 skips the iteration.
 #[allow(clippy::or_fun_call)]
-pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_is_zero: bool, max_mse: Option<f64>, mut hist: HistogramInternal, fixed_colors: &FixedColorsSet) -> Option<(PalF, Option<f64>)> {
+pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_is_zero: bool, max_mse: Option<f64>, mut hist: HistogramInternal, fixed_colors: &FixedColorsSet) -> Result<(PalF, Option<f64>), liq_error> {
     let few_input_colors = hist.items.len() + fixed_colors.len() <= attr.max_colors as usize;
     // actual target_mse passed to this method has extra diff from posterization
     if few_input_colors && target_mse_is_zero {
-        return Some(palette_from_histogram(&hist, attr.max_colors, fixed_colors))
+        return Ok(palette_from_histogram(&hist, attr.max_colors, fixed_colors));
     }
 
     let mut max_colors = attr.max_colors;
@@ -274,7 +274,7 @@ pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_i
     let mut palette_error = None;
     let mut palette = loop {
         let max_mse_per_color = target_mse.max(palette_error.unwrap_or(quality_to_mse(1))).max(quality_to_mse(51)) * 1.2;
-        let mut new_palette = mediancut(&mut hist, max_colors - fixed_colors.len() as PalLen, target_mse * target_mse_overshoot, max_mse_per_color)
+        let mut new_palette = mediancut(&mut hist, max_colors - fixed_colors.len() as PalLen, target_mse * target_mse_overshoot, max_mse_per_color)?
             .with_fixed_colors(max_colors, fixed_colors);
 
         let stage_done = 1. - (trials_left.max(0) as f32 / (total_trials + 1) as f32).powi(2);
@@ -284,7 +284,7 @@ pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_i
         if trials_left <= 0 { break Some(new_palette); }
 
         let first_run_of_target_mse = best_palette.is_none() && target_mse > 0.;
-        let total_error = Kmeans::iteration(&mut hist, &mut new_palette, !first_run_of_target_mse);
+        let total_error = Kmeans::iteration(&mut hist, &mut new_palette, !first_run_of_target_mse)?;
         if best_palette.is_none() || total_error < palette_error.unwrap_or(f64::MAX) || (total_error <= target_mse && new_palette.len() < max_colors as usize) {
             if total_error < target_mse && total_error > 0. {
                 target_mse_overshoot = if (target_mse_overshoot * 1.25) < (target_mse / total_error) {target_mse_overshoot * 1.25 } else {target_mse / total_error }; // if number of colors could be reduced, try to keep it that way
@@ -302,15 +302,15 @@ pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_i
         if attr.progress(overall_done) || trials_left <= 0 {
             break best_palette;
         }
-    }?;
+    }.ok_or(LIQ_VALUE_OUT_OF_RANGE)?;
 
-    refine_palette(&mut palette, attr, &mut hist, max_mse, &mut palette_error);
+    refine_palette(&mut palette, attr, &mut hist, max_mse, &mut palette_error)?;
 
-    Some((palette, palette_error))
+    Ok((palette, palette_error))
 }
 
 
-fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInternal, max_mse: Option<f64>, palette_error: &mut Option<f64>) {
+fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInternal, max_mse: Option<f64>, palette_error: &mut Option<f64>) -> Result<(), liq_error> {
     let (iterations, iteration_limit) = attr.kmeans_iterations(hist.items.len(), palette_error.is_some());
     if iterations > 0 {
         attr.verbose_print("  moving colormap towards local minimum");
@@ -322,7 +322,7 @@ fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInt
                 break;
             }
 
-            let pal_err = Kmeans::iteration(hist, palette, false);
+            let pal_err = Kmeans::iteration(hist, palette, false)?;
             debug_assert!(pal_err < 1e20);
             let previous_palette_error = *palette_error;
             *palette_error = Some(pal_err);
@@ -335,6 +335,7 @@ fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInt
             i += if pal_err > max_mse.unwrap_or(1e20) * 1.5 { 2 } else { 1 };
         }
     }
+    Ok(())
 }
 
 fn palette_from_histogram(hist: &HistogramInternal, max_colors: PalLen, fixed_colors: &FixedColorsSet) -> (PalF, Option<f64>) {

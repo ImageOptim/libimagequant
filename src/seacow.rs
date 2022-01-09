@@ -119,6 +119,7 @@ impl<'a, T> RowBitmap<'a, T> {
 
 enum MutCow<'a, T: ?Sized> {
     Owned(Box<T>),
+    #[allow(dead_code)] /// This is optional, for FFI only
     Borrowed(&'a mut T),
 }
 
@@ -140,7 +141,7 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
         }
     }
 
-    /// Innter pointers must be valid for `'a` too, and at least `width` large each
+    /// Inner pointers must be valid for `'a` too, and at least `width` large each
     #[inline]
     #[cfg(feature = "_internal_c_ffi")]
     pub unsafe fn new(rows: &'a mut [*mut T], width: usize) -> Self {

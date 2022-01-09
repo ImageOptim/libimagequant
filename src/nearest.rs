@@ -1,15 +1,17 @@
-use crate::OrdFloat;
+use fallible_collections::FallibleVec;
+
+use crate::{OrdFloat, liq_error};
 use crate::pal::PalIndex;
 use crate::pal::{f_pixel, PalF};
 
 impl<'pal> Nearest<'pal> {
     #[inline(never)]
-    pub fn new(palette: &'pal PalF) -> Self {
+    pub fn new(palette: &'pal PalF) -> Result<Self, liq_error> {
         let mut indexes: Vec<_> = (0..palette.len())
             .map(|idx| MapIndex { idx: idx as _ })
             .collect();
         let mut handle = Nearest {
-            root: vp_create_node(&mut indexes, palette),
+            root: vp_create_node(&mut indexes, palette)?,
             palette,
             nearest_other_color_dist: [0.; 256],
         };
@@ -21,7 +23,7 @@ impl<'pal> Nearest<'pal> {
             vp_search_node(&handle.root, color, &mut best);
             handle.nearest_other_color_dist[i] = best.distance_squared / 4.;
         }
-        handle
+        Ok(handle)
     }
 }
 
@@ -92,12 +94,12 @@ pub struct Node {
     pub rest: Box<[Leaf]>,
 }
 
-fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
+fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, liq_error> {
     debug_assert!(!indexes.is_empty());
     let palette = items.as_slice();
 
     if indexes.len() <= 1 {
-        return Node {
+        return Ok(Node {
             vantage_point: palette[usize::from(indexes[0].idx)],
             radius: f32::NAN,
             radius_squared: f32::NAN,
@@ -105,7 +107,7 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
             near: None,
             far: None,
             rest: [].into(),
-        };
+        });
     }
 
     let most_popular_item = indexes.iter().enumerate().max_by_key(move |(_, i)| {
@@ -125,7 +127,7 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
     let radius = radius_squared.sqrt();
 
     let (near, far, rest) = if num_indexes < 7 {
-        let mut rest = Vec::with_capacity(num_indexes);
+        let mut rest: Vec<_> = FallibleVec::try_with_capacity(num_indexes)?;
         rest.extend(near.iter().chain(far.iter()).map(|i| Leaf {
             idx: i.idx,
             color: palette[usize::from(i.idx)],
@@ -133,19 +135,19 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
         (None, None, rest.into_boxed_slice())
     } else {
         (
-            if !near.is_empty() { Some(Box::new(vp_create_node(near, items))) } else { None },
-            if !far.is_empty() { Some(Box::new(vp_create_node(far, items))) } else { None },
+            if !near.is_empty() { Some(Box::new(vp_create_node(near, items)?)) } else { None },
+            if !far.is_empty() { Some(Box::new(vp_create_node(far, items)?)) } else { None },
             [].into(),
         )
     };
 
-    Node {
+    Ok(Node {
         vantage_point: palette[usize::from(ref_.idx)],
         radius,
         radius_squared,
         idx: ref_.idx,
         near, far, rest,
-    }
+    })
 }
 
 fn vp_search_node(mut node: &Node, needle: &f_pixel, best_candidate: &mut Visitor) {

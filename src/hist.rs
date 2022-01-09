@@ -7,6 +7,7 @@ use crate::quant::QuantizationResult;
 use crate::rows::temp_buf;
 use crate::rows::DynamicRows;
 use crate::Attributes;
+use fallible_collections::FallibleVec;
 use rgb::ComponentSlice;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
@@ -185,7 +186,7 @@ impl Histogram {
 
         let gamma = self.gamma.unwrap_or(0.45455);
         let (_, target_mse, _) = attr.target_mse(self.hashmap.len());
-        let hist = self.finalize_builder(gamma, target_mse);
+        let hist = self.finalize_builder(gamma, target_mse).map_err(|_| LIQ_OUT_OF_MEMORY)?;
 
         attr.verbose_print(format!("  made histogram...{} colors found", hist.items.len()));
 
@@ -237,7 +238,7 @@ impl Histogram {
         let mut importance_map = importance_map.unwrap_or(&[]).chunks_exact(width).fuse();
         let image_iter = image.rgba_rows_iter()?;
 
-        let mut temp_row = temp_buf(width);
+        let mut temp_row = temp_buf(width)?;
         for row in 0..height {
             let pixels_row = &image_iter.row_rgba(&mut temp_row, row)[..width];
             let importance_map = importance_map.next().map(move |m| &m[..width]);
@@ -253,11 +254,11 @@ impl Histogram {
         Ok(())
     }
 
-    pub(crate) fn finalize_builder(&mut self, gamma: f64, target_mse: f64) -> HistogramInternal {
+    pub(crate) fn finalize_builder(&mut self, gamma: f64, target_mse: f64) -> Result<HistogramInternal, liq_error> {
         debug_assert!(gamma > 0.);
 
         let mut counts = [0; LIQ_MAXCLUSTER];
-        let mut temp = Vec::with_capacity(self.hashmap.len());
+        let mut temp: Vec<_> = FallibleVec::try_with_capacity(self.hashmap.len())?;
         // Limit perceptual weight to 1/10th of the image surface area to prevent
         // a single color from dominating all others.
         let max_perceptual_weight = 0.1 * self.total_area as f32;
@@ -303,13 +304,15 @@ impl Histogram {
             next_begin += count;
         }
 
-        let mut items = vec![HistItem {
+        let mut items: Vec<_> = FallibleVec::try_with_capacity(temp.len())?;
+        items.resize(temp.len(), HistItem {
             color: if cfg!(debug_assertions) { f_pixel( ARGBF { r:f32::NAN, g:f32::NAN, b:f32::NAN, a:f32::NAN } ) } else { f_pixel::default() },
             adjusted_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },
             perceptual_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },
             mc_color_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },
             tmp: HistSortTmp { mc_sort_value: 0 },
-        }; temp.len()].into_boxed_slice();
+        });
+        let mut items = items.into_boxed_slice();
 
         for temp_item in temp {
             let cluster = &mut clusters[temp_item.cluster_index as usize];
@@ -321,11 +324,11 @@ impl Histogram {
             items[next_index].adjusted_weight = temp_item.weight;
         }
 
-        HistogramInternal {
+        Ok(HistogramInternal {
             items,
             clusters,
             total_perceptual_weight,
-        }
+        })
     }
 }
 
