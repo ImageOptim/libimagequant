@@ -1,5 +1,6 @@
 use crate::error::*;
 use crate::image::Image;
+use crate::pal::MAX_COLORS;
 use crate::pal::PalIndex;
 use crate::pal::ARGBF;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
@@ -98,7 +99,7 @@ impl Histogram {
     /// Fixed colors added to the image are also added to the histogram. If the total number of fixed colors exceeds 256,
     /// this function will fail with `LIQ_BUFFER_TOO_SMALL`.
     #[inline(never)]
-    pub fn add_image(&mut self, attr: &Attributes, image: &mut Image) -> Result<(), liq_error> {
+    pub fn add_image(&mut self, attr: &Attributes, image: &mut Image) -> Result<(), Error> {
         let width = image.width();
         let height = image.height();
         if image.importance_map.is_none() && attr.use_contrast_maps {
@@ -112,7 +113,7 @@ impl Histogram {
         }
 
         if attr.progress(attr.progress_stage1 as f32 * 0.40) {
-            return Err(LIQ_ABORTED); // bow can free the RGBA source if copy has been made in f_pixels
+            return Err(Aborted); // bow can free the RGBA source if copy has been made in f_pixels
         }
 
         let posterize_bits = attr.posterize_bits();
@@ -132,13 +133,13 @@ impl Histogram {
     ///
     /// This function is only useful if you already have a histogram of the image from another source.
     #[inline(never)]
-    pub fn add_colors(&mut self, entries: &[HistogramEntry], gamma: f64) -> Result<(), liq_error> {
+    pub fn add_colors(&mut self, entries: &[HistogramEntry], gamma: f64) -> Result<(), Error> {
         if entries.is_empty() || entries.len() > 1 << 24 {
-            return Err(LIQ_VALUE_OUT_OF_RANGE);
+            return Err(ValueOutOfRange);
         }
 
         if !(0. ..1.).contains(&gamma) {
-            return Err(LIQ_VALUE_OUT_OF_RANGE);
+            return Err(ValueOutOfRange);
         }
 
         self.gamma = Some(if gamma > 0. { gamma } else { 0.45455 });
@@ -153,15 +154,15 @@ impl Histogram {
     }
 
     /// Add a color guaranteed to be in the final palette
-    pub fn add_fixed_color(&mut self, color: RGBA, gamma: f64) -> liq_error {
+    pub fn add_fixed_color(&mut self, color: RGBA, gamma: f64) -> Result<(), Error> {
         let lut = gamma_lut(if gamma > 0. { gamma } else { 0.45455 });
         let px = f_pixel::from_rgba(&lut, RGBA{r: color.r, g: color.g, b: color.b, a: color.a,});
 
-        if self.fixed_colors.len() > 255 {
-            return LIQ_UNSUPPORTED;
+        if self.fixed_colors.len() >= MAX_COLORS {
+            return Err(Unsupported);
         }
         self.fixed_colors.insert(HashColor(px));
-        LIQ_OK
+        Ok(())
     }
 
     /// Generate palette for all images/colors added to the histogram.
@@ -169,24 +170,24 @@ impl Histogram {
     /// Palette generated using this function won't be improved during remapping.
     /// If you're generating palette for only one image, it's better not to use the `Histogram`.
     #[inline]
-    pub fn quantize(&mut self, attr: &Attributes) -> Result<QuantizationResult, liq_error> {
+    pub fn quantize(&mut self, attr: &Attributes) -> Result<QuantizationResult, Error> {
         self.quantize_internal(attr, true)
     }
 
     #[inline(never)]
-    pub(crate) fn quantize_internal(&mut self, attr: &Attributes, freeze_result_colors: bool) -> Result<QuantizationResult, liq_error> {
+    pub(crate) fn quantize_internal(&mut self, attr: &Attributes, freeze_result_colors: bool) -> Result<QuantizationResult, Error> {
         if self.hashmap.is_empty() && self.fixed_colors.is_empty() {
-            return Err(LIQ_UNSUPPORTED);
+            return Err(Unsupported);
         }
 
-        if attr.progress(0.) { return Err(LIQ_ABORTED); }
+        if attr.progress(0.) { return Err(Aborted); }
         if attr.progress(attr.progress_stage1 as f32 * 0.89) {
-            return Err(LIQ_ABORTED);
+            return Err(Aborted);
         }
 
         let gamma = self.gamma.unwrap_or(0.45455);
         let (_, target_mse, _) = attr.target_mse(self.hashmap.len());
-        let hist = self.finalize_builder(gamma, target_mse).map_err(|_| LIQ_OUT_OF_MEMORY)?;
+        let hist = self.finalize_builder(gamma, target_mse).map_err(|_| OutOfMemory)?;
 
         attr.verbose_print(format!("  made histogram...{} colors found", hist.items.len()));
 
@@ -230,7 +231,7 @@ impl Histogram {
         }));
     }
 
-    pub(crate) fn add_pixel_rows(&mut self, image: &mut DynamicRows<'_, '_>, importance_map: Option<&[u8]>, posterize_bits: u8) -> Result<(), liq_error> {
+    pub(crate) fn add_pixel_rows(&mut self, image: &mut DynamicRows<'_, '_>, importance_map: Option<&[u8]>, posterize_bits: u8) -> Result<(), Error> {
         let width = image.width as usize;
         let height = image.height as usize;
         self.total_area += width * height;
@@ -254,7 +255,7 @@ impl Histogram {
         Ok(())
     }
 
-    pub(crate) fn finalize_builder(&mut self, gamma: f64, target_mse: f64) -> Result<HistogramInternal, liq_error> {
+    pub(crate) fn finalize_builder(&mut self, gamma: f64, target_mse: f64) -> Result<HistogramInternal, Error> {
         debug_assert!(gamma > 0.);
 
         let mut counts = [0; LIQ_MAXCLUSTER];

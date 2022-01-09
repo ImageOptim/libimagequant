@@ -27,15 +27,15 @@ pub struct QuantizationResult {
 }
 
 impl QuantizationResult {
-    pub(crate) fn new(attr: &Attributes, hist: HistogramInternal, freeze_result_colors: bool, fixed_colors: &FixedColorsSet, gamma: f64) -> Result<Self, liq_error> {
-        if attr.progress(attr.progress_stage1 as f32) { return Err(LIQ_ABORTED); }
+    pub(crate) fn new(attr: &Attributes, hist: HistogramInternal, freeze_result_colors: bool, fixed_colors: &FixedColorsSet, gamma: f64) -> Result<Self, Error> {
+        if attr.progress(attr.progress_stage1 as f32) { return Err(Aborted); }
         let (max_mse, target_mse, target_mse_is_zero) = attr.target_mse(hist.items.len());
         let (mut palette, palette_error) = find_best_palette(attr, target_mse, target_mse_is_zero, max_mse, hist, fixed_colors)?;
         if freeze_result_colors {
             palette.iter_mut().for_each(|(_, p)| *p = p.to_fixed());
         }
         if attr.progress(attr.progress_stage1 as f32 + attr.progress_stage2 as f32 + attr.progress_stage3 as f32 * 0.95) {
-            return Err(LIQ_ABORTED);
+            return Err(Aborted);
         }
         if let (Some(palette_error), Some(max_mse)) = (palette_error, max_mse) {
             if palette_error > max_mse {
@@ -46,7 +46,7 @@ impl QuantizationResult {
                     mse_to_standard_mse(max_mse),
                     mse_to_quality(max_mse)
                 ));
-                return Err(LIQ_QUALITY_TOO_LOW);
+                return Err(QualityTooLow);
             }
         }
 
@@ -68,7 +68,7 @@ impl QuantizationResult {
         })
     }
 
-    pub(crate) fn write_remapped_image_rows_internal(&mut self, image: &mut Image, output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>) -> Result<(), liq_error> {
+    pub(crate) fn write_remapped_image_rows_internal(&mut self, image: &mut Image, output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>) -> Result<(), Error> {
         if image.edges.is_none() && image.dither_map.is_none() && self.use_dither_map != DitherMapMode::None {
             image.contrast_maps()?;
         }
@@ -78,26 +78,26 @@ impl QuantizationResult {
     }
 
     /// Set to 1.0 to get nice smooth image
-    pub fn set_dithering_level(&mut self, value: f32) -> liq_error {
+    pub fn set_dithering_level(&mut self, value: f32) -> Result<(), Error> {
         if !(0. ..=1.).contains(&value) {
-            return LIQ_VALUE_OUT_OF_RANGE;
+            return Err(ValueOutOfRange);
         }
 
         self.remapped = None;
         self.dither_level = value;
-        LIQ_OK
+        Ok(())
     }
 
     /// The default is sRGB gamma (~1/2.2)
-    pub fn set_output_gamma(&mut self, value: f64) -> liq_error {
+    pub fn set_output_gamma(&mut self, value: f64) -> Result<(), Error> {
         if value <= 0. || value >= 1. {
-            return LIQ_VALUE_OUT_OF_RANGE;
+            return Err(ValueOutOfRange);
         }
 
         self.remapped = None;
         self.gamma = value;
 
-        LIQ_OK
+        Ok(())
     }
 
     /// Approximate gamma correction value used for the output
@@ -184,11 +184,11 @@ impl QuantizationResult {
     /// Remap image into a palette + indices.
     ///
     /// Returns the palette and a 1-byte-per-pixel uncompressed bitmap
-    pub fn remapped(&mut self, image: &mut Image<'_, '_>) -> Result<(Vec<RGBA>, Vec<u8>), liq_error> {
+    pub fn remapped(&mut self, image: &mut Image<'_, '_>) -> Result<(Vec<RGBA>, Vec<u8>), Error> {
         let len = image.width() * image.height();
         // Capacity is essential here, as it creates uninitialized buffer
         unsafe {
-            let mut buf: Vec<u8> = FallibleVec::try_with_capacity(len).map_err(|_| LIQ_OUT_OF_MEMORY)?;
+            let mut buf: Vec<u8> = FallibleVec::try_with_capacity(len).map_err(|_| OutOfMemory)?;
             let uninit_slice = std::slice::from_raw_parts_mut(buf.as_mut_ptr().cast::<MaybeUninit<u8>>(), buf.capacity());
             self.remap_into(image, uninit_slice)?;
             buf.set_len(uninit_slice.len());
@@ -205,9 +205,9 @@ impl QuantizationResult {
     /// You should call `palette()` or `palette_ref()` _after_ this call, but not before it,
     /// because remapping changes the palette.
     #[inline]
-    pub fn remap_into(&mut self, image: &mut Image<'_, '_>, output_buf: &mut [MaybeUninit<u8>]) -> Result<(), liq_error> {
+    pub fn remap_into(&mut self, image: &mut Image<'_, '_>, output_buf: &mut [MaybeUninit<u8>]) -> Result<(), Error> {
         let required_size = (image.width()) * (image.height());
-        let output_buf = output_buf.get_mut(0..required_size).ok_or(LIQ_BUFFER_TOO_SMALL)?;
+        let output_buf = output_buf.get_mut(0..required_size).ok_or(BufferTooSmall)?;
 
         let rows = RowBitmapMut::new_contiguous(output_buf, image.width());
         self.write_remapped_image_rows_internal(image, rows)
@@ -258,7 +258,7 @@ impl fmt::Debug for QuantizationResult {
 ///
 ///  feedback_loop_trials controls how long the search will take. < 0 skips the iteration.
 #[allow(clippy::or_fun_call)]
-pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_is_zero: bool, max_mse: Option<f64>, mut hist: HistogramInternal, fixed_colors: &FixedColorsSet) -> Result<(PalF, Option<f64>), liq_error> {
+pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_is_zero: bool, max_mse: Option<f64>, mut hist: HistogramInternal, fixed_colors: &FixedColorsSet) -> Result<(PalF, Option<f64>), Error> {
     let few_input_colors = hist.items.len() + fixed_colors.len() <= attr.max_colors as usize;
     // actual target_mse passed to this method has extra diff from posterization
     if few_input_colors && target_mse_is_zero {
@@ -302,7 +302,7 @@ pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_i
         if attr.progress(overall_done) || trials_left <= 0 {
             break best_palette;
         }
-    }.ok_or(LIQ_VALUE_OUT_OF_RANGE)?;
+    }.ok_or(ValueOutOfRange)?;
 
     refine_palette(&mut palette, attr, &mut hist, max_mse, &mut palette_error)?;
 
@@ -310,7 +310,7 @@ pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_i
 }
 
 
-fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInternal, max_mse: Option<f64>, palette_error: &mut Option<f64>) -> Result<(), liq_error> {
+fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInternal, max_mse: Option<f64>, palette_error: &mut Option<f64>) -> Result<(), Error> {
     let (iterations, iteration_limit) = attr.kmeans_iterations(hist.items.len(), palette_error.is_some());
     if iterations > 0 {
         attr.verbose_print("  moving colormap towards local minimum");

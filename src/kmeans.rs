@@ -1,4 +1,4 @@
-use crate::liq_error;
+use crate::Error;
 use crate::hist::{HistItem, HistogramInternal};
 use crate::nearest::Nearest;
 use crate::pal::{PalF, PalIndex, PalPop, f_pixel};
@@ -24,7 +24,7 @@ struct ColorAvg {
 /// K-Means iteration: new palette color is computed from weighted average of colors that map best to that palette entry.
 impl Kmeans {
     #[inline]
-    pub fn new(pal_len: usize) -> Result<Self, liq_error> {
+    pub fn new(pal_len: usize) -> Result<Self, Error> {
         let mut averages: Vec<_> = FallibleVec::try_with_capacity(pal_len)?;
         averages.resize(pal_len, ColorAvg::default());
         Ok(Self {
@@ -52,7 +52,7 @@ impl Kmeans {
     }
 
     #[inline(never)]
-    pub(crate) fn iteration(hist: &mut HistogramInternal, palette: &mut PalF, adjust_weight: bool) -> Result<f64, liq_error> {
+    pub(crate) fn iteration(hist: &mut HistogramInternal, palette: &mut PalF, adjust_weight: bool) -> Result<f64, Error> {
         if hist.items.is_empty() {
             return Ok(0.);
         }

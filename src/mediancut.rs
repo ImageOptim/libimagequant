@@ -2,7 +2,7 @@ use crate::hist::{HistItem, HistogramInternal};
 use crate::pal::{f_pixel, PalF, PalPop};
 use crate::pal::{PalLen, ARGBF};
 use crate::quant::quality_to_mse;
-use crate::{OrdFloat, liq_error};
+use crate::{OrdFloat, Error};
 use fallible_collections::FallibleVec;
 use rgb::ComponentMap;
 use rgb::ComponentSlice;
@@ -222,7 +222,7 @@ impl<'hist> MedianCutter<'hist> {
         true
     }
 
-    pub fn new(hist: &'hist mut HistogramInternal, target_colors: PalLen) -> Result<Self, liq_error> {
+    pub fn new(hist: &'hist mut HistogramInternal, target_colors: PalLen) -> Result<Self, Error> {
         let hist_total_perceptual_weight = hist.total_perceptual_weight;
 
         debug_assert!(hist.clusters[0].begin == 0);
@@ -307,7 +307,7 @@ impl<'hist> MedianCutter<'hist> {
     }
 }
 
-pub(crate) fn mediancut(hist: &mut HistogramInternal, target_colors: PalLen, target_mse: f64, max_mse_per_color: f64) -> Result<PalF, liq_error> {
+pub(crate) fn mediancut(hist: &mut HistogramInternal, target_colors: PalLen, target_mse: f64, max_mse_per_color: f64) -> Result<PalF, Error> {
     Ok(MedianCutter::new(hist, target_colors)?.cut(target_mse, max_mse_per_color))
 }
 

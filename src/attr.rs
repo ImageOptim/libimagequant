@@ -1,4 +1,4 @@
-use crate::error::{liq_error, LIQ_OK, LIQ_VALUE_OUT_OF_RANGE};
+use crate::error::Error;
 use crate::hist::Histogram;
 use crate::image::Image;
 use crate::pal::PalLen;
@@ -59,30 +59,30 @@ impl Attributes {
             log_callback: None,
             log_flush_callback: None,
         };
-        attr.set_speed(4);
+        let _ = attr.set_speed(4);
         attr
     }
 
     /// It's better to use `set_quality()`
     #[inline]
-    pub fn set_max_colors(&mut self, colors: u32) -> liq_error {
+    pub fn set_max_colors(&mut self, colors: u32) -> Result<(), Error> {
         if !(2..=256).contains(&colors) {
-            return LIQ_VALUE_OUT_OF_RANGE;
+            return Err(Error::ValueOutOfRange);
         }
         self.max_colors = colors as PalLen;
-        LIQ_OK
+        Ok(())
     }
 
     /// Number of least significant bits to ignore.
     ///
     /// Useful for generating palettes for VGA, 15-bit textures, or other retro platforms.
     #[inline]
-    pub fn set_min_posterization(&mut self, value: u8) -> liq_error {
+    pub fn set_min_posterization(&mut self, value: u8) -> Result<(), Error> {
         if !(0..=4).contains(&value) {
-            return LIQ_VALUE_OUT_OF_RANGE;
+            return Err(Error::ValueOutOfRange);
         }
         self.min_posterization_output = value;
-        LIQ_OK
+        Ok(())
     }
 
     /// Returns number of bits of precision truncated
@@ -97,13 +97,13 @@ impl Attributes {
     /// If minimum quality can't be met, quantization will fail.
     ///
     /// Default is min 0, max 100.
-    pub fn set_quality(&mut self, minimum: u8, target: u8) -> liq_error {
+    pub fn set_quality(&mut self, minimum: u8, target: u8) -> Result<(), Error> {
         if !(0..=100).contains(&target) || target < minimum {
-            return LIQ_VALUE_OUT_OF_RANGE;
+            return Err(Error::ValueOutOfRange);
         }
         self.target_mse = quality_to_mse(target);
         self.max_mse = Some(quality_to_mse(minimum));
-        LIQ_OK
+        Ok(())
     }
 
     /// Reads values set with `set_quality`
@@ -120,9 +120,9 @@ impl Attributes {
     /// Faster speeds generate images of lower quality, but may be useful
     /// for real-time generation of images.
     #[inline]
-    pub fn set_speed(&mut self, value: i32) -> liq_error {
+    pub fn set_speed(&mut self, value: i32) -> Result<(), Error> {
         if !(1..=10).contains(&value) {
-            return LIQ_VALUE_OUT_OF_RANGE;
+            return Err(Error::ValueOutOfRange);
         }
         let mut iterations = (8 - value).max(0) as u16;
         iterations += iterations * iterations / 2;
@@ -143,7 +143,7 @@ impl Attributes {
         }
         self.progress_stage3 = (50 / (1 + value)) as u8;
         self.progress_stage2 = 100 - self.progress_stage1 - self.progress_stage3;
-        LIQ_OK
+        Ok(())
     }
 
     /// Move transparent color to the last entry in the palette
@@ -172,31 +172,31 @@ impl Attributes {
     ///
     /// Use 0.0 for gamma if the image is sRGB (most images are).
     #[inline]
-    pub fn new_image<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'pixels, 'static>, liq_error> {
+    pub fn new_image<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'pixels, 'static>, Error> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
     #[inline]
-    pub fn new_image_stride_borrow<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'pixels, 'static>, liq_error> {
+    pub fn new_image_stride_borrow<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'pixels, 'static>, Error> {
         Image::new_stride(self, bitmap, width, height, stride, gamma)
     }
 
     /// Like `new_image_stride`, but makes a copy of the pixels
     #[inline]
-    pub fn new_image_stride(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static, 'static>, liq_error> {
+    pub fn new_image_stride(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static, 'static>, Error> {
         Image::new_stride_copy(self, bitmap, width, height, stride, gamma)
     }
 
     #[doc(hidden)]
     #[deprecated(note = "use new_image_stride")]
     #[cold]
-    pub fn new_image_stride_copy(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static, 'static>, liq_error> {
+    pub fn new_image_stride_copy(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static, 'static>, Error> {
         self.new_image_stride(bitmap, width, height, stride, gamma)
     }
 
     /// Generate palette for the image
-    pub fn quantize(&self, image: &mut Image<'_, '_>) -> Result<QuantizationResult, liq_error> {
+    pub fn quantize(&self, image: &mut Image<'_, '_>) -> Result<QuantizationResult, Error> {
         let mut hist = Histogram::new(self);
         hist.add_image(self, image)?;
         hist.quantize_internal(self, false)

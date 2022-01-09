@@ -1,12 +1,12 @@
 use fallible_collections::FallibleVec;
 
-use crate::{OrdFloat, liq_error};
+use crate::{OrdFloat, Error};
 use crate::pal::PalIndex;
 use crate::pal::{f_pixel, PalF};
 
 impl<'pal> Nearest<'pal> {
     #[inline(never)]
-    pub fn new(palette: &'pal PalF) -> Result<Self, liq_error> {
+    pub fn new(palette: &'pal PalF) -> Result<Self, Error> {
         let mut indexes: Vec<_> = (0..palette.len())
             .map(|idx| MapIndex { idx: idx as _ })
             .collect();
@@ -94,7 +94,7 @@ pub struct Node {
     pub rest: Box<[Leaf]>,
 }
 
-fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, liq_error> {
+fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, Error> {
     debug_assert!(!indexes.is_empty());
     let palette = items.as_slice();
 

@@ -28,7 +28,7 @@ pub(crate) struct Remapped {
 }
 
 #[inline(never)]
-pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<u8>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, u8>), liq_error> {
+pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<u8>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, u8>), Error> {
     let width = image.width();
 
     let n = Nearest::new(palette)?;
@@ -45,7 +45,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
     }
 
     let tls = ThreadLocal::new();
-    let per_thread_buffers = move || -> Result<_, liq_error> { Ok(RefCell::new((Kmeans::new(palette_len)?, temp_buf(width)?, temp_buf(width)?, temp_buf(width)?))) };
+    let per_thread_buffers = move || -> Result<_, Error> { Ok(RefCell::new((Kmeans::new(palette_len)?, temp_buf(width)?, temp_buf(width)?, temp_buf(width)?))) };
 
     let tls_tmp1 = tls.get_or_try(per_thread_buffers)?;
     let mut tls_tmp = tls_tmp1.borrow_mut();
@@ -90,7 +90,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
     .sum::<f64>();
 
     if remapping_error.is_nan() {
-        return Err(LIQ_OUT_OF_MEMORY);
+        return Err(Error::OutOfMemory);
     }
 
     if let Some(kmeans) = tls.into_iter()
@@ -144,7 +144,7 @@ fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel
 ///
 ///  If output_image_is_remapped is true, only pixels noticeably changed by error diffusion will be written to output image.
 #[inline(never)]
-pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), liq_error> {
+pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), Error> {
     let progress_stage1 = if quant.use_dither_map != DitherMapMode::None { 20 } else { 0 };
 
     let width = input_image.width();
@@ -181,7 +181,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
 
     for (row, output_pixels_row) in output_pixels.rows_mut().enumerate() {
         if quant.remap_progress(progress_stage1 as f32 + row as f32 * (100. - progress_stage1 as f32) / height as f32) {
-            return Err(LIQ_ABORTED);
+            return Err(Error::Aborted);
         }
         nexterr.fill_with(f_pixel::default);
         let mut col = if scan_forward { 0 } else { width - 1 };
@@ -272,13 +272,13 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
 
 impl Remapped {
     #[allow(clippy::or_fun_call)]
-    pub fn new(result: &QuantizationResult, image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>) -> Result<Self, liq_error> {
+    pub fn new(result: &QuantizationResult, image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>) -> Result<Self, Error> {
         let mut palette = result.palette.clone();
         let progress_stage1 = if result.use_dither_map != DitherMapMode::None { 20 } else { 0 };
 
         let posterize = result.min_posterization_output;
         if result.remap_progress(progress_stage1 as f32 * 0.25) {
-            return Err(LIQ_ABORTED);
+            return Err(Error::Aborted);
         }
 
         let mut palette_error = result.palette_error;
@@ -299,7 +299,7 @@ impl Remapped {
             let output_image_is_remapped = generate_dither_map;
 
             if result.remap_progress(progress_stage1 as f32 * 0.5) {
-                return Err(LIQ_ABORTED);
+                return Err(Error::Aborted);
             }
 
             // remapping above was the last chance to do K-Means iteration, hence the final palette is set after remapping

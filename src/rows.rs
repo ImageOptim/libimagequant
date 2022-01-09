@@ -94,7 +94,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 
     #[inline]
-    fn prepare_f_pixels(&mut self, temp_row: &mut [MaybeUninit<RGBA>], allow_steamed: bool) -> Result<Option<Box<[MaybeUninit<f_pixel>]>>, liq_error> {
+    fn prepare_f_pixels(&mut self, temp_row: &mut [MaybeUninit<RGBA>], allow_steamed: bool) -> Result<Option<Box<[MaybeUninit<f_pixel>]>>, Error> {
         debug_assert_eq!(temp_row.len(), self.width as _);
         if self.f_pixels.is_some() {
             return Ok(None);
@@ -103,7 +103,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
         self.prepare_generated_image(temp_row, allow_steamed)
     }
 
-    fn prepare_generated_image(&mut self, temp_row: &mut [MaybeUninit<RGBA>], allow_steamed: bool) -> Result<Option<Box<[MaybeUninit<f_pixel>]>>, liq_error> {
+    fn prepare_generated_image(&mut self, temp_row: &mut [MaybeUninit<RGBA>], allow_steamed: bool) -> Result<Option<Box<[MaybeUninit<f_pixel>]>>, Error> {
         debug_assert_eq!(temp_row.len(), self.width as _);
 
         if allow_steamed && self.should_use_low_memory() {
@@ -124,7 +124,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 
     #[inline]
-    pub fn rows_iter(&mut self, temp_row: &mut [MaybeUninit<RGBA>]) -> Result<DynamicRowsIter<'_, 'pixels, 'rows>, liq_error> {
+    pub fn rows_iter(&mut self, temp_row: &mut [MaybeUninit<RGBA>]) -> Result<DynamicRowsIter<'_, 'pixels, 'rows>, Error> {
         Ok(DynamicRowsIter {
             temp_f_row: self.prepare_f_pixels(temp_row, true)?,
             px: self,
@@ -132,32 +132,32 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 
     #[inline]
-    pub fn rgba_rows_iter(&self) -> Result<DynamicRowsIter<'_, 'pixels, 'rows>, liq_error> {
+    pub fn rgba_rows_iter(&self) -> Result<DynamicRowsIter<'_, 'pixels, 'rows>, Error> {
         // This happens when histogram image is recycled
         if let PixelsSource::Pixels { rows, .. } = &self.pixels {
             if rows.as_slice().is_empty() {
-                return Err(LIQ_UNSUPPORTED);
+                return Err(Error::Unsupported);
             }
         }
         Ok(DynamicRowsIter { px: self, temp_f_row: None })
     }
 
     #[inline]
-    pub fn all_rows_f(&mut self) -> Result<&[f_pixel], liq_error> {
+    pub fn all_rows_f(&mut self) -> Result<&[f_pixel], Error> {
         if self.f_pixels.is_some() {
             return Ok(self.f_pixels.as_ref().unwrap()); // borrow-checker :(
         }
         let _ = self.prepare_f_pixels(&mut temp_buf(self.width())?, false)?;
-        self.f_pixels.as_deref().ok_or(LIQ_UNSUPPORTED)
+        self.f_pixels.as_deref().ok_or(Error::Unsupported)
     }
 
     /// Not recommended
     #[cfg(feature = "_internal_c_ffi")]
-    pub(crate) unsafe fn set_memory_ownership(&mut self, own_rows: bool, own_pixels: bool, free_fn: unsafe extern fn(*mut std::os::raw::c_void)) -> Result<(), liq_error> {
+    pub(crate) unsafe fn set_memory_ownership(&mut self, own_rows: bool, own_pixels: bool, free_fn: unsafe extern fn(*mut std::os::raw::c_void)) -> Result<(), Error> {
         if own_rows {
             match &mut self.pixels {
                 PixelsSource::Pixels { rows, .. } => rows.make_owned(free_fn),
-                PixelsSource::Callback(_) => return Err(LIQ_VALUE_OUT_OF_RANGE),
+                PixelsSource::Callback(_) => return Err(Error::ValueOutOfRange),
             }
         }
 
@@ -167,10 +167,10 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
                 PixelsSource::Pixels { pixels: Some(pixels), .. } => pixels.make_owned(free_fn),
                 PixelsSource::Pixels { pixels, rows } => {
                     // the row with the lowest address is assumed to be at the start of the bitmap
-                    let ptr = rows.as_slice().iter().copied().min().ok_or(LIQ_UNSUPPORTED)?;
+                    let ptr = rows.as_slice().iter().copied().min().ok_or(Error::Unsupported)?;
                     *pixels = Some(SeaCow::c_owned(ptr as *mut _, len, free_fn));
                 },
-                PixelsSource::Callback(_) => return Err(LIQ_VALUE_OUT_OF_RANGE),
+                PixelsSource::Callback(_) => return Err(Error::ValueOutOfRange),
             }
         }
         Ok(())
@@ -193,7 +193,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 }
 
-pub(crate) fn temp_buf<T>(len: usize) -> Result<Box<[MaybeUninit<T>]>, liq_error> {
+pub(crate) fn temp_buf<T>(len: usize) -> Result<Box<[MaybeUninit<T>]>, Error> {
     let mut v: Vec<_> = FallibleVec::try_with_capacity(len)?;
     unsafe { v.set_len(len) };
     Ok(v.into_boxed_slice())

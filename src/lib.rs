@@ -25,13 +25,17 @@ pub mod capi;
 
 pub use attr::Attributes;
 pub use attr::ControlFlow;
-pub use error::liq_error;
+pub use error::Error;
 pub use hist::Histogram;
 pub use hist::HistogramEntry;
 pub type Image<'pixels> = image::Image<'pixels, 'static>;
 pub use pal::Palette;
 pub use pal::RGBA;
 pub use quant::QuantizationResult;
+
+#[doc(hidden)]
+#[deprecated(note = "Please use the imagequant::Error type. This will be removed")]
+pub use error::Error as liq_error;
 
 const LIQ_HIGH_MEMORY_LIMIT: usize = 1 << 26;
 pub const LIQ_VERSION: u32 = 40000;
@@ -104,11 +108,11 @@ fn poke_it() {
 
     // Configure the library
     let mut liq = Attributes::new();
-    liq.set_speed(5);
-    liq.set_quality(70, 99);
-    liq.set_min_posterization(1);
+    liq.set_speed(5).unwrap();
+    liq.set_quality(70, 99).unwrap();
+    liq.set_min_posterization(1).unwrap();
     assert_eq!(1, liq.min_posterization());
-    liq.set_min_posterization(0);
+    liq.set_min_posterization(0).unwrap();
 
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::Ordering::SeqCst;
@@ -137,7 +141,7 @@ fn poke_it() {
     };
 
     // Enable dithering for subsequent remappings
-    res.set_dithering_level(1.0);
+    res.set_dithering_level(1.0).unwrap();
 
     // You can reuse the result to generate several images with the same palette
     let (palette, pixels) = res.remapped(img).unwrap();

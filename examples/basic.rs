@@ -8,8 +8,8 @@ fn main() {
 
     // Configure the library
     let mut liq = imagequant::new();
-    liq.set_speed(5);
-    liq.set_quality(70, 99);
+    liq.set_speed(5).unwrap();
+    liq.set_quality(70, 99).unwrap();
 
     // Describe the bitmap
     let mut img = liq.new_image(&fakebitmap[..], width, height, 0.0).unwrap();
@@ -21,7 +21,7 @@ fn main() {
     };
 
     // Enable dithering for subsequent remappings
-    res.set_dithering_level(1.0);
+    res.set_dithering_level(1.0).unwrap();
 
     // You can reuse the result to generate several images with the same palette
     let (palette, pixels) = res.remapped(&mut img).unwrap();

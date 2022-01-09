@@ -6,7 +6,7 @@
 
 use imagequant::*;
 use imagequant::capi::*;
-use imagequant::liq_error::*;
+use imagequant::Error::LIQ_OK;
 use std::ffi::CString;
 use std::mem::ManuallyDrop;
 use std::mem::MaybeUninit;
@@ -14,7 +14,7 @@ use std::os::raw::c_char;
 use std::os::raw::{c_int, c_uint, c_void};
 use std::ptr;
 
-pub use imagequant::liq_error;
+pub use imagequant::Error as liq_error;
 
 #[repr(C)]
 pub struct liq_attr {
@@ -214,8 +214,8 @@ pub unsafe extern "C" fn liq_set_log_flush_callback(attr: &mut liq_attr, callbac
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_set_max_colors(attr: &mut liq_attr, colors: c_uint) -> liq_error {
-    if bad_object!(attr, LIQ_ATTR_MAGIC) { return LIQ_INVALID_POINTER; }
-    attr.inner.set_max_colors(colors)
+    if bad_object!(attr, LIQ_ATTR_MAGIC) { return Error::InvalidPointer; }
+    attr.inner.set_max_colors(colors).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -228,8 +228,8 @@ pub extern "C" fn liq_get_max_colors(attr: &liq_attr) -> c_uint {
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_set_min_posterization(attr: &mut liq_attr, bits: c_int) -> liq_error {
-    if bad_object!(attr, LIQ_ATTR_MAGIC) { return LIQ_INVALID_POINTER; }
-    attr.inner.set_min_posterization(bits as u8)
+    if bad_object!(attr, LIQ_ATTR_MAGIC) { return Error::InvalidPointer; }
+    attr.inner.set_min_posterization(bits as u8).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -242,7 +242,7 @@ pub extern "C" fn liq_get_min_posterization(attr: &liq_attr) -> c_uint {
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_set_speed(attr: &mut liq_attr, speed: c_int) -> liq_error {
-    attr.inner.set_speed(speed)
+    attr.inner.set_speed(speed).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -255,8 +255,8 @@ pub extern "C" fn liq_get_speed(attr: &liq_attr) -> c_uint {
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_set_quality(attr: &mut liq_attr, minimum: c_uint, target: c_uint) -> liq_error {
-    if bad_object!(attr, LIQ_ATTR_MAGIC) { return LIQ_INVALID_POINTER; }
-    attr.inner.set_quality(minimum as u8, target as u8)
+    if bad_object!(attr, LIQ_ATTR_MAGIC) { return Error::InvalidPointer; }
+    attr.inner.set_quality(minimum as u8, target as u8).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -291,14 +291,14 @@ pub extern "C" fn liq_quantize_image(attr: &mut liq_attr, img: &mut liq_image) -
 #[inline(never)]
 pub unsafe extern "C" fn liq_write_remapped_image(result: &mut liq_result, input_image: &mut liq_image, buffer_bytes: *mut MaybeUninit<u8>, buffer_size: usize) -> liq_error {
     if bad_object!(result, LIQ_RESULT_MAGIC) ||
-       bad_object!(input_image, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
+       bad_object!(input_image, LIQ_IMAGE_MAGIC) { return Error::InvalidPointer; }
     let input_image = &mut input_image.inner;
     let result = &mut result.inner;
 
-    if liq_received_invalid_pointer(buffer_bytes.cast()) { return LIQ_INVALID_POINTER; }
+    if liq_received_invalid_pointer(buffer_bytes.cast()) { return Error::InvalidPointer; }
 
     let required_size = (input_image.width()) * (input_image.height());
-    if buffer_size < required_size { return LIQ_BUFFER_TOO_SMALL; }
+    if buffer_size < required_size { return Error::BufferTooSmall; }
     let buffer_bytes = std::slice::from_raw_parts_mut(buffer_bytes, required_size);
     liq_write_remapped_image_impl(result, input_image, buffer_bytes).err().unwrap_or(LIQ_OK)
 }
@@ -307,11 +307,11 @@ pub unsafe extern "C" fn liq_write_remapped_image(result: &mut liq_result, input
 #[inline(never)]
 pub unsafe extern "C" fn liq_write_remapped_image_rows(result: &mut liq_result, input_image: &mut liq_image, row_pointers: *mut *mut MaybeUninit<u8>) -> liq_error {
     if bad_object!(result, LIQ_RESULT_MAGIC) ||
-       bad_object!(input_image, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
+       bad_object!(input_image, LIQ_IMAGE_MAGIC) { return Error::InvalidPointer; }
     let input_image = &mut input_image.inner;
     let result = &mut result.inner;
 
-    if liq_received_invalid_pointer(row_pointers.cast()) { return LIQ_INVALID_POINTER; }
+    if liq_received_invalid_pointer(row_pointers.cast()) { return Error::InvalidPointer; }
     let rows = std::slice::from_raw_parts_mut(row_pointers, input_image.height());
 
     liq_write_remapped_image_rows_impl(result, input_image, rows).err().unwrap_or(LIQ_OK)
@@ -320,17 +320,17 @@ pub unsafe extern "C" fn liq_write_remapped_image_rows(result: &mut liq_result, 
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_image_add_fixed_color(img: &mut liq_image, color: liq_color) -> liq_error {
-    if bad_object!(img, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
-    img.inner.add_fixed_color(color)
+    if bad_object!(img, LIQ_IMAGE_MAGIC) { return Error::InvalidPointer; }
+    img.inner.add_fixed_color(color).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_histogram_add_fixed_color(hist: &mut liq_histogram, color: liq_color, gamma: f64) -> liq_error {
-    if bad_object!(hist, LIQ_HISTOGRAM_MAGIC) { return LIQ_INVALID_POINTER; }
+    if bad_object!(hist, LIQ_HISTOGRAM_MAGIC) { return Error::InvalidPointer; }
     let hist = &mut hist.inner;
 
-    hist.add_fixed_color(color, gamma)
+    hist.add_fixed_color(color, gamma).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -355,7 +355,7 @@ pub extern "C" fn liq_image_destroy(_: Option<Box<liq_image>>) {}
 #[inline(never)]
 pub extern "C" fn liq_image_set_background<'pixels>(img: &mut liq_image<'pixels>, background: Box<liq_image<'pixels>>) -> liq_error {
     if bad_object!(img, LIQ_IMAGE_MAGIC) ||
-       bad_object!(background, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
+       bad_object!(background, LIQ_IMAGE_MAGIC) { return Error::InvalidPointer; }
     let background = unsafe { ManuallyDrop::take(&mut ManuallyDrop::new(background).inner) };
     img.inner.set_background(background).err().unwrap_or(LIQ_OK)
 }
@@ -363,14 +363,14 @@ pub extern "C" fn liq_image_set_background<'pixels>(img: &mut liq_image<'pixels>
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn liq_image_set_importance_map(img: &mut liq_image, importance_map: *mut u8, buffer_size: usize, ownership: liq_ownership) -> liq_error {
-    if bad_object!(img, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
+    if bad_object!(img, LIQ_IMAGE_MAGIC) { return Error::InvalidPointer; }
     let free_fn = img.c_api_free;
     let img = &mut img.inner;
 
-    if buffer_size == 0 || liq_received_invalid_pointer(importance_map) { return LIQ_INVALID_POINTER; }
+    if buffer_size == 0 || liq_received_invalid_pointer(importance_map) { return Error::InvalidPointer; }
     let required_size = img.width() * img.height();
     if buffer_size < required_size {
-        return LIQ_BUFFER_TOO_SMALL;
+        return Error::BufferTooSmall;
     }
 
     let importance_map = std::slice::from_raw_parts_mut(importance_map, required_size);
@@ -380,19 +380,19 @@ pub unsafe extern "C" fn liq_image_set_importance_map(img: &mut liq_image, impor
         liq_image_set_importance_map_owned(img, importance_map, free_fn);
         LIQ_OK
     } else {
-        LIQ_UNSUPPORTED
+        Error::Unsupported
     }
 }
 
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn liq_image_set_memory_ownership(img: &mut liq_image, ownership_flags: liq_ownership) -> liq_error {
-    if bad_object!(img, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
+    if bad_object!(img, LIQ_IMAGE_MAGIC) { return Error::InvalidPointer; }
 
     let both = liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_OWN_PIXELS;
 
     if ownership_flags.is_empty() || (ownership_flags | both) != both {
-        return LIQ_VALUE_OUT_OF_RANGE;
+        return Error::ValueOutOfRange;
     }
 
     let own_rows = ownership_flags.contains(liq_ownership::LIQ_OWN_ROWS);
@@ -456,15 +456,15 @@ pub extern "C" fn liq_result_destroy(_res: Option<Box<liq_result>>) {}
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_set_output_gamma(result: &mut liq_result, gamma: f64) -> liq_error {
-    if bad_object!(result, LIQ_RESULT_MAGIC) { return LIQ_INVALID_POINTER; }
-    result.inner.set_output_gamma(gamma)
+    if bad_object!(result, LIQ_RESULT_MAGIC) { return Error::InvalidPointer; }
+    result.inner.set_output_gamma(gamma).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_set_dithering_level(result: &mut liq_result, dither_level: f32) -> liq_error {
-    if bad_object!(result, LIQ_RESULT_MAGIC) { return LIQ_INVALID_POINTER; }
-    result.inner.set_dithering_level(dither_level)
+    if bad_object!(result, LIQ_RESULT_MAGIC) { return Error::InvalidPointer; }
+    result.inner.set_dithering_level(dither_level).err().unwrap_or(LIQ_OK)
 }
 
 #[no_mangle]
@@ -506,7 +506,7 @@ pub extern "C" fn liq_get_remapping_quality(result: &liq_result) -> c_int {
 #[inline(never)]
 pub fn liq_image_quantize(img: &mut liq_image, attr: &mut liq_attr, write_only_output: &mut MaybeUninit<Option<Box<liq_result>>>) -> liq_error {
     if bad_object!(attr, LIQ_ATTR_MAGIC) ||
-       bad_object!(img, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
+       bad_object!(img, LIQ_IMAGE_MAGIC) { return Error::InvalidPointer; }
     let attr = &mut attr.inner;
     let img = &mut img.inner;
 
@@ -522,7 +522,7 @@ pub fn liq_image_quantize(img: &mut liq_image, attr: &mut liq_attr, write_only_o
 #[inline(never)]
 pub fn liq_histogram_quantize(hist: &mut liq_histogram, attr: &liq_attr, write_only_output: &mut MaybeUninit<Option<Box<liq_result>>>) -> liq_error {
     if bad_object!(attr, LIQ_ATTR_MAGIC) ||
-       bad_object!(hist, LIQ_HISTOGRAM_MAGIC) { return LIQ_INVALID_POINTER; }
+       bad_object!(hist, LIQ_HISTOGRAM_MAGIC) { return Error::InvalidPointer; }
     let attr = &attr.inner;
     let hist = &mut hist.inner;
 
@@ -603,14 +603,14 @@ pub unsafe extern "C" fn liq_image_create_rgba<'pixels>(attr: &liq_attr, bitmap:
 #[inline(never)]
 pub unsafe extern "C" fn liq_histogram_add_colors(input_hist: &mut liq_histogram, attr: &liq_attr, entries: *const HistogramEntry, num_entries: c_int, gamma: f64) -> liq_error {
     if bad_object!(attr, LIQ_ATTR_MAGIC) ||
-       bad_object!(input_hist, LIQ_HISTOGRAM_MAGIC) { return LIQ_INVALID_POINTER; }
+       bad_object!(input_hist, LIQ_HISTOGRAM_MAGIC) { return Error::InvalidPointer; }
     let input_hist = &mut input_hist.inner;
 
     if num_entries == 0 {
         return LIQ_OK;
     }
 
-    if liq_received_invalid_pointer(entries.cast()) { return LIQ_INVALID_POINTER; }
+    if liq_received_invalid_pointer(entries.cast()) { return Error::InvalidPointer; }
 
     let entries = std::slice::from_raw_parts(entries, num_entries as usize);
 
@@ -622,7 +622,7 @@ pub unsafe extern "C" fn liq_histogram_add_colors(input_hist: &mut liq_histogram
 pub extern "C" fn liq_histogram_add_image(input_hist: &mut liq_histogram, attr: &liq_attr, input_image: &mut liq_image) -> liq_error {
     if bad_object!(attr, LIQ_ATTR_MAGIC) ||
        bad_object!(input_hist, LIQ_HISTOGRAM_MAGIC) ||
-       bad_object!(input_image, LIQ_IMAGE_MAGIC) { return LIQ_INVALID_POINTER; }
+       bad_object!(input_image, LIQ_IMAGE_MAGIC) { return Error::InvalidPointer; }
     let attr = &attr.inner;
     let input_hist = &mut input_hist.inner;
     let input_image = &mut input_image.inner;

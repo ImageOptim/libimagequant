@@ -33,14 +33,14 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
         width: u32,
         height: u32,
         gamma: f64,
-    ) -> Result<Self, liq_error> {
+    ) -> Result<Self, Error> {
         if !Self::check_image_size(width, height) {
-            return Err(LIQ_VALUE_OUT_OF_RANGE);
+            return Err(ValueOutOfRange);
         }
 
         if !(0. ..=1.).contains(&gamma) {
             attr.verbose_print("  error: gamma must be >= 0 and <= 1 (try 1/gamma instead)");
-            return Err(LIQ_VALUE_OUT_OF_RANGE);
+            return Err(ValueOutOfRange);
         }
         let img = Image {
             px: DynamicRows::new(
@@ -128,12 +128,12 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     /// Pixels that match the background color will be made transparent if there's a fully transparent color available in the palette.
     ///
     /// The background image's pixels must outlive this image
-    pub fn set_background(&mut self, background: Image<'pixels, 'rows>) -> Result<(), liq_error> {
+    pub fn set_background(&mut self, background: Image<'pixels, 'rows>) -> Result<(), Error> {
         if background.background.is_some() {
-            return Err(LIQ_UNSUPPORTED);
+            return Err(Unsupported);
         }
         if self.px.width != background.px.width || self.px.height != background.px.height {
-            return Err(LIQ_BUFFER_TOO_SMALL);
+            return Err(BufferTooSmall);
         }
         self.background = Some(Box::new(background));
         self.dither_map = None;
@@ -143,7 +143,7 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     /// Set which pixels are more important (and more likely to get a palette entry)
     ///
     /// The map must be `width`×`height` pixels large. Higher numbers = more important.
-    pub fn set_importance_map(&mut self, map: &[u8]) -> Result<(), liq_error> {
+    pub fn set_importance_map(&mut self, map: &[u8]) -> Result<(), Error> {
         self.importance_map = Some(SeaCow::boxed(map.into()));
         Ok(())
     }
@@ -175,14 +175,11 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     /// It must be called before the image is quantized.
     ///
     /// Returns error if more than 256 colors are added. If image is quantized to fewer colors than the number of fixed colors added, then excess fixed colors will be ignored.
-    pub fn add_fixed_color(&mut self, color: RGBA) -> liq_error {
-        if self.fixed_colors.len() >= MAX_COLORS { return LIQ_UNSUPPORTED; }
-        if FallibleVec::try_reserve(&mut self.fixed_colors, 16).is_err() {
-            return LIQ_OUT_OF_MEMORY;
-        }
+    pub fn add_fixed_color(&mut self, color: RGBA) -> Result<(), Error> {
+        if self.fixed_colors.len() >= MAX_COLORS { return Err(Unsupported); }
         let lut = gamma_lut(self.px.gamma);
-        self.fixed_colors.push(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}));
-        LIQ_OK
+        self.fixed_colors.try_push(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}))?;
+        Ok(())
     }
 
     #[inline(always)]
@@ -193,7 +190,7 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     /// Builds two maps:
     ///    importance_map - approximation of areas with high-frequency noise, except straight edges. 1=flat, 0=noisy.
     ///    edges - noise map including all edges
-    pub(crate) fn contrast_maps(&mut self) -> Result<(), liq_error> {
+    pub(crate) fn contrast_maps(&mut self) -> Result<(), Error> {
         let width = self.width();
         let height = self.height();
         if width < 4 || height < 4 || (3 * width * height) > LIQ_HIGH_MEMORY_LIMIT {
@@ -273,7 +270,7 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     ///
     /// Use `0.` for gamma if the image is sRGB (most images are).
     #[inline(always)]
-    pub fn new(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
+    pub fn new(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
         Self::new_stride(attr, pixels, width, height, width, gamma)
     }
 
@@ -287,7 +284,7 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     ///
     /// This function is marked as unsafe, because the callback function MUST initialize the entire row (call `write` on every `MaybeUninit` pixel).
     ///
-    pub unsafe fn new_fn<F: 'static + Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync>(attr: &Attributes, convert_row_fn: F, width: usize, height: usize, gamma: f64) -> Result<Self, liq_error> {
+    pub unsafe fn new_fn<F: 'static + Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync>(attr: &Attributes, convert_row_fn: F, width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
         Image::new_internal(attr, PixelsSource::Callback(Box::new(convert_row_fn)), width as u32, height as u32, gamma)
     }
 
@@ -295,7 +292,7 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     ///
     /// Otherwise the same as [`Image::new`].
     #[inline(always)]
-    pub fn new_stride(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, liq_error> {
+    pub fn new_stride(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, Error> {
         Self::new_stride_internal(attr, SeaCow::borrowed(pixels), width, height, stride, gamma)
     }
 
@@ -303,15 +300,15 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     ///
     /// Otherwise the same as [`Image::new_stride`].
     #[inline]
-    pub fn new_stride_copy(attr: &Attributes, pixels: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static, 'static>, liq_error> {
+    pub fn new_stride_copy(attr: &Attributes, pixels: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static, 'static>, Error> {
         Self::new_stride_internal(attr, SeaCow::boxed(pixels.into()), width, height, stride, gamma)
     }
 
-    fn new_stride_internal<'a>(attr: &Attributes, pixels: SeaCow<'a, RGBA>, width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'a, 'static>, liq_error> {
+    fn new_stride_internal<'a>(attr: &Attributes, pixels: SeaCow<'a, RGBA>, width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'a, 'static>, Error> {
         let slice = pixels.as_slice();
         if slice.len() < (stride * height + width - stride) {
             attr.verbose_print(format!("Buffer length is {} bytes, which is not enough for {}×{}×4 RGBA bytes", slice.len()*4, stride, height));
-            return Err(LIQ_BUFFER_TOO_SMALL);
+            return Err(BufferTooSmall);
         }
 
         let rows = SeaCow::boxed(slice.chunks(stride).map(|row| row.as_ptr()).collect());
@@ -319,7 +316,7 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     }
 }
 
-fn try_zero_vec(len: usize) -> Result<Vec<u8>, liq_error> {
+fn try_zero_vec(len: usize) -> Result<Vec<u8>, Error> {
     let mut vec: Vec<_> = FallibleVec::try_with_capacity(len)?;
     vec.resize(len, 0);
     Ok(vec)
