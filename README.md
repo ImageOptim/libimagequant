@@ -54,27 +54,23 @@ If you're building for macOS or iOS, see included xcodeproj file (add it as a su
 
 If you're building for Android, run `rustup target add aarch64-linux-android; cargo build --release --target aarch64-linux-android` and use `target/aarch64-linux-android/release/libimagequant.a`. Same for cross-compiling to other platforms. See `rustup target list`.
 
-### C dynamic library users and package maintainers
+### C dynamic library for package maintainers
+
+If you're an application developer, please use the static linking option above — that option is much easier, and gives smaller executables.
 
 The API and ABI of this library remains the same. It has the same sover, so it can be a drop-in replacement for the previous C version.
 
 This library is now a typical Rust/Cargo library. If you want to set up [off-line builds](https://doc.rust-lang.org/cargo/faq.html#how-can-cargo-work-offline) or [override dependencies](https://doc.rust-lang.org/cargo/reference/overriding-dependencies.html), it works the same as for every other Rust project. See [Cargo docs](https://doc.rust-lang.org/cargo/) for things like [`cargo fetch`](https://doc.rust-lang.org/cargo/commands/cargo-fetch.html) or [`cargo vendor`](https://doc.rust-lang.org/cargo/commands/cargo-vendor.html) (but I don't recommend vendoring).
 
+If you want to build a dynamic library, but aren't bothered by soname and rpath being wrong, modify `imagequant-sys/Cargo.toml` and add `"cdylib"` to the existing `crate-type` property, and then `cargo build --release` will do its usual half-finished job and build `target/release/libimagequant.{so,dylib,dll}`.
+
 #### Building with `make`
 
-`configure` is gone (there are no C compilers or deps to configure any more!), but `make install` still exists. You can configure prefix, etc. as make variables:
-
-```bash
-cd imagequant-sys
-make shared
-make DESTDIR=. PREFIX=/usr/local install
-```
-
-Rust 1.56 is a build-time dependency (the `Makefile` uses `cargo build`). No runtime deps (apart from Cargo-internal ones). OpenMP has been dropped entirely.
+`configure && make` is gone. I hoped I could build a dynamic library just by wrapping the static library, but apparently that won't work, so I can't easily recreate the old `make install`. I wish there was a more standard and lightweight solution than using the `cargo-c` tool, so if you're good at wrangling linker flags and symbol visibility, please send pull requests.
 
 #### Building with `cargo-c`
 
-In case the `Makefile` doesn't build a proper library, please send pull requests. But another option is to use [`cargo-c`](//lib.rs/cargo-c) tool that is smarter about linking so/dylib properly, and generates an accurate pkg-config file.
+The [`cargo-c`](//lib.rs/cargo-c) tool knows how to build and link so/dylib properly, and generates an accurate pkg-config file, so it's de-facto required for a correct system-wide install of a dynamic library.
 
 ```bash
 cd imagequant-sys
