@@ -20,6 +20,16 @@ fn remap_bg6() {
     res.set_dithering_level(1.).unwrap();
     let (pal, idx) = res.remapped(&mut fg).unwrap();
 
+    let buf: Vec<_> = idx.iter().zip(bg1.buffer.iter()).map(|(px, bg)| {
+        let palpx = pal[*px as usize];
+        if palpx.a > 0 {
+            palpx
+        } else {
+            *bg
+        }
+    }).collect();
+    lodepng::encode32_file("/tmp/testr2-r6.png", &buf, fg.width(), fg.height()).unwrap();
+
     assert!(idx.iter().zip(bg1.buffer.iter()).map(|(px, bg)| {
         let palpx = pal[*px as usize];
         if palpx.a > 0 {
@@ -51,6 +61,16 @@ fn remap_bg7() {
     let mut res = attr.quantize(&mut fg).unwrap();
     res.set_dithering_level(0.).unwrap();
     let (pal, idx) = res.remapped(&mut fg).unwrap();
+
+    let buf: Vec<_> = idx.iter().zip(bg1.buffer.iter()).map(|(px, bg)| {
+        let palpx = pal[*px as usize];
+        if palpx.a > 0 {
+            palpx
+        } else {
+            *bg
+        }
+    }).collect();
+    lodepng::encode32_file("/tmp/testr2-r7.png", &buf, fg.width(), fg.height()).unwrap();
 
     assert!(idx.iter().zip(bg1.buffer.iter()).map(|(px, bg)| {
         let palpx = pal[*px as usize];
