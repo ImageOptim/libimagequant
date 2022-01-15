@@ -10,6 +10,9 @@ impl<'pal> Nearest<'pal> {
         let mut indexes: Vec<_> = (0..palette.len())
             .map(|idx| MapIndex { idx: idx as _ })
             .collect();
+        if indexes.is_empty() {
+            return Err(Error::Unsupported);
+        }
         let mut handle = Nearest {
             root: vp_create_node(&mut indexes, palette)?,
             palette,
@@ -94,6 +97,7 @@ pub struct Node {
     pub rest: Box<[Leaf]>,
 }
 
+#[inline(never)]
 fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, Error> {
     debug_assert!(!indexes.is_empty());
     let palette = items.as_slice();
@@ -110,20 +114,20 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, Error>
         });
     }
 
-    let most_popular_item = indexes.iter().enumerate().max_by_key(move |(_, i)| {
-        OrdFloat::<f32>::unchecked_new(items.pop_as_slice()[usize::from(i.idx)].popularity())
-    }).unwrap().0;
-    indexes.swap(0, most_popular_item);
+    let most_popular_item = indexes.iter().enumerate().max_by_key(move |(_, idx)| {
+        OrdFloat::<f32>::unchecked_new(items.pop_as_slice()[usize::from(idx.idx)].popularity())
+    }).map(|(n, _)| n).unwrap_or_default();
+    indexes.swap(most_popular_item, 0);
     let (ref_, indexes) = indexes.split_first_mut().unwrap();
 
     let vantage_point = palette[usize::from(ref_.idx)];
-    indexes.sort_unstable_by_key(move |i| OrdFloat::<f32>::unchecked_new(vantage_point.diff(&palette[i.idx as usize])));
+    indexes.sort_unstable_by_key(move |i| OrdFloat::<f32>::unchecked_new(vantage_point.diff(&palette[usize::from(i.idx)])));
 
-    let half_index = indexes.len() / 2;
     let num_indexes = indexes.len();
+    let half_index = num_indexes / 2;
     let (near, far) = indexes.split_at_mut(half_index);
 
-    let radius_squared = vantage_point.diff(&palette[far[0].idx as usize]);
+    let radius_squared = vantage_point.diff(&palette[usize::from(far[0].idx)]);
     let radius = radius_squared.sqrt();
 
     let (near, far, rest) = if num_indexes < 7 {
@@ -150,6 +154,7 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, Error>
     })
 }
 
+#[inline(never)]
 fn vp_search_node(mut node: &Node, needle: &f_pixel, best_candidate: &mut Visitor) {
     loop {
         let distance_squared = node.vantage_point.diff(needle);

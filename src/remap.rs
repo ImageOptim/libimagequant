@@ -43,8 +43,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
 
     let input_rows = image.px.rows_iter(&mut tls_tmp.1)?;
     let (background, transparent_index) = image.background.as_mut().map(|background| {
-        let transparent_index = n.search(&f_pixel::default(), 0).0 as i16;
-        (Some(background), transparent_index as i16)
+        (Some(background), n.search(&f_pixel::default(), 0).0 as i16)
     })
     .filter(|&(_, transparent_index)| colors[transparent_index as usize].a < MIN_OPAQUE_A)
     .unwrap_or((None, -1));
