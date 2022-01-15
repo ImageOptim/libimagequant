@@ -35,15 +35,6 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
     let colors = palette.as_slice();
     let palette_len = colors.len();
 
-    let mut background = image.background.as_mut();
-    let transparent_index = if background.is_some() {
-        n.search(&f_pixel::default(), 0).0 as i16
-    } else { -1 };
-
-    if background.is_some() && colors[transparent_index as usize].a > MIN_OPAQUE_A {
-        background = None;
-    }
-
     let tls = ThreadLocal::new();
     let per_thread_buffers = move || -> Result<_, Error> { Ok(RefCell::new((Kmeans::new(palette_len)?, temp_buf(width)?, temp_buf(width)?, temp_buf(width)?))) };
 
@@ -51,7 +42,14 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
     let mut tls_tmp = tls_tmp1.borrow_mut();
 
     let input_rows = image.px.rows_iter(&mut tls_tmp.1)?;
+    let (background, transparent_index) = image.background.as_mut().map(|background| {
+        let transparent_index = n.search(&f_pixel::default(), 0).0 as i16;
+        (Some(background), transparent_index as i16)
+    })
+    .filter(|&(_, transparent_index)| colors[transparent_index as usize].a < MIN_OPAQUE_A)
+    .unwrap_or((None, -1));
     let background = background.map(|bg| bg.px.rows_iter(&mut tls_tmp.1)).transpose()?;
+
     drop(tls_tmp);
 
     let remapping_error = output_pixels.rows_mut().enumerate().par_bridge().map(|(row, output_pixels_row)| {
@@ -70,20 +68,19 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
 
         let mut last_match = 0;
         for (col, (inp, out)) in row_pixels.iter().zip(output_pixels_row).enumerate() {
-            let (idx, mut diff) = n.search(inp, last_match);
-            last_match = idx;
-            if !bg_pixels.is_empty() {
-                let bg_diff = bg_pixels[col].diff(&colors[last_match as usize]);
+            let (matched, diff) = n.search(inp, last_match);
+            last_match = matched;
+            if let Some(bg) = bg_pixels.get(col) {
+                let bg_diff = bg.diff(&colors[matched as usize]);
                 if bg_diff <= diff {
-                    diff = bg_diff;
-                    last_match = transparent_index as PalIndex;
+                    remapping_error += bg_diff as f64;
+                    out.write(transparent_index as PalIndex);
+                    continue;
                 }
             }
-            out.write(last_match);
             remapping_error += diff as f64;
-            if last_match as i16 != transparent_index {
-                kmeans.update_color(*inp, 1., last_match);
-            }
+            out.write(matched);
+            kmeans.update_color(*inp, 1., matched);
         }
         remapping_error
     })
