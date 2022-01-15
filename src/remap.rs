@@ -176,6 +176,10 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     let mut scan_forward = true;
     let mut temp_row = temp_buf(width)?;
 
+    // when using remapping on top of a background, lots of pixels may be transparent, making poor guesses
+    // (guesses are only for speed, don't affect visuals)
+    let guess_from_remapped_pixels = output_image_is_remapped && background.is_none();
+
     for (row, output_pixels_row) in output_pixels.rows_mut().enumerate() {
         if quant.remap_progress(progress_stage1 as f32 + row as f32 * (100. - progress_stage1 as f32) / height as f32) {
             return Err(Error::Aborted);
@@ -194,7 +198,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
             }
             let input_px = row_pixels[col];
             let spx = get_dithered_pixel(dither_level, max_dither_error, thiserr[col + 1], input_px);
-            let guessed_match = if output_image_is_remapped {
+            let guessed_match = if guess_from_remapped_pixels {
                 unsafe { output_pixels_row[col].assume_init() }
             } else {
                 last_match
