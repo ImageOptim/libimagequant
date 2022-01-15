@@ -30,8 +30,12 @@ pub(crate) struct DynamicRowsIter<'parent, 'pixels, 'rows> {
 
 impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
     pub fn row_f<'px>(&'px mut self, temp_row: &mut [MaybeUninit<RGBA>], row: usize) -> &'px [f_pixel] {
+        debug_assert_eq!(temp_row.len(), self.px.width as usize);
         match self.px.f_pixels.as_ref() {
-            Some(pixels) => &pixels[self.px.width as usize * row as usize..],
+            Some(pixels) => {
+                let start = self.px.width as usize * row as usize;
+                &pixels[start..start + self.px.width as usize]
+            },
             None => {
                 let lut = gamma_lut(self.px.gamma);
                 let row_pixels = self.px.row_rgba(temp_row, row);
@@ -80,8 +84,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 
     fn convert_row_to_f<'f>(row_f_pixels: &'f mut [MaybeUninit<f_pixel>], row_pixels: &[RGBA], gamma_lut: &[f32; 256]) -> &'f mut [f_pixel] {
-        let len = row_pixels.len();
-        let row_f_pixels = &mut row_f_pixels[..len];
+        assert_eq!(row_f_pixels.len(), row_pixels.len());
         for (dst, src) in row_f_pixels.iter_mut().zip(row_pixels) {
             dst.write(f_pixel::from_rgba(gamma_lut, *src));
         }
