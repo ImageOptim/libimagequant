@@ -11,17 +11,21 @@ use fallible_collections::FallibleVec;
 use rgb::ComponentMap;
 use std::mem::MaybeUninit;
 
-/// Describes image dimensions for the library.
-pub struct Image<'pixels, 'rows> {
-    pub(crate) px: DynamicRows<'pixels, 'rows>,
+/// Describes image dimensions and pixels for the library
+///
+/// Create one using [`Attributes::new_image()`].
+///
+/// All images are internally in the RGBA format.
+pub struct Image<'pixels> {
+    pub(crate) px: DynamicRows<'pixels, 'pixels>,
     pub(crate) importance_map: Option<SeaCow<'static, u8>>,
     pub(crate) edges: Option<Box<[u8]>>,
     pub(crate) dither_map: Option<Box<[u8]>>,
-    pub(crate) background: Option<Box<Image<'pixels, 'rows>>>,
+    pub(crate) background: Option<Box<Image<'pixels>>>,
     pub(crate) fixed_colors: Vec<f_pixel>,
 }
 
-impl<'pixels, 'rows> Image<'pixels, 'rows> {
+impl<'pixels> Image<'pixels> {
     pub(crate) fn free_histogram_inputs(&mut self) {
         self.importance_map = None;
         self.px.free_histogram_inputs();
@@ -29,7 +33,7 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
 
     pub(crate) fn new_internal(
         attr: &Attributes,
-        pixels: PixelsSource<'pixels, 'rows>,
+        pixels: PixelsSource<'pixels, 'pixels>,
         width: u32,
         height: u32,
         gamma: f64,
@@ -128,7 +132,7 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     /// Pixels that match the background color will be made transparent if there's a fully transparent color available in the palette.
     ///
     /// The background image's pixels must outlive this image
-    pub fn set_background(&mut self, background: Image<'pixels, 'rows>) -> Result<(), Error> {
+    pub fn set_background(&mut self, background: Image<'pixels>) -> Result<(), Error> {
         if background.background.is_some() {
             return Err(Unsupported);
         }
@@ -300,11 +304,11 @@ impl<'pixels, 'rows> Image<'pixels, 'rows> {
     ///
     /// Otherwise the same as [`Image::new_stride`].
     #[inline]
-    pub fn new_stride_copy(attr: &Attributes, pixels: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static, 'static>, Error> {
+    pub fn new_stride_copy(attr: &Attributes, pixels: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, Error> {
         Self::new_stride_internal(attr, SeaCow::boxed(pixels.into()), width, height, stride, gamma)
     }
 
-    fn new_stride_internal<'a>(attr: &Attributes, pixels: SeaCow<'a, RGBA>, width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'a, 'static>, Error> {
+    fn new_stride_internal<'a>(attr: &Attributes, pixels: SeaCow<'a, RGBA>, width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'a>, Error> {
         let slice = pixels.as_slice();
         if slice.len() < (stride * height + width - stride) {
             attr.verbose_print(format!("Buffer length is {} bytes, which is not enough for {}×{}×4 RGBA bytes", slice.len()*4, stride, height));

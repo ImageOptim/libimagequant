@@ -172,31 +172,31 @@ impl Attributes {
     ///
     /// Use 0.0 for gamma if the image is sRGB (most images are).
     #[inline]
-    pub fn new_image<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'pixels, 'static>, Error> {
+    pub fn new_image<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'pixels>, Error> {
         Image::new(self, bitmap, width, height, gamma)
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
     #[inline]
-    pub fn new_image_stride_borrow<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'pixels, 'static>, Error> {
+    pub fn new_image_stride_borrow<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'pixels>, Error> {
         Image::new_stride(self, bitmap, width, height, stride, gamma)
     }
 
     /// Like `new_image_stride`, but makes a copy of the pixels
     #[inline]
-    pub fn new_image_stride(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static, 'static>, Error> {
+    pub fn new_image_stride(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, Error> {
         Image::new_stride_copy(self, bitmap, width, height, stride, gamma)
     }
 
     #[doc(hidden)]
     #[deprecated(note = "use new_image_stride")]
     #[cold]
-    pub fn new_image_stride_copy(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static, 'static>, Error> {
+    pub fn new_image_stride_copy(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, Error> {
         self.new_image_stride(bitmap, width, height, stride, gamma)
     }
 
     /// Generate palette for the image
-    pub fn quantize(&self, image: &mut Image<'_, '_>) -> Result<QuantizationResult, Error> {
+    pub fn quantize(&self, image: &mut Image<'_>) -> Result<QuantizationResult, Error> {
         let mut hist = Histogram::new(self);
         hist.add_image(self, image)?;
         hist.quantize_internal(self, false)

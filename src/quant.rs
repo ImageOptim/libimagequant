@@ -184,7 +184,7 @@ impl QuantizationResult {
     /// Remap image into a palette + indices.
     ///
     /// Returns the palette and a 1-byte-per-pixel uncompressed bitmap
-    pub fn remapped(&mut self, image: &mut Image<'_, '_>) -> Result<(Vec<RGBA>, Vec<u8>), Error> {
+    pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<RGBA>, Vec<u8>), Error> {
         let len = image.width() * image.height();
         // Capacity is essential here, as it creates uninitialized buffer
         unsafe {
@@ -205,7 +205,7 @@ impl QuantizationResult {
     /// You should call `palette()` or `palette_ref()` _after_ this call, but not before it,
     /// because remapping changes the palette.
     #[inline]
-    pub fn remap_into(&mut self, image: &mut Image<'_, '_>, output_buf: &mut [MaybeUninit<u8>]) -> Result<(), Error> {
+    pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<u8>]) -> Result<(), Error> {
         let required_size = (image.width()) * (image.height());
         let output_buf = output_buf.get_mut(0..required_size).ok_or(BufferTooSmall)?;
 

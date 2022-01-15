@@ -28,7 +28,7 @@ pub use attr::ControlFlow;
 pub use error::Error;
 pub use hist::Histogram;
 pub use hist::HistogramEntry;
-pub type Image<'pixels> = image::Image<'pixels, 'static>;
+pub use image::Image;
 pub use pal::Palette;
 pub use pal::RGBA;
 pub use quant::QuantizationResult;
