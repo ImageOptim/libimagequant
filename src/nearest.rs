@@ -47,7 +47,7 @@ impl Nearest<'_> {
         };
 
         vp_search_node(&self.root, px, &mut best_candidate);
-        (best_candidate.idx as PalIndex, best_candidate.distance * best_candidate.distance)
+        (best_candidate.idx as PalIndex, best_candidate.distance_squared)
     }
 }
 
