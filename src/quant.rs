@@ -64,7 +64,7 @@ impl QuantizationResult {
                 count: 0,
                 entries: [Default::default(); 256],
             },
-            dither_level: 0.,
+            dither_level: 1.,
         })
     }
 
