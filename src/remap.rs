@@ -50,6 +50,10 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
     .unwrap_or((None, -1));
     let background = background.map(|bg| bg.px.rows_iter(&mut tls_tmp.1)).transpose()?;
 
+    if transparent_index > 0 {
+        tls_tmp.0.update_color(f_pixel::default(), 1., transparent_index as _);
+    }
+
     drop(tls_tmp);
 
     let remapping_error = output_pixels.rows_mut().enumerate().par_bridge().map(|(row, output_pixels_row)| {
