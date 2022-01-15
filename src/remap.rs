@@ -74,7 +74,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
             let (matched, diff) = n.search(inp, last_match);
             last_match = matched;
             if let Some(bg) = bg_pixels.get(col) {
-                let bg_diff = bg.diff(&colors[matched as usize]);
+                let bg_diff = bg.diff(inp);
                 if bg_diff <= diff {
                     remapping_error += bg_diff as f64;
                     out.write(transparent_index as PalIndex);
@@ -206,15 +206,15 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
             } else {
                 last_match
             };
-            let (dither_index, dither_diff) = n.search(&spx, guessed_match);
-            last_match = dither_index;
+            let (mut matched, dither_diff) = n.search(&spx, guessed_match);
+            last_match = matched;
             let mut output_px = palette[last_match as usize];
             if let Some(bg_pixel) = bg_pixels.get(col) {
                 // if the background makes better match *with* dithering, it's a definitive win
                 let bg_for_dither_diff = spx.diff(bg_pixel);
                 if bg_for_dither_diff <= dither_diff {
                     output_px = *bg_pixel;
-                    last_match = transparent_index;
+                    matched = transparent_index;
                 } else if undithered_bg_used > 1 {
                     // the undithered fallback can cause artifacts when too many undithered pixels accumulate a big dithering error
                     // so periodically ignore undithered fallback to prevent that
@@ -234,12 +234,12 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
                         if undithered_diff < max_diff {
                             undithered_bg_used += 1;
                             output_px = guessed_px;
-                            last_match = guessed_match;
+                            matched = guessed_match;
                         }
                     }
                 }
             }
-            output_pixels_row[col].write(last_match);
+            output_pixels_row[col].write(matched);
             let mut err = spx.0 - output_px.0;
             // This prevents crazy geen pixels popping out of the blue (or red or black! ;)
             if err.r * err.r + err.g * err.g + err.b * err.b + err.a * err.a > max_dither_error {
