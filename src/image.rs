@@ -26,6 +26,49 @@ pub struct Image<'pixels> {
 }
 
 impl<'pixels> Image<'pixels> {
+
+    /// Makes an image from RGBA pixels.
+    ///
+    /// See the [`rgb`] and [`bytemuck`](//lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
+    ///
+    /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
+    ///
+    /// If you want to supply RGB or ARGB pixels, convert them to RGBA first, or use [`Image::new_fn`] to supply your own pixel-swapping function.
+    ///
+    /// Use `0.` for gamma if the image is sRGB (most images are).
+    #[inline(always)]
+    pub fn new<VecRGBA>(attr: &Attributes, pixels: VecRGBA, width: usize, height: usize, gamma: f64) -> Result<Self, Error> where VecRGBA: Into<Box<[RGBA]>> {
+        Self::new_stride(attr, pixels, width, height, width, gamma)
+    }
+
+    /// Describe dimensions of a slice of RGBA pixels.
+    ///
+    /// Same as [`Image::new`], except it doesn't copy the pixels, but holds a temporary reference instead.
+    ///
+    /// If you want to supply RGB or ARGB pixels, use [`Image::new_fn`] to supply your own pixel-swapping function.
+    ///
+    /// See the [`rgb`] and [`bytemuck`](//lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
+    ///
+    /// Use `0.` for gamma if the image is sRGB (most images are).
+    #[inline(always)]
+    pub fn new_borrowed(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
+        Self::new_stride_borrowed(attr, pixels, width, height, width, gamma)
+    }
+
+    /// Generate rows on demand using a callback function.
+    ///
+    /// The callback function should be cheap (e.g. just byte-swap pixels). It will be called multiple times per row. May be called from multiple threads at once.
+    ///
+    /// Use `0.` for gamma if the image is sRGB (most images are).
+    ///
+    /// ## Safety
+    ///
+    /// This function is marked as unsafe, because the callback function MUST initialize the entire row (call `write` on every `MaybeUninit` pixel).
+    ///
+    pub unsafe fn new_fn<F: 'pixels + Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync>(attr: &Attributes, convert_row_fn: F, width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
+        Image::new_internal(attr, PixelsSource::Callback(Box::new(convert_row_fn)), width as u32, height as u32, gamma)
+    }
+
     pub(crate) fn free_histogram_inputs(&mut self) {
         self.importance_map = None;
         self.px.free_histogram_inputs();
@@ -127,6 +170,20 @@ impl<'pixels> Image<'pixels> {
         self.dither_map = self.edges.take();
     }
 
+    /// Set which pixels are more important (and more likely to get a palette entry)
+    ///
+    /// The map must be `width`×`height` pixels large. Higher numbers = more important.
+    pub fn set_importance_map(&mut self, map: &[u8]) -> Result<(), Error> {
+        self.importance_map = Some(SeaCow::boxed(map.into()));
+        Ok(())
+    }
+
+    #[inline]
+    #[cfg(feature = "_internal_c_ffi")]
+    pub(crate) unsafe fn set_importance_map_raw(&mut self, map: SeaCow<'static, u8>) {
+        self.importance_map = Some(map)
+    }
+
     /// Remap pixels assuming they will be displayed on this background.
     ///
     /// Pixels that match the background color will be made transparent if there's a fully transparent color available in the palette.
@@ -144,18 +201,18 @@ impl<'pixels> Image<'pixels> {
         Ok(())
     }
 
-    /// Set which pixels are more important (and more likely to get a palette entry)
+    /// Reserves a color in the output palette created from this image. It behaves as if the given color was used in the image and was very important.
     ///
-    /// The map must be `width`×`height` pixels large. Higher numbers = more important.
-    pub fn set_importance_map(&mut self, map: &[u8]) -> Result<(), Error> {
-        self.importance_map = Some(SeaCow::boxed(map.into()));
+    /// RGB values of Color are assumed to have the same gamma as the image.
+    ///
+    /// It must be called before the image is quantized.
+    ///
+    /// Returns error if more than 256 colors are added. If image is quantized to fewer colors than the number of fixed colors added, then excess fixed colors will be ignored.
+    pub fn add_fixed_color(&mut self, color: RGBA) -> Result<(), Error> {
+        if self.fixed_colors.len() >= MAX_COLORS { return Err(Unsupported); }
+        let lut = gamma_lut(self.px.gamma);
+        self.fixed_colors.try_push(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}))?;
         Ok(())
-    }
-
-    #[inline]
-    #[cfg(feature = "_internal_c_ffi")]
-    pub(crate) unsafe fn set_importance_map_raw(&mut self, map: SeaCow<'static, u8>) {
-        self.importance_map = Some(map)
     }
 
     /// Width of the image in pixels
@@ -170,20 +227,6 @@ impl<'pixels> Image<'pixels> {
     #[inline(always)]
     pub fn height(&self) -> usize {
         self.px.height as _
-    }
-
-    /// Reserves a color in the output palette created from this image. It behaves as if the given color was used in the image and was very important.
-    ///
-    /// RGB values of Color are assumed to have the same gamma as the image.
-    ///
-    /// It must be called before the image is quantized.
-    ///
-    /// Returns error if more than 256 colors are added. If image is quantized to fewer colors than the number of fixed colors added, then excess fixed colors will be ignored.
-    pub fn add_fixed_color(&mut self, color: RGBA) -> Result<(), Error> {
-        if self.fixed_colors.len() >= MAX_COLORS { return Err(Unsupported); }
-        let lut = gamma_lut(self.px.gamma);
-        self.fixed_colors.try_push(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}))?;
-        Ok(())
     }
 
     #[inline(always)]
@@ -266,48 +309,6 @@ impl<'pixels> Image<'pixels> {
             *edges = (*noise).min(*edges);
         }
         Ok(())
-    }
-
-    /// Makes an image from RGBA pixels.
-    ///
-    /// See the [`rgb`] and [`bytemuck`](//lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
-    ///
-    /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
-    ///
-    /// If you want to supply RGB or ARGB pixels, convert them to RGBA first, or use [`Image::new_fn`] to supply your own pixel-swapping function.
-    ///
-    /// Use `0.` for gamma if the image is sRGB (most images are).
-    #[inline(always)]
-    pub fn new<VecRGBA>(attr: &Attributes, pixels: VecRGBA, width: usize, height: usize, gamma: f64) -> Result<Self, Error> where VecRGBA: Into<Box<[RGBA]>> {
-        Self::new_stride(attr, pixels, width, height, width, gamma)
-    }
-
-    /// Describe dimensions of a slice of RGBA pixels.
-    ///
-    /// Same as [`Image::new`], except it doesn't copy the pixels, but holds a temporary reference instead.
-    ///
-    /// If you want to supply RGB or ARGB pixels, use [`Image::new_fn`] to supply your own pixel-swapping function.
-    ///
-    /// See the [`rgb`] and [`bytemuck`](//lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
-    ///
-    /// Use `0.` for gamma if the image is sRGB (most images are).
-    #[inline(always)]
-    pub fn new_borrowed(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
-        Self::new_stride_borrowed(attr, pixels, width, height, width, gamma)
-    }
-
-    /// Generate rows on demand using a callback function.
-    ///
-    /// The callback function should be cheap (e.g. just byte-swap pixels). It will be called multiple times per row. May be called from multiple threads at once.
-    ///
-    /// Use `0.` for gamma if the image is sRGB (most images are).
-    ///
-    /// ## Safety
-    ///
-    /// This function is marked as unsafe, because the callback function MUST initialize the entire row (call `write` on every `MaybeUninit` pixel).
-    ///
-    pub unsafe fn new_fn<F: 'pixels + Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync>(attr: &Attributes, convert_row_fn: F, width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
-        Image::new_internal(attr, PixelsSource::Callback(Box::new(convert_row_fn)), width as u32, height as u32, gamma)
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.

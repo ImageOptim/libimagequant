@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 use std::os::raw::c_uint;
 
 /// 8-bit RGBA in sRGB. This is the only color format *publicly* used by the library.
-pub type RGBA = rgb::RGBA8;
+pub type RGBA = rgb::RGBA<u8>;
 
 #[allow(clippy::upper_case_acronyms)]
 pub type ARGBF = rgb::alt::ARGB<f32>;

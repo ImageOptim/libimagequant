@@ -12,6 +12,8 @@ use crate::seacow::RowBitmapMut;
 use crate::seacow::SeaCow;
 use std::mem::MaybeUninit;
 
+pub const LIQ_VERSION: u32 = 40000;
+
 pub fn liq_get_palette_impl(r: &mut QuantizationResult) -> &Palette {
     r.int_palette()
 }

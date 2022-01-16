@@ -64,6 +64,24 @@ impl Attributes {
         attr
     }
 
+    /// Make an image from RGBA pixels.
+    ///
+    /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
+    /// See [`Attributes::new_image_borrowed`] for a non-copying alternative.
+    ///
+    /// Use 0.0 for gamma if the image is sRGB (most images are).
+    #[inline]
+    pub fn new_image<VecRGBA>(&self, bitmap: VecRGBA, width: usize, height: usize, gamma: f64) -> Result<Image<'static>, Error> where VecRGBA: Into<Box<[RGBA]>> {
+        Image::new(self, bitmap, width, height, gamma)
+    }
+
+    /// Generate palette for the image
+    pub fn quantize(&self, image: &mut Image<'_>) -> Result<QuantizationResult, Error> {
+        let mut hist = Histogram::new(self);
+        hist.add_image(self, image)?;
+        hist.quantize_internal(self, false)
+    }
+
     /// It's better to use `set_quality()`
     #[inline]
     pub fn set_max_colors(&mut self, colors: u32) -> Result<(), Error> {
@@ -72,25 +90,6 @@ impl Attributes {
         }
         self.max_colors = colors as PalLen;
         Ok(())
-    }
-
-    /// Number of least significant bits to ignore.
-    ///
-    /// Useful for generating palettes for VGA, 15-bit textures, or other retro platforms.
-    #[inline]
-    pub fn set_min_posterization(&mut self, value: u8) -> Result<(), Error> {
-        if !(0..=4).contains(&value) {
-            return Err(Error::ValueOutOfRange);
-        }
-        self.min_posterization_output = value;
-        Ok(())
-    }
-
-    /// Returns number of bits of precision truncated
-    #[inline(always)]
-    #[must_use]
-    pub fn min_posterization(&self) -> u8 {
-        self.min_posterization_output
     }
 
     /// Range 0-100, roughly like JPEG.
@@ -105,15 +104,6 @@ impl Attributes {
         self.target_mse = quality_to_mse(target);
         self.max_mse = Some(quality_to_mse(minimum));
         Ok(())
-    }
-
-    /// Reads values set with `set_quality`
-    #[must_use]
-    pub fn quality(&self) -> (u8, u8) {
-        (
-            self.max_mse.map(mse_to_quality).unwrap_or(0),
-            mse_to_quality(self.target_mse),
-        )
     }
 
     /// 1-10.
@@ -147,12 +137,24 @@ impl Attributes {
         Ok(())
     }
 
-    /// Move transparent color to the last entry in the palette
+
+    /// Number of least significant bits to ignore.
     ///
-    /// This is less efficient for PNG, but required by some broken software
+    /// Useful for generating palettes for VGA, 15-bit textures, or other retro platforms.
+    #[inline]
+    pub fn set_min_posterization(&mut self, value: u8) -> Result<(), Error> {
+        if !(0..=4).contains(&value) {
+            return Err(Error::ValueOutOfRange);
+        }
+        self.min_posterization_output = value;
+        Ok(())
+    }
+
+    /// Returns number of bits of precision truncated
     #[inline(always)]
-    pub fn set_last_index_transparent(&mut self, is_last: bool) {
-        self.last_index_transparent = is_last;
+    #[must_use]
+    pub fn min_posterization(&self) -> u8 {
+        self.min_posterization_output
     }
 
     /// Return currently set speed/quality trade-off setting
@@ -169,15 +171,13 @@ impl Attributes {
         self.max_colors.into()
     }
 
-    /// Make an image from RGBA pixels.
-    ///
-    /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
-    /// See [`Attributes::new_image_borrowed`] for a non-copying alternative.
-    ///
-    /// Use 0.0 for gamma if the image is sRGB (most images are).
-    #[inline]
-    pub fn new_image<VecRGBA>(&self, bitmap: VecRGBA, width: usize, height: usize, gamma: f64) -> Result<Image<'static>, Error> where VecRGBA: Into<Box<[RGBA]>> {
-        Image::new(self, bitmap, width, height, gamma)
+    /// Reads values set with `set_quality`
+    #[must_use]
+    pub fn quality(&self) -> (u8, u8) {
+        (
+            self.max_mse.map(mse_to_quality).unwrap_or(0),
+            mse_to_quality(self.target_mse),
+        )
     }
 
     /// Describe dimensions of a slice of RGBA pixels
@@ -203,13 +203,6 @@ impl Attributes {
         self.new_image_stride(bitmap, width, height, stride, gamma)
     }
 
-    /// Generate palette for the image
-    pub fn quantize(&self, image: &mut Image<'_>) -> Result<QuantizationResult, Error> {
-        let mut hist = Histogram::new(self);
-        hist.add_image(self, image)?;
-        hist.quantize_internal(self, false)
-    }
-
     /// Set callback function to be called every time the library wants to print a message.
     ///
     /// To share data with the callback, use `Arc` or `Atomic*` types and `move ||` closures.
@@ -232,6 +225,14 @@ impl Attributes {
     #[inline]
     pub fn set_progress_callback<F: Fn(f32) -> ControlFlow + Send + Sync + 'static>(&mut self, callback: F) {
         self.progress_callback = Some(Arc::new(callback));
+    }
+
+    /// Move transparent color to the last entry in the palette
+    ///
+    /// This is less efficient for PNG, but required by some broken software
+    #[inline(always)]
+    pub fn set_last_index_transparent(&mut self, is_last: bool) {
+        self.last_index_transparent = is_last;
     }
 
     // true == abort

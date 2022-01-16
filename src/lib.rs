@@ -47,7 +47,6 @@ pub use quant::QuantizationResult;
 pub use error::Error as liq_error;
 
 const LIQ_HIGH_MEMORY_LIMIT: usize = 1 << 26;
-pub const LIQ_VERSION: u32 = 40000;
 
 /// I don't care about NaNs, just sort them!
 type OrdFloat<F> = noisy_float::NoisyFloat<F, noisy_float::checkers::FiniteChecker>;
