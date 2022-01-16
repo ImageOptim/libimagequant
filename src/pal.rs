@@ -255,6 +255,7 @@ pub fn gamma_lut(gamma: f64) -> [f32; 256] {
     tmp
 }
 
+/// RGBA colors obtained from [`QuantizationResult`](crate::QuantizationResult)
 #[repr(C)]
 pub struct Palette {
     pub count: c_uint,

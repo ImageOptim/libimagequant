@@ -7,6 +7,7 @@ use crate::quant::{mse_to_quality, quality_to_mse, QuantizationResult};
 use crate::remap::DitherMapMode;
 use std::sync::Arc;
 
+/// Starting point and settings for the quantization process
 #[derive(Clone)]
 pub struct Attributes {
     pub(crate) max_colors: PalLen,

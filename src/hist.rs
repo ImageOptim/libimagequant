@@ -16,9 +16,9 @@ use std::fmt;
 use std::hash::Hash;
 use std::os::raw::c_uint;
 
-/// Number of pixels in a given color
+/// Number of pixels in a given color for [`Histogram::add_colors()`]
 ///
-/// Used if you're building histogram manually. Otherwise see `add_image()`
+/// Used for building a histogram manually. Otherwise see [`Histogram::add_image()`]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct HistogramEntry {
@@ -26,7 +26,9 @@ pub struct HistogramEntry {
     pub count: c_uint,
 }
 
-/// Generate one shared palette for multiple images.
+/// Generate one shared palette for multiple images
+///
+/// If you're converting one image at a time, see [`Attributes::new_image`] instead
 pub struct Histogram {
     gamma: Option<f64>,
     fixed_colors: FixedColorsSet,

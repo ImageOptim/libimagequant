@@ -14,6 +14,7 @@ use std::cmp::Reverse;
 use std::fmt;
 use std::mem::MaybeUninit;
 
+/// Remapping step, computed from [`Attributes::quantize()`]
 pub struct QuantizationResult {
     remapped: Option<Box<Remapped>>,
     pub(crate) palette: PalF,
