@@ -90,6 +90,8 @@ If you've used the [`imagequant-sys`](//lib.rs/imagequant-sys) crate, switch to 
 
 The `openmp` Cargo feature has been renamed to `threads`.
 
+`.new_image()` can now take ownership of its argument to avoid copying. If you get an error that `From<&Vec<RGBA>>` is not implemented, then either don't pass by reference (moves, avoids copying), or call `.as_slice()` on it (to copy the pixels), or use `.new_image_borrowed()` method instead.
+
 ### Threads support and WASM
 
 By default, when the `threads` Cargo feature is enabled, this library uses multi-threading. Number of threads can be controlled via `RAYON_NUM_THREADS` environment variable.

@@ -1,5 +1,6 @@
 //! These are internal unstable private helper methods for imagequant-sys.
 //! For public stable a C FFI interface, see imagequant-sys crate instead.
+#![allow(missing_docs)]
 
 use crate::Error;
 use crate::RGBA;

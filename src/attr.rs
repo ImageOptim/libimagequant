@@ -71,8 +71,8 @@ impl Attributes {
     ///
     /// Use 0.0 for gamma if the image is sRGB (most images are).
     #[inline]
-    pub fn new_image<VecRGBA>(&self, bitmap: VecRGBA, width: usize, height: usize, gamma: f64) -> Result<Image<'static>, Error> where VecRGBA: Into<Box<[RGBA]>> {
-        Image::new(self, bitmap, width, height, gamma)
+    pub fn new_image<VecRGBA>(&self, pixels: VecRGBA, width: usize, height: usize, gamma: f64) -> Result<Image<'static>, Error> where VecRGBA: Into<Box<[RGBA]>> {
+        Image::new(self, pixels, width, height, gamma)
     }
 
     /// Generate palette for the image
@@ -197,8 +197,8 @@ impl Attributes {
     ///
     /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
     #[inline]
-    pub fn new_image_stride<VecRGBA>(&self, bitmap: VecRGBA, width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, Error> where VecRGBA: Into<Box<[RGBA]>> {
-        Image::new_stride(self, bitmap, width, height, stride, gamma)
+    pub fn new_image_stride<VecRGBA>(&self, pixels: VecRGBA, width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, Error> where VecRGBA: Into<Box<[RGBA]>> {
+        Image::new_stride(self, pixels, width, height, stride, gamma)
     }
 
     #[doc(hidden)]

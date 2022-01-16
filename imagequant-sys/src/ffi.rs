@@ -587,10 +587,10 @@ pub unsafe extern "C" fn liq_image_create_rgba_rows<'rows>(attr: &liq_attr, rows
 
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn liq_image_create_rgba<'pixels>(attr: &liq_attr, bitmap: *const liq_color, width: c_uint, height: c_uint, gamma: f64) -> Option<Box<liq_image<'pixels>>> {
-    if liq_received_invalid_pointer(bitmap.cast()) { return None; }
+pub unsafe extern "C" fn liq_image_create_rgba<'pixels>(attr: &liq_attr, pixels: *const liq_color, width: c_uint, height: c_uint, gamma: f64) -> Option<Box<liq_image<'pixels>>> {
+    if liq_received_invalid_pointer(pixels.cast()) { return None; }
     if !check_image_size(attr, width, height) { return None; }
-    let rows = (0..height as usize).map(move |i| bitmap.add(width as usize * i)).collect();
+    let rows = (0..height as usize).map(move |i| pixels.add(width as usize * i)).collect();
     liq_image_create_rgba_bitmap_impl(&attr.inner, rows, width as _, height as _, gamma)
         .map(move |inner| Box::new(liq_image {
             magic_header: LIQ_IMAGE_MAGIC,
