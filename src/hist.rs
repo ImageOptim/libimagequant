@@ -22,7 +22,9 @@ use std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct HistogramEntry {
+    /// The color
     pub color: RGBA,
+    /// Importance of the color (e.g. number of occurrences)
     pub count: c_uint,
 }
 

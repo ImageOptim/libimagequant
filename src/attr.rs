@@ -94,9 +94,12 @@ impl Attributes {
 
     /// Range 0-100, roughly like JPEG.
     ///
-    /// If minimum quality can't be met, quantization will fail.
+    /// If the minimum quality can't be met, the quantization will be aborted with an error.
     ///
-    /// Default is min 0, max 100.
+    /// Default is min 0, max 100, which means best effort, and never aborts the process.
+    ///
+    /// If max is less than 100, the library will try to use fewer colors.
+    /// Images with fewer colors are not always smaller, due to increased dithering it causes.
     pub fn set_quality(&mut self, minimum: u8, target: u8) -> Result<(), Error> {
         if !(0..=100).contains(&target) || target < minimum {
             return Err(Error::ValueOutOfRange);
@@ -110,6 +113,8 @@ impl Attributes {
     ///
     /// Faster speeds generate images of lower quality, but may be useful
     /// for real-time generation of images.
+    ///
+    /// The default is 4.
     #[inline]
     pub fn set_speed(&mut self, value: i32) -> Result<(), Error> {
         if !(1..=10).contains(&value) {
@@ -212,6 +217,7 @@ impl Attributes {
         self.log_callback = Some(Arc::new(callback));
     }
 
+    /// Callback for flushing output (if you buffer messages, that's the time to flush those buffers)
     #[inline]
     pub fn set_log_flush_callback<F: Fn(&Attributes) + Send + Sync + 'static>(&mut self, callback: F) {
         self.verbose_printf_flush();

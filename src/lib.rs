@@ -4,6 +4,7 @@
 //!
 //! See `examples/` directory for example code.
 #![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
+#![deny(missing_docs)]
 
 mod attr;
 mod blur;

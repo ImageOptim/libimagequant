@@ -122,19 +122,23 @@ impl QuantizationResult {
         self.palette_error.map(mse_to_standard_mse)
     }
 
+    /// Approximate mean square error of the palette used for the most recent remapping
     pub fn remapping_error(&self) -> Option<f64> {
         self.remapped.as_ref()
             .and_then(|re| re.palette_error)
+            .or(self.palette_error)
             .map(mse_to_standard_mse)
     }
 
+    /// Palette remapping error mapped back to 0-100 scale, same as the scale in [`Attributes::set_quality()`]
     pub fn remapping_quality(&self) -> Option<u8> {
         self.remapped.as_ref()
             .and_then(|re| re.palette_error)
+            .or(self.palette_error)
             .map(mse_to_quality)
     }
 
-    /// Final palette, copied.
+    /// The final palette, copied.
     ///
     /// It's slighly better if you get palette from the `remapped()` call instead
     #[must_use]
@@ -145,7 +149,7 @@ impl QuantizationResult {
         out
     }
 
-    /// Final palette
+    /// The final palette
     ///
     /// It's slighly better if you get palette from the `remapped()` call instead
     #[inline]
@@ -168,6 +172,8 @@ impl QuantizationResult {
         }
     }
 
+    /// Callback called at various point of processing, which gets percentage of progress done,
+    /// and can return `ControlFlow::Break` to abort further processing
     #[inline(always)]
     pub fn set_progress_callback<F: Fn(f32) -> ControlFlow + Sync + Send + 'static>(&mut self, callback: F) {
         self.progress_callback = Some(Box::new(callback));

@@ -258,7 +258,9 @@ pub fn gamma_lut(gamma: f64) -> [f32; 256] {
 /// RGBA colors obtained from [`QuantizationResult`](crate::QuantizationResult)
 #[repr(C)]
 pub struct Palette {
+    /// Number of used colors in the `entries`
     pub count: c_uint,
+    /// The colors, up to `count`
     pub entries: [RGBA; 256],
 }
 
@@ -279,13 +281,14 @@ impl std::ops::DerefMut for Palette {
 }
 
 impl Palette {
+    /// Palette colors
     #[inline(always)]
     pub fn as_slice(&self) -> &[RGBA] {
         &self.entries[..self.count as usize]
     }
 
     #[inline(always)]
-    pub fn as_mut_slice(&mut self) -> &mut [RGBA] {
+    pub(crate) fn as_mut_slice(&mut self) -> &mut [RGBA] {
         &mut self.entries[..self.count as usize]
     }
 }
