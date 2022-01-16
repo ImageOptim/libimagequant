@@ -1,6 +1,6 @@
 [package]
 name = "imagequant-sys"
-version = "4.0.0-beta.5"
+version = "4.0.0-beta.7"
 description = "Convert 24/32-bit images to 8-bit palette with alpha channel.\nC API/FFI libimagequant that powers pngquant lossy PNG compressor.\n\nDual-licensed like pngquant. See https://pngquant.org for details."
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 license = "GPL-3.0-or-later"
@@ -20,7 +20,7 @@ path = "src/ffi.rs"
 name = "imagequant"
 
 [dependencies]
-imagequant = { path = "..", version = "4.0.0-beta.5", features = ["_internal_c_ffi"] }
+imagequant = { path = "..", version = "4.0.0-beta.7", default-features = false, features = ["_internal_c_ffi"] }
 bitflags = "1.3.2"
 libc = "0.2.112"
 
@@ -44,3 +44,5 @@ asset = [{from = "libimagequant.h"}]
 [features]
 # internal for cargo-c only
 capi = []
+default = ["imagequant/default"]
+threads = ["imagequant/threads"]

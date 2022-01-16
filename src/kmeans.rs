@@ -3,12 +3,10 @@ use crate::hist::{HistItem, HistogramInternal};
 use crate::nearest::Nearest;
 use crate::pal::{PalF, PalIndex, PalPop, f_pixel};
 use fallible_collections::FallibleVec;
-use rayon::iter::ParallelIterator;
-use rayon::slice::ParallelSliceMut;
 use rgb::alt::ARGB;
 use rgb::ComponentMap;
 use std::cell::RefCell;
-use thread_local::ThreadLocal;
+use crate::rayoff::*;
 
 pub(crate) struct Kmeans {
     averages: Vec<ColorAvg>,

@@ -626,7 +626,7 @@ Palette generated using this function won't be improved during remapping. If you
 
 * Different threads can perform unrelated quantizations/remappings at the same time (e.g. each thread working on a different image).
 * The same `liq_attr`, `liq_result`, etc. can be accessed from different threads, but not at the same time (e.g. you can create `liq_attr` in one thread and free it in another).
-* The library uses threads internally. You can set `RAYON_NUM_THREADS` environmental variable to control the number of threads used.
+* By default, this library uses threads internally. You can set `RAYON_NUM_THREADS` environmental variable to control the number of threads used. You can disable threads completely by compiling with `--no-default-features`.
 
 ## Working with GIF
 
@@ -638,6 +638,6 @@ For animated GIFs see `liq_image_set_background()` which remaps images for GIF's
 
 You can compile the library for other platforms via `cargo build --target=…`. See `rustup target list` for the list of platforms.
 
-Building for WASM requires support for [threads and atomics](https://github.com/GoogleChromeLabs/wasm-bindgen-rayon). I plan to make threads optional in a later version.
+When compiling for WASM, you need to disable default features of this library (compile with `--no-default-features` flag). Otherwise it will use mult-threading, which requires [special handling in WASM](https://github.com/GoogleChromeLabs/wasm-bindgen-rayon).
 
 If you're cross-compiling a dynamic library (so/dylib/DLL), you may need to [configure a linker](https://doc.rust-lang.org/cargo/reference/config.html#target) for Cargo. For building for Android see [this tutorial](https://mozilla.github.io/firefox-browser-architecture/experiments/2017-09-21-rust-on-android.html) and [cargo-ndk](https://lib.rs/crates/cargo-ndk).

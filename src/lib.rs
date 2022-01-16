@@ -19,6 +19,15 @@ mod remap;
 mod rows;
 mod seacow;
 
+#[cfg(not(feature = "threads"))]
+mod rayoff;
+
+#[cfg(feature = "threads")]
+mod rayoff {
+    pub(crate) use rayon::prelude::{ParallelSliceMut, ParallelIterator, ParallelBridge};
+    pub(crate) use thread_local::ThreadLocal;
+}
+
 /// Use imagequant-sys crate instead
 #[cfg(feature = "_internal_c_ffi")]
 pub mod capi;
