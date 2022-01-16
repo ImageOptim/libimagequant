@@ -268,14 +268,32 @@ impl<'pixels> Image<'pixels> {
         Ok(())
     }
 
+    /// Makes an image from RGBA pixels.
+    ///
+    /// See the [`rgb`] and [`bytemuck`](//lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
+    ///
+    /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
+    ///
+    /// If you want to supply RGB or ARGB pixels, convert them to RGBA first, or use [`Image::new_fn`] to supply your own pixel-swapping function.
+    ///
+    /// Use `0.` for gamma if the image is sRGB (most images are).
+    #[inline(always)]
+    pub fn new<VecRGBA>(attr: &Attributes, pixels: VecRGBA, width: usize, height: usize, gamma: f64) -> Result<Self, Error> where VecRGBA: Into<Box<[RGBA]>> {
+        Self::new_stride(attr, pixels, width, height, width, gamma)
+    }
+
     /// Describe dimensions of a slice of RGBA pixels.
+    ///
+    /// Same as [`Image::new`], except it doesn't copy the pixels, but holds a temporary reference instead.
+    ///
+    /// If you want to supply RGB or ARGB pixels, use [`Image::new_fn`] to supply your own pixel-swapping function.
     ///
     /// See the [`rgb`] and [`bytemuck`](//lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
     ///
     /// Use `0.` for gamma if the image is sRGB (most images are).
     #[inline(always)]
-    pub fn new(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
-        Self::new_stride(attr, pixels, width, height, width, gamma)
+    pub fn new_borrowed(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
+        Self::new_stride_borrowed(attr, pixels, width, height, width, gamma)
     }
 
     /// Generate rows on demand using a callback function.
@@ -288,23 +306,25 @@ impl<'pixels> Image<'pixels> {
     ///
     /// This function is marked as unsafe, because the callback function MUST initialize the entire row (call `write` on every `MaybeUninit` pixel).
     ///
-    pub unsafe fn new_fn<F: 'static + Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync>(attr: &Attributes, convert_row_fn: F, width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
+    pub unsafe fn new_fn<F: 'pixels + Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync>(attr: &Attributes, convert_row_fn: F, width: usize, height: usize, gamma: f64) -> Result<Self, Error> {
         Image::new_internal(attr, PixelsSource::Callback(Box::new(convert_row_fn)), width as u32, height as u32, gamma)
     }
 
     /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
     ///
-    /// Otherwise the same as [`Image::new`].
+    /// Otherwise the same as [`Image::new_borrowed`].
     #[inline(always)]
-    pub fn new_stride(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, Error> {
+    pub fn new_stride_borrowed(attr: &Attributes, pixels: &'pixels [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Self, Error> {
         Self::new_stride_internal(attr, SeaCow::borrowed(pixels), width, height, stride, gamma)
     }
 
     /// Create new image by copying `pixels` to an internal buffer, so that it makes a self-contained type.
     ///
-    /// Otherwise the same as [`Image::new_stride`].
+    /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
+    ///
+    /// Otherwise the same as [`Image::new_stride_borrowed`].
     #[inline]
-    pub fn new_stride_copy(attr: &Attributes, pixels: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, Error> {
+    pub fn new_stride<VecRGBA>(attr: &Attributes, pixels: VecRGBA, width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, Error> where VecRGBA: Into<Box<[RGBA]>> {
         Self::new_stride_internal(attr, SeaCow::boxed(pixels.into()), width, height, stride, gamma)
     }
 
@@ -315,7 +335,7 @@ impl<'pixels> Image<'pixels> {
             return Err(BufferTooSmall);
         }
 
-        let rows = SeaCow::boxed(slice.chunks(stride).map(|row| row.as_ptr()).collect());
+        let rows = SeaCow::boxed(slice.chunks(stride).map(|row| row.as_ptr()).take(height).collect());
         Image::new_internal(attr, PixelsSource::Pixels { rows, pixels: Some(pixels) }, width as u32, height as u32, gamma)
     }
 }

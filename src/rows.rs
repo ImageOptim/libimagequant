@@ -6,13 +6,13 @@ use crate::seacow::SeaCow;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
 use std::mem::MaybeUninit;
 
-pub(crate) type RowCallback = dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync;
+pub(crate) type RowCallback<'a> = dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync + 'a;
 
 pub(crate) enum PixelsSource<'pixels, 'rows> {
     /// The `pixels` field is never read, but it is used to store the rows.
     #[allow(dead_code)]
     Pixels { rows: SeaCow<'rows, *const RGBA>, pixels: Option<SeaCow<'pixels, RGBA>> },
-    Callback(Box<RowCallback>),
+    Callback(Box<RowCallback<'rows>>),
 }
 
 pub(crate) struct DynamicRows<'pixels, 'rows> {

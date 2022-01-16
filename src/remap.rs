@@ -363,8 +363,8 @@ fn background_to_nop() {
     let pixels: Vec<_> = (0..200*200).map(|n| RGBA::new(n as u8, (n/17) as u8, (n/78) as u8, 255)).collect();
 
     let mut attr = crate::new();
-    let mut img = attr.new_image_stride_borrow(&pixels, 200, 200, 200, 0.).unwrap();
-    let img2 = attr.new_image_stride_borrow(&pixels, 200, 200, 200, 0.).unwrap();
+    let mut img = attr.new_image_borrowed(&pixels, 200, 200, 0.).unwrap();
+    let img2 = attr.new_image_borrowed(&pixels, 200, 200, 0.).unwrap();
     img.set_background(img2).unwrap();
     img.add_fixed_color(RGBA::new(0,0,0,0)).unwrap();
     attr.set_max_colors(3).unwrap();

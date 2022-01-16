@@ -35,7 +35,7 @@ pub struct Attributes {
 impl Attributes {
     /// New handle for library configuration
     ///
-    /// See also `new_image()`
+    /// See also [`Attributes::new_image()`]
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -169,24 +169,31 @@ impl Attributes {
         self.max_colors.into()
     }
 
+    /// Make an image from RGBA pixels.
+    ///
+    /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
+    /// See [`Attributes::new_image_borrowed`] for a non-copying alternative.
+    ///
+    /// Use 0.0 for gamma if the image is sRGB (most images are).
+    #[inline]
+    pub fn new_image<VecRGBA>(&self, bitmap: VecRGBA, width: usize, height: usize, gamma: f64) -> Result<Image<'static>, Error> where VecRGBA: Into<Box<[RGBA]>> {
+        Image::new(self, bitmap, width, height, gamma)
+    }
+
     /// Describe dimensions of a slice of RGBA pixels
     ///
     /// Use 0.0 for gamma if the image is sRGB (most images are).
     #[inline]
-    pub fn new_image<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'pixels>, Error> {
-        Image::new(self, bitmap, width, height, gamma)
+    pub fn new_image_borrowed<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, gamma: f64) -> Result<Image<'pixels>, Error> {
+        Image::new_borrowed(self, bitmap, width, height, gamma)
     }
 
-    /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
+    /// Like `new_image_stride_borrowed`, but makes a copy of the pixels.
+    ///
+    /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
     #[inline]
-    pub fn new_image_stride_borrow<'pixels>(&self, bitmap: &'pixels [RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'pixels>, Error> {
+    pub fn new_image_stride<VecRGBA>(&self, bitmap: VecRGBA, width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, Error> where VecRGBA: Into<Box<[RGBA]>> {
         Image::new_stride(self, bitmap, width, height, stride, gamma)
-    }
-
-    /// Like `new_image_stride`, but makes a copy of the pixels
-    #[inline]
-    pub fn new_image_stride(&self, bitmap: &[RGBA], width: usize, height: usize, stride: usize, gamma: f64) -> Result<Image<'static>, Error> {
-        Image::new_stride_copy(self, bitmap, width, height, stride, gamma)
     }
 
     #[doc(hidden)]

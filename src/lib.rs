@@ -52,7 +52,7 @@ pub const LIQ_VERSION: u32 = 40000;
 /// I don't care about NaNs, just sort them!
 type OrdFloat<F> = noisy_float::NoisyFloat<F, noisy_float::checkers::FiniteChecker>;
 
-/// Start here: creates new handle for library configuration
+/// [Start here][Attributes]: creates new handle for library configuration
 ///
 /// See [`Attributes`]
 #[inline(always)]
@@ -65,7 +65,7 @@ pub fn new() -> Attributes {
 fn copy_img() {
     let tmp = vec![RGBA::new(1, 2, 3, 4); 10 * 100];
     let liq = Attributes::new();
-    let _ = liq.new_image_stride(&tmp, 10, 100, 10, 0.).unwrap();
+    let _ = liq.new_image_stride(tmp, 10, 100, 10, 0.).unwrap();
 }
 
 #[test]
@@ -75,11 +75,11 @@ fn takes_rgba() {
     let img = vec![RGBA {r:0, g:0, b:0, a:0}; 8];
 
 
-    liq.new_image(&img, 1, 1, 0.0).unwrap();
-    liq.new_image(&img, 4, 2, 0.0).unwrap();
-    liq.new_image(&img, 8, 1, 0.0).unwrap();
-    assert!(liq.new_image(&img, 9, 1, 0.0).is_err());
-    assert!(liq.new_image(&img, 4, 3, 0.0).is_err());
+    liq.new_image_borrowed(&img, 1, 1, 0.0).unwrap();
+    liq.new_image_borrowed(&img, 4, 2, 0.0).unwrap();
+    liq.new_image_borrowed(&img, 8, 1, 0.0).unwrap();
+    assert!(liq.new_image_borrowed(&img, 9, 1, 0.0).is_err());
+    assert!(liq.new_image_borrowed(&img, 4, 3, 0.0).is_err());
 }
 
 #[test]
@@ -182,7 +182,7 @@ fn thread() {
     let liq = Attributes::new();
     std::thread::spawn(move || {
         let b = vec![RGBA::new(0, 0, 0, 0); 1];
-        liq.new_image(&b, 1, 1, 0.).unwrap();
+        liq.new_image_borrowed(&b, 1, 1, 0.).unwrap();
     }).join().unwrap();
 }
 

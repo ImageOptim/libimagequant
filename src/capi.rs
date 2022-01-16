@@ -34,7 +34,7 @@ pub unsafe fn liq_image_create_rgba_bitmap_impl<'rows>(attr: &Attributes, rows: 
     crate::image::Image::new_internal(attr, crate::rows::PixelsSource::Pixels { rows, pixels: None }, width, height, gamma).ok()
 }
 
-pub unsafe fn liq_image_create_custom_impl(attr: &Attributes, row_callback: Box<RowCallback>, width: u32, height: u32, gamma: f64) -> Option<Image<'static>> {
+pub unsafe fn liq_image_create_custom_impl<'rows>(attr: &Attributes, row_callback: Box<RowCallback<'rows>>, width: u32, height: u32, gamma: f64) -> Option<Image<'rows>> {
     Image::new_internal(attr, crate::rows::PixelsSource::Callback(row_callback), width, height, gamma).ok()
 }
 
