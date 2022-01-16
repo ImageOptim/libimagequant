@@ -21,13 +21,13 @@ jobs:
           toolchain: stable
       - uses: actions-rs/cargo@v1
         with:
-          command: test --no-default-features
+          command: test
+          args: --no-default-features
       - uses: actions-rs/cargo@v1
         with:
-          command: test --all-features
+          command: test
+          args: --all-features
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: --manifest-path=imagequant-sys/Cargo.toml
-
-          
