@@ -75,6 +75,7 @@ impl fmt::Debug for HistItem {
     }
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub union HistSortTmp {
     pub mc_sort_value: u32,
@@ -344,6 +345,7 @@ struct TempHistItem {
     cluster_index: u8,
 }
 
+#[repr(C)]
 union RGBAInt {
     rgba: RGBA,
     int: u32,
