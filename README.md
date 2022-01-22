@@ -22,7 +22,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-imagequant = "4.0.0-beta.7"
+imagequant = "4.0.0-beta.8"
 ```
 
 [See docs.rs for the library API documentation](https://docs.rs/imagequant).
