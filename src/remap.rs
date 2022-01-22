@@ -2,7 +2,7 @@ use crate::error::*;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::nearest::Nearest;
-use crate::pal::{ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A, PalF, PalIndex, Palette, f_pixel, gamma_lut};
+use crate::pal::{ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A, PalF, PalIndex, Palette, f_pixel, gamma_lut, MAX_COLORS};
 use crate::quant::{quality_to_mse, QuantizationResult};
 use crate::rows::temp_buf;
 use crate::seacow::{RowBitmap, RowBitmapMut};
@@ -32,6 +32,9 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
     let n = Nearest::new(palette)?;
     let colors = palette.as_slice();
     let palette_len = colors.len();
+    if palette_len > u8::MAX as usize {
+        return Err(Error::Unsupported);
+    }
 
     let tls = ThreadLocal::new();
     let per_thread_buffers = move || -> Result<_, Error> { Ok(RefCell::new((Kmeans::new(palette_len)?, temp_buf(width)?, temp_buf(width)?, temp_buf(width)?))) };
@@ -41,14 +44,14 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
 
     let input_rows = image.px.rows_iter(&mut tls_tmp.1)?;
     let (background, transparent_index) = image.background.as_mut().map(|background| {
-        (Some(background), n.search(&f_pixel::default(), 0).0 as i16)
+        (Some(background), n.search(&f_pixel::default(), 0).0)
     })
-    .filter(|&(_, transparent_index)| colors[transparent_index as usize].a < MIN_OPAQUE_A)
-    .unwrap_or((None, -1));
+    .filter(|&(_, transparent_index)| colors[usize::from(transparent_index)].a < MIN_OPAQUE_A)
+    .unwrap_or((None, 0));
     let background = background.map(|bg| bg.px.rows_iter(&mut tls_tmp.1)).transpose()?;
 
-    if transparent_index > 0 {
-        tls_tmp.0.update_color(f_pixel::default(), 1., transparent_index as _);
+    if background.is_some() {
+        tls_tmp.0.update_color(f_pixel::default(), 1., transparent_index);
     }
 
     drop(tls_tmp);
@@ -75,12 +78,12 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
                 let bg_diff = bg.diff(inp);
                 if bg_diff <= diff {
                     remapping_error += bg_diff as f64;
-                    out.write(transparent_index as PalIndex);
+                    out.write(transparent_index as u8);
                     continue;
                 }
             }
             remapping_error += diff as f64;
-            out.write(matched);
+            out.write(matched as u8);
             kmeans.update_color(*inp, 1., matched);
         }
         remapping_error
@@ -164,6 +167,9 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     let (mut thiserr, mut nexterr) = thiserr_data.split_at_mut(errwidth);
     let n = Nearest::new(&quant.palette)?;
     let palette = quant.palette.as_slice();
+    if palette.len() > u8::MAX as usize {
+        return Err(Error::Unsupported);
+    }
 
     let transparent_index = if background.is_some() { n.search(&f_pixel::default(), 0).0 } else { 0 };
     if background.is_some() && palette[transparent_index as usize].a > MIN_OPAQUE_A {
@@ -200,7 +206,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
             let input_px = row_pixels[col];
             let spx = get_dithered_pixel(dither_level, max_dither_error, thiserr[col + 1], input_px);
             let guessed_match = if guess_from_remapped_pixels {
-                unsafe { output_pixels_row[col].assume_init() }
+                unsafe { output_pixels_row[col].assume_init() as PalIndex }
             } else {
                 last_match
             };
@@ -237,7 +243,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
                     }
                 }
             }
-            output_pixels_row[col].write(matched);
+            output_pixels_row[col].write(matched as u8);
             let mut err = spx.0 - output_px.0;
             // This prevents crazy geen pixels popping out of the blue (or red or black! ;)
             if err.r * err.r + err.g * err.g + err.b * err.b + err.a * err.a > max_dither_error {
@@ -319,7 +325,7 @@ impl Remapped {
     pub fn make_int_palette(palette: &mut PalF, gamma: f64, posterize: u8) -> Palette {
         let mut int_palette = Palette {
             count: palette.len() as _,
-            entries: [Default::default(); 256],
+            entries: [Default::default(); MAX_COLORS],
         };
         let lut = gamma_lut(gamma);
         for ((f_color, f_pop), int_pal) in palette.iter_mut().zip(int_palette.as_mut_slice()) {

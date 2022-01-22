@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::hist::Histogram;
 use crate::image::Image;
+use crate::pal::MAX_COLORS;
 use crate::pal::PalLen;
 use crate::pal::RGBA;
 use crate::quant::{mse_to_quality, quality_to_mse, QuantizationResult};
@@ -42,7 +43,7 @@ impl Attributes {
         let mut attr = Self {
             target_mse: 0.,
             max_mse: None,
-            max_colors: 256,
+            max_colors: MAX_COLORS as PalLen,
             last_index_transparent: false,
             kmeans_iteration_limit: 0.,
             max_histogram_entries: 0,
@@ -290,7 +291,7 @@ impl Attributes {
 
     /// max_mse, target_mse, user asked for perfect quality
     pub(crate) fn target_mse(&self, hist_items_len: usize) -> (Option<f64>, f64, bool) {
-        let max_mse = self.max_mse.map(|mse| mse * if hist_items_len <= 256 { 0.33 } else { 1. });
+        let max_mse = self.max_mse.map(|mse| mse * if hist_items_len <= MAX_COLORS { 0.33 } else { 1. });
         let aim_for_perfect_quality = self.target_mse == 0.;
         let mut target_mse = self.target_mse.max(((1 << self.min_posterization_output) as f64 / 1024.).powi(2));
         if let Some(max_mse) = max_mse {

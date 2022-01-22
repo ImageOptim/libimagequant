@@ -181,8 +181,8 @@ impl PalF {
     pub fn new() -> Self {
         debug_assert!(PalLen::MAX as usize >= MAX_COLORS);
         Self {
-            colors: ArrayVec::new(),
-            pops: ArrayVec::new(),
+            colors: Default::default(),
+            pops: Default::default(),
         }
     }
 

@@ -63,7 +63,7 @@ impl QuantizationResult {
             progress_callback: None,
             int_palette: Palette {
                 count: 0,
-                entries: [Default::default(); 256],
+                entries: [Default::default(); MAX_COLORS],
             },
             dither_level: 1.,
         })

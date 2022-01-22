@@ -1,8 +1,8 @@
-use fallible_collections::FallibleVec;
-
-use crate::{OrdFloat, Error};
+use crate::pal::MAX_COLORS;
 use crate::pal::PalIndex;
 use crate::pal::{f_pixel, PalF};
+use crate::{OrdFloat, Error};
+use fallible_collections::FallibleVec;
 
 impl<'pal> Nearest<'pal> {
     #[inline(never)]
@@ -16,7 +16,7 @@ impl<'pal> Nearest<'pal> {
         let mut handle = Nearest {
             root: vp_create_node(&mut indexes, palette)?,
             palette,
-            nearest_other_color_dist: [0.; 256],
+            nearest_other_color_dist: [0.; MAX_COLORS],
         };
         for (i, color) in palette.as_slice().iter().enumerate() {
             let mut best = Visitor {
@@ -57,7 +57,7 @@ impl Nearest<'_> {
 pub(crate) struct Nearest<'pal> {
     root: Node,
     palette: &'pal PalF,
-    nearest_other_color_dist: [f32; 256],
+    nearest_other_color_dist: [f32; MAX_COLORS],
 }
 
 pub struct MapIndex {
