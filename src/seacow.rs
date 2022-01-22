@@ -75,15 +75,6 @@ impl<'a, T> SeaCow<'a, T> {
             SeaCowInner::Boxed(x) => x,
         }
     }
-
-    pub fn as_mut_slice(&mut self) -> &mut [T] {
-        match &mut self.inner {
-            #[cfg(feature = "_internal_c_ffi")]
-            SeaCowInner::Owned { ptr, len, .. } => (unsafe { std::slice::from_raw_parts_mut(*ptr, *len) }),
-            SeaCowInner::Boxed(x) => (x),
-            SeaCowInner::Borrowed(_) => panic!("can't"),
-        }
-    }
 }
 
 pub(crate) struct RowBitmap<'a, T> {

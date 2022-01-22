@@ -18,7 +18,7 @@ use std::mem::MaybeUninit;
 /// All images are internally in the RGBA format.
 pub struct Image<'pixels> {
     pub(crate) px: DynamicRows<'pixels, 'pixels>,
-    pub(crate) importance_map: Option<SeaCow<'static, u8>>,
+    pub(crate) importance_map: Option<Box<[u8]>>,
     pub(crate) edges: Option<Box<[u8]>>,
     pub(crate) dither_map: Option<Box<[u8]>>,
     pub(crate) background: Option<Box<Image<'pixels>>>,
@@ -124,7 +124,7 @@ impl<'pixels> Image<'pixels> {
 
     pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, u8>, palette: &mut PalF) {
         let width = self.width();
-        let edges = match self.edges.as_deref_mut() {
+        let mut edges = match self.edges.take() {
             Some(e) => e,
             None => return,
         };
@@ -155,8 +155,7 @@ impl<'pixels> Image<'pixels> {
                         i += 1;
                     }
                     while lastcol <= col {
-                        let e = edges[lastcol];
-                        edges[lastcol] = ((e as u16 + 128) as f32
+                        edges[lastcol] = ((edges[lastcol] as u16 + 128) as f32
                             * (255. / (255 + 128) as f32)
                             * (1. - 20. / (20 + neighbor_count) as f32))
                             as u8;
@@ -167,21 +166,15 @@ impl<'pixels> Image<'pixels> {
             }
             prev_row = Some(this_row);
         }
-        self.dither_map = self.edges.take();
+        self.dither_map = Some(edges);
     }
 
     /// Set which pixels are more important (and more likely to get a palette entry)
     ///
     /// The map must be `width`×`height` pixels large. Higher numbers = more important.
-    pub fn set_importance_map(&mut self, map: &[u8]) -> Result<(), Error> {
-        self.importance_map = Some(SeaCow::boxed(map.into()));
+    pub fn set_importance_map(&mut self, map: impl Into<Box<[u8]>>) -> Result<(), Error> {
+        self.importance_map = Some(map.into());
         Ok(())
-    }
-
-    #[inline]
-    #[cfg(feature = "_internal_c_ffi")]
-    pub(crate) unsafe fn set_importance_map_raw(&mut self, map: SeaCow<'static, u8>) {
-        self.importance_map = Some(map)
     }
 
     /// Remap pixels assuming they will be displayed on this background.
@@ -244,13 +237,13 @@ impl<'pixels> Image<'pixels> {
             return Ok(()); // shrug
         }
 
-        let noise = match self.importance_map.as_mut() {
+        let noise = match self.importance_map.as_deref_mut() {
             Some(n) => n,
             None => {
                 let vec = try_zero_vec(width * height)?;
-                self.importance_map.get_or_insert_with(move || SeaCow::boxed(vec.into_boxed_slice()))
+                self.importance_map.get_or_insert_with(move || vec.into_boxed_slice())
             },
-        }.as_mut_slice();
+        };
         let edges = match self.edges.as_mut() {
             Some(e) => e,
             None => {

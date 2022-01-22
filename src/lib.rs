@@ -170,7 +170,7 @@ fn set_importance_map() {
     let bitmap = &[RGBA::new(255, 0, 0, 255), RGBA::new(0u8, 0, 255, 255)];
     let mut img = liq.new_image(&bitmap[..], 2, 1, 0.).unwrap();
     let map = &[255, 0];
-    img.set_importance_map(map).unwrap();
+    img.set_importance_map(&map[..]).unwrap();
     let mut res = liq.quantize(&mut img).unwrap();
     let pal = res.palette();
     assert_eq!(1, pal.len(), "{:?}", pal);
