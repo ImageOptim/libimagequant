@@ -104,6 +104,9 @@ impl Attributes {
         if !(0..=100).contains(&target) || target < minimum {
             return Err(Error::ValueOutOfRange);
         }
+        if target < 30 {
+            self.verbose_print("  warning: quality set too low");
+        }
         self.target_mse = quality_to_mse(target);
         self.max_mse = Some(quality_to_mse(minimum));
         Ok(())
@@ -346,4 +349,59 @@ pub enum ControlFlow {
     Continue = 1,
     /// Abort processing and fail
     Break = 0,
+}
+
+#[test]
+fn counters() {
+    let mut a = Attributes::new();
+    a.set_speed(10).unwrap();
+    let (iter, _) = a.kmeans_iterations(1000, false);
+    assert_eq!(iter, 0);
+    a.set_quality(80, 90).unwrap();
+    let (iter, limit) = a.kmeans_iterations(1000, false);
+    assert_eq!(iter, 1);
+    assert!(limit > 0. && limit < 0.01);
+
+    let (iter, _) = a.kmeans_iterations(1000, true);
+    assert_eq!(iter, 0);
+
+    let mut a = Attributes::new();
+    a.set_quality(50, 80).unwrap();
+
+    let (max_mse, target_mse, aim_perfect) = a.target_mse(10000);
+    let max_mse = max_mse.unwrap();
+    assert!(!aim_perfect);
+    assert!(target_mse > 0. && target_mse < 0.01);
+    assert!(max_mse > 0. && max_mse > target_mse && max_mse < 0.01);
+}
+
+#[test]
+fn getset() {
+    let mut a = Attributes::new();
+    assert!(a.set_quality(0, 101).is_err());
+    assert!(a.set_quality(50, 49).is_err());
+    assert!(a.feedback_loop_trials(1000) > 0);
+
+    let (max_mse, target_mse, aim_perfect) = a.target_mse(10000);
+    assert!(aim_perfect);
+    assert!(target_mse < 0.0001);
+    assert_eq!(max_mse, None);
+
+    a.set_speed(5).unwrap();
+    assert_eq!(5, a.speed());
+    assert!(a.set_speed(99).is_err());
+    assert!(a.set_speed(0).is_err());
+
+    a.set_max_colors(5).unwrap();
+    assert_eq!(5, a.max_colors());
+    assert!(a.set_max_colors(0).is_err());
+
+    a.set_min_posterization(2).unwrap();
+    assert_eq!(2, a.min_posterization());
+    assert_eq!(2, a.posterize_bits());
+    assert!(a.set_min_posterization(8).is_err());
+
+    let mut a = Attributes::new();
+    a.set_speed(10).unwrap();
+    assert_eq!(1, a.posterize_bits());
 }
