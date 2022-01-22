@@ -252,8 +252,6 @@ impl<'pixels> Image<'pixels> {
             },
         };
 
-        let mut tmp = try_zero_vec(width * height)?;
-
         let mut rows_iter = self.px.all_rows_f()?.chunks_exact(width);
 
         let mut next_row = rows_iter.next().unwrap();
@@ -289,6 +287,7 @@ impl<'pixels> Image<'pixels> {
             }
         }
         // noise areas are shrunk and then expanded to remove thin edges from the map
+        let mut tmp = try_zero_vec(width * height)?;
         liq_max3(noise, &mut tmp, width, height);
         liq_max3(&tmp, noise, width, height);
         liq_blur(noise, &mut tmp, width, height, 3);

@@ -1,6 +1,10 @@
 /// Blurs image horizontally (width 2*size+1) and writes it transposed to dst (called twice gives 2d blur)
 #[inline(never)]
 fn transposing_1d_blur(src: &[u8], dst: &mut [u8], width: usize, height: usize, size: u16) {
+    if width < 2 * size as usize + 1 || height < 2 * size as usize + 1 {
+        return;
+    }
+
     for (j, row) in src.chunks_exact(width).enumerate() {
         let mut sum = row[0] as u16 * size;
         for &v in &row[0..size as usize] {
@@ -62,10 +66,6 @@ pub(crate) fn liq_min3(src: &[u8], dst: &mut [u8], width: usize, height: usize) 
 /// Filters src image and saves it to dst, overwriting tmp in the process.
 /// Image must be width*height pixels high. Size controls radius of box blur.
 pub(crate) fn liq_blur(src_dst: &mut [u8], tmp: &mut [u8], width: usize, height: usize, size: u16) {
-    if width < 2 * size as usize + 1 || height < 2 * size as usize + 1 {
-        return;
-    }
-
     transposing_1d_blur(src_dst, tmp, width, height, size);
     transposing_1d_blur(tmp, src_dst, height, width, size);
 }

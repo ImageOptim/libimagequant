@@ -195,7 +195,7 @@ impl QuantizationResult {
         let len = image.width() * image.height();
         // Capacity is essential here, as it creates uninitialized buffer
         unsafe {
-            let mut buf: Vec<u8> = FallibleVec::try_with_capacity(len).map_err(|_| OutOfMemory)?;
+            let mut buf: Vec<u8> = FallibleVec::try_with_capacity(len)?;
             let uninit_slice = std::slice::from_raw_parts_mut(buf.as_mut_ptr().cast::<MaybeUninit<u8>>(), buf.capacity());
             self.remap_into(image, uninit_slice)?;
             buf.set_len(uninit_slice.len());
