@@ -247,9 +247,9 @@ impl Histogram {
         let mut temp_row = temp_buf(width)?;
         for row in 0..height {
             let pixels_row = &image_iter.row_rgba(&mut temp_row, row)[..width];
-            let importance_map = importance_map.next().map(move |m| &m[..width]);
+            let importance_map = importance_map.next().map(move |m| &m[..width]).unwrap_or(&[]);
             for (col, px) in pixels_row.iter().copied().enumerate() {
-                self.add_color(px, importance_map.map(move |map| map[col]).unwrap_or(255) as u16);
+                self.add_color(px, importance_map.get(col).copied().unwrap_or(255) as u16);
             }
         }
         self.init_posterize_bits(posterize_bits);
