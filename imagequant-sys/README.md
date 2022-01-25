@@ -402,7 +402,7 @@ The map is one byte per pixel and must have the same size as the image (width×h
 
 If the `ownership` is `LIQ_COPY_PIXELS` then the `map` content be copied immediately (it's up to you to ensure the `map` memory is freed).
 
-If the `ownership` is `LIQ_OWN_PIXELS` then the `map` memory will be owned by the image and will be freed automatically when the image is freed. If a custom allocator has been set using `liq_attr_create_with_allocator()`, the `map` must be allocated using the same allocator.
+If the `ownership` is `LIQ_OWN_PIXELS` then the `map` memory will be owned by the image and will be freed automatically when the image is freed. If a custom allocator has been set using `liq_attr_create_with_allocator()`, the `map` must be allocated using the same allocator. This option is deprecated. Use the Rust API or `LIQ_COPY_PIXELS` instead.
 
 Returns `LIQ_INVALID_POINTER` if any pointer is `NULL`, `LIQ_BUFFER_TOO_SMALL` if the `buffer_size` does not match the image size, and `LIQ_UNSUPPORTED` if `ownership` isn't a valid value.
 

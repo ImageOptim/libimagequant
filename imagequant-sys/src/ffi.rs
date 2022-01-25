@@ -373,11 +373,13 @@ pub unsafe extern "C" fn liq_image_set_importance_map(img: &mut liq_image, impor
         return Error::BufferTooSmall;
     }
 
-    let importance_map = std::slice::from_raw_parts_mut(importance_map, required_size);
+    let importance_map_slice = std::slice::from_raw_parts(importance_map, required_size);
     if ownership == liq_ownership::LIQ_COPY_PIXELS {
-        img.set_importance_map(importance_map).err().unwrap_or(LIQ_OK)
+        img.set_importance_map(importance_map_slice).err().unwrap_or(LIQ_OK)
     } else if ownership == liq_ownership::LIQ_OWN_PIXELS {
-        liq_image_set_importance_map_owned(img, importance_map, free_fn);
+        let copy: Box<[u8]> = importance_map_slice.into();
+        free_fn(importance_map as *mut _);
+        img.set_importance_map(copy).err().unwrap_or(LIQ_OK);
         LIQ_OK
     } else {
         Error::Unsupported
