@@ -32,7 +32,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
     let n = Nearest::new(palette)?;
     let colors = palette.as_slice();
     let palette_len = colors.len();
-    if palette_len > u8::MAX as usize {
+    if palette_len > u8::MAX as usize + 1 {
         return Err(Error::Unsupported);
     }
 
@@ -167,7 +167,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     let (mut thiserr, mut nexterr) = thiserr_data.split_at_mut(errwidth);
     let n = Nearest::new(&quant.palette)?;
     let palette = quant.palette.as_slice();
-    if palette.len() > u8::MAX as usize {
+    if palette.len() > u8::MAX as usize + 1 {
         return Err(Error::Unsupported);
     }
 
