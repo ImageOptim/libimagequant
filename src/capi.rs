@@ -55,8 +55,3 @@ pub unsafe fn liq_write_remapped_image_rows_impl(result: &mut QuantizationResult
 pub unsafe fn liq_image_set_memory_ownership_impl(image: &mut Image<'_>, own_rows: bool, own_pixels: bool, free_fn: unsafe extern fn(*mut std::os::raw::c_void)) -> Result<(), Error> {
     image.px.set_memory_ownership(own_rows, own_pixels, free_fn)
 }
-
-pub unsafe fn liq_image_set_importance_map_owned(image: &mut Image<'_>, map: &mut [u8], free_fn: unsafe extern fn(*mut std::os::raw::c_void)) {
-    let map = SeaCow::c_owned(map.as_mut_ptr(), map.len(), free_fn);
-    image.set_importance_map_raw(map);
-}
