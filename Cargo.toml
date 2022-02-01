@@ -37,3 +37,10 @@ lodepng = "3.5.1"
 
 [workspace]
 members = ["imagequant-sys", "imagequant-sys/c_test"]
+
+[package.metadata.release]
+consolidate-commits = true
+consolidate-pushes = true
+tag-message = ""
+tag-prefix = ""
+tag-name = "{{version}}"
