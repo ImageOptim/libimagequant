@@ -112,8 +112,8 @@ impl Histogram {
 
         self.gamma = Some(image.gamma());
 
-        for c in image.fixed_colors.iter().copied() {
-            self.fixed_colors.insert(HashColor(c));
+        for (idx, c) in image.fixed_colors.iter().copied().enumerate() {
+            self.fixed_colors.insert(HashColor(c, idx as _));
         }
 
         if attr.progress(attr.progress_stage1 as f32 * 0.40) {
@@ -163,7 +163,8 @@ impl Histogram {
         if self.fixed_colors.len() >= MAX_COLORS {
             return Err(Unsupported);
         }
-        self.fixed_colors.insert(HashColor(px));
+        let idx = self.fixed_colors.len();
+        self.fixed_colors.insert(HashColor(px, idx as _));
         Ok(())
     }
 
@@ -285,7 +286,7 @@ impl Histogram {
 
             // fixed colors are always included in the palette, so it would be wasteful to duplicate them in palette from histogram
             // FIXME: removes fixed colors from histogram (could be done better by marking them as max importance instead)
-            for HashColor(fixed) in &self.fixed_colors {
+            for HashColor(fixed, _) in &self.fixed_colors {
                 if color.diff(fixed) < max_fixed_color_difference {
                     return 0.;
                 }
@@ -395,10 +396,10 @@ impl std::hash::Hasher for RgbaHasher {
     fn write_isize(&mut self, _i: isize) { unimplemented!() }
 }
 
-/// libstd's HashSet is afraid of NaN
-#[repr(transparent)]
+/// libstd's HashSet is afraid of NaN.
+/// contains color + original index (since hashmap forgets order)
 #[derive(PartialEq, Debug)]
-pub(crate) struct HashColor(pub f_pixel);
+pub(crate) struct HashColor(pub f_pixel, pub u32);
 
 #[allow(clippy::derive_hash_xor_eq)]
 impl Hash for HashColor {
