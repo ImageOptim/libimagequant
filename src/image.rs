@@ -57,7 +57,8 @@ impl<'pixels> Image<'pixels> {
 
     /// Generate rows on demand using a callback function.
     ///
-    /// The callback function should be cheap (e.g. just byte-swap pixels). It will be called multiple times per row. May be called from multiple threads at once.
+    /// The callback function should be cheap (e.g. just byte-swap pixels). The parameters are: line of RGBA pixels (slice's len is equal to image width), and row number (0-indexed).
+    /// The callback will be called multiple times per row. May be called from multiple threads at once.
     ///
     /// Use `0.` for gamma if the image is sRGB (most images are).
     ///
@@ -177,11 +178,11 @@ impl<'pixels> Image<'pixels> {
         Ok(())
     }
 
-    /// Remap pixels assuming they will be displayed on this background.
+    /// Remap pixels assuming they will be displayed on this background. This is designed for GIF's "keep" mode.
     ///
     /// Pixels that match the background color will be made transparent if there's a fully transparent color available in the palette.
     ///
-    /// The background image's pixels must outlive this image
+    /// The background image's pixels must outlive this image.
     pub fn set_background(&mut self, background: Image<'pixels>) -> Result<(), Error> {
         if background.background.is_some() {
             return Err(Unsupported);
@@ -196,7 +197,7 @@ impl<'pixels> Image<'pixels> {
 
     /// Reserves a color in the output palette created from this image. It behaves as if the given color was used in the image and was very important.
     ///
-    /// RGB values of Color are assumed to have the same gamma as the image.
+    /// The RGB values are assumed to have the same gamma as the image.
     ///
     /// It must be called before the image is quantized.
     ///
@@ -303,7 +304,7 @@ impl<'pixels> Image<'pixels> {
         Ok(())
     }
 
-    /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying.
+    /// Stride is in pixels. Allows defining regions of larger images or images with padding without copying. The stride is in pixels.
     ///
     /// Otherwise the same as [`Image::new_borrowed`].
     #[inline(always)]

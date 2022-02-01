@@ -77,7 +77,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
             },
             PixelsSource::Callback(cb) => {
                 cb(temp_row, row);
-                // FIXME: cb needs to be marked as unsafe, since it's responsible for initialization :(
+                // cb needs to be marked as unsafe, since it's responsible for initialization :(
                 unsafe { slice_assume_init_mut(temp_row) }
             }
         }

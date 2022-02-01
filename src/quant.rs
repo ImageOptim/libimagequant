@@ -138,17 +138,6 @@ impl QuantizationResult {
             .map(mse_to_quality)
     }
 
-    /// The final palette, copied.
-    ///
-    /// It's slighly better if you get palette from the `remapped()` call instead
-    #[must_use]
-    pub fn palette_vec(&mut self) -> Vec<RGBA> {
-        let pal = self.palette();
-        let mut out: Vec<RGBA> = FallibleVec::try_with_capacity(pal.len()).unwrap();
-        out.extend_from_slice(pal);
-        out
-    }
-
     /// The final palette
     ///
     /// It's slighly better if you get palette from the `remapped()` call instead
@@ -209,8 +198,8 @@ impl QuantizationResult {
     ///
     /// Writes 1-byte-per-pixel uncompressed bitmap into the pre-allocated buffer.
     ///
-    /// You should call `palette()` or `palette_ref()` _after_ this call, but not before it,
-    /// because remapping changes the palette.
+    /// You should call `palette()` _after_ this call, but not before it,
+    /// because remapping refines the palette.
     #[inline]
     pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<u8>]) -> Result<(), Error> {
         let required_size = (image.width()) * (image.height());
@@ -218,6 +207,17 @@ impl QuantizationResult {
 
         let rows = RowBitmapMut::new_contiguous(output_buf, image.width());
         self.write_remapped_image_rows_internal(image, rows)
+    }
+
+    /// The final palette, copied.
+    ///
+    /// It's slighly better if you get palette from the `remapped()` call instead
+    #[must_use]
+    pub fn palette_vec(&mut self) -> Vec<RGBA> {
+        let pal = self.palette();
+        let mut out: Vec<RGBA> = FallibleVec::try_with_capacity(pal.len()).unwrap();
+        out.extend_from_slice(pal);
+        out
     }
 }
 
