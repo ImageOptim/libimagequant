@@ -165,7 +165,7 @@ impl QuantizationResult {
             }
             None => {
                 if self.int_palette.count == 0 {
-                    self.int_palette = Remapped::make_int_palette(&mut self.palette, self.gamma, self.min_posterization_output);
+                    self.int_palette = self.palette.make_int_palette(self.gamma, self.min_posterization_output);
                 }
                 &self.int_palette
             },

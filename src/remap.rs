@@ -2,13 +2,12 @@ use crate::error::*;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::nearest::Nearest;
-use crate::pal::{ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A, PalF, PalIndex, Palette, f_pixel, gamma_lut, MAX_COLORS};
+use crate::pal::{ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A, PalF, PalIndex, Palette, f_pixel};
 use crate::quant::{quality_to_mse, QuantizationResult};
 use crate::rows::temp_buf;
 use crate::seacow::{RowBitmap, RowBitmapMut};
 use fallible_collections::FallibleVec;
 use crate::rayoff::*;
-use rgb::ComponentMap;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
 
@@ -292,7 +291,7 @@ impl Remapped {
         let mut palette_error = result.palette_error;
         let int_palette;
         if result.dither_level == 0. {
-            int_palette = Self::make_int_palette(&mut palette, result.gamma, posterize);
+            int_palette = palette.make_int_palette(result.gamma, posterize);
             palette_error = Some(remap_to_palette(image, &mut output_pixels, &mut palette)?.0);
         } else {
             let is_image_huge = (image.px.width * image.px.height) > 2000 * 2000;
@@ -311,7 +310,7 @@ impl Remapped {
             }
 
             // remapping above was the last chance to do K-Means iteration, hence the final palette is set after remapping
-            int_palette = Self::make_int_palette(&mut palette, result.gamma, posterize);
+            int_palette = palette.make_int_palette(result.gamma, posterize);
             let max_dither_error = (palette_error.unwrap_or(quality_to_mse(80)) * 2.4).max(quality_to_mse(35)) as f32;
             remap_to_palette_floyd(image, output_pixels, result, max_dither_error, output_image_is_remapped)?;
         }
@@ -320,40 +319,10 @@ impl Remapped {
             int_palette, palette_error,
         })
     }
-
-    /// Also rounds the input pal
-    pub fn make_int_palette(palette: &mut PalF, gamma: f64, posterize: u8) -> Palette {
-        let mut int_palette = Palette {
-            count: palette.len() as _,
-            entries: [Default::default(); MAX_COLORS],
-        };
-        let lut = gamma_lut(gamma);
-        for ((f_color, f_pop), int_pal) in palette.iter_mut().zip(int_palette.as_mut_slice()) {
-            let mut px = f_color.to_rgb(gamma)
-                .map(move |c| posterize_channel(c, posterize));
-            *f_color = f_pixel::from_rgba(&lut, px);
-            if px.a == 0 && !f_pop.is_fixed() {
-                px.r = 71u8;
-                px.g = 112u8;
-                px.b = 76u8;
-            }
-            *int_pal = px;
-        }
-        int_palette
-    }
 }
 
 pub(crate) fn mse_to_standard_mse(mse: f64) -> f64 {
     (mse * 65536. / 6.) / LIQ_WEIGHT_MSE // parallelized dither map might speed up floyd remapping
-}
-
-#[inline]
-fn posterize_channel(color: u8, bits: u8) -> u8 {
-    if bits == 0 {
-        color
-    } else {
-        (color & !((1 << bits) - 1)) | (color >> (8 - bits))
-    }
 }
 
 #[test]

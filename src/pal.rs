@@ -1,7 +1,7 @@
-use crate::hist::{FixedColorsSet, HashColor};
 use arrayvec::ArrayVec;
+use crate::hist::{FixedColorsSet, HashColor};
+use rgb::ComponentMap;
 use std::ops::{Deref, DerefMut};
-use std::os::raw::c_uint;
 
 /// 8-bit RGBA in sRGB. This is the only color format *publicly* used by the library.
 pub type RGBA = rgb::RGBA<u8>;
@@ -89,6 +89,7 @@ impl f_pixel {
         let a = (256. / LIQ_WEIGHT_A) * self.a;
 
         let gamma = (gamma / INTERNAL_GAMMA) as f32;
+        debug_assert!(gamma.is_finite());
 
         // 256, because numbers are in range 1..255.9999… rounded down
         RGBA {
@@ -243,6 +244,36 @@ impl PalF {
         self.colors.swap(a, b);
         self.pops.swap(a, b);
     }
+
+    /// Also rounds the input pal
+    pub fn make_int_palette(&mut self, gamma: f64, posterize: u8) -> Palette {
+        let mut int_palette = Palette {
+            count: self.len() as _,
+            entries: [Default::default(); MAX_COLORS],
+        };
+        let lut = gamma_lut(gamma);
+        for ((f_color, f_pop), int_pal) in self.iter_mut().zip(int_palette.as_mut_slice()) {
+            let mut px = f_color.to_rgb(gamma)
+                .map(move |c| posterize_channel(c, posterize));
+            *f_color = f_pixel::from_rgba(&lut, px);
+            if px.a == 0 && !f_pop.is_fixed() {
+                px.r = 71u8;
+                px.g = 112u8;
+                px.b = 76u8;
+            }
+            *int_pal = px;
+        }
+        int_palette
+    }
+}
+
+#[inline]
+fn posterize_channel(color: u8, bits: u8) -> u8 {
+    if bits == 0 {
+        color
+    } else {
+        (color & !((1 << bits) - 1)) | (color >> (8 - bits))
+    }
 }
 
 #[inline(always)]
@@ -290,5 +321,29 @@ impl Palette {
     #[inline(always)]
     pub(crate) fn as_mut_slice(&mut self) -> &mut [RGBA] {
         &mut self.entries[..self.count as usize]
+    }
+}
+
+
+#[test]
+fn pal_test() {
+    let mut p = PalF::new();
+    let gamma = gamma_lut(0.45455);
+    for i in 0..=255u8 {
+        let rgba = RGBA::new(i,i,i,100+i/2);
+        p.push(f_pixel::from_rgba(&gamma, rgba), PalPop::new(1.));
+        assert_eq!(i as usize + 1, p.len());
+        assert_eq!(i as usize + 1, p.pop_as_slice().len());
+        assert_eq!(i as usize + 1, p.as_slice().len());
+        assert_eq!(i as usize + 1, p.iter().count());
+        assert_eq!(i as usize + 1, p.iter_mut().count());
+    }
+
+    let int_pal = p.make_int_palette(0.45455, 0);
+
+    for i in 0..=255u8 {
+        let rgba = p.as_slice()[i as usize].to_rgb(0.45455);
+        assert_eq!(rgba, RGBA::new(i,i,i,100+i/2));
+        assert_eq!(int_pal[i as usize], RGBA::new(i,i,i,100+i/2));
     }
 }

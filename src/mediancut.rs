@@ -157,7 +157,10 @@ fn qsort_pivot(base: &[HistItem]) -> usize {
     }
     let mut pivots = [8, len / 2, len - 1];
     // LLVM can't see it's in bounds :(
-    pivots.sort_unstable_by_key(move |&idx| unsafe { base.get_unchecked(idx) }.mc_sort_value());
+    pivots.sort_unstable_by_key(move |&idx| unsafe {
+        debug_assert!(base.get(idx).is_some());
+        base.get_unchecked(idx)
+    }.mc_sort_value());
     pivots[1]
 }
 
