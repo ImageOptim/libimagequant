@@ -259,7 +259,7 @@ pub fn gamma_lut(gamma: f64) -> [f32; 256] {
 #[repr(C)]
 pub struct Palette {
     /// Number of used colors in the `entries`
-    pub count: c_uint,
+    pub count: u32,
     /// The colors, up to `count`
     pub entries: [RGBA; 256],
 }

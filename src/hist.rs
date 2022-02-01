@@ -14,7 +14,6 @@ use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt;
 use std::hash::Hash;
-use std::os::raw::c_uint;
 
 /// Number of pixels in a given color for [`Histogram::add_colors()`]
 ///
@@ -25,7 +24,7 @@ pub struct HistogramEntry {
     /// The color
     pub color: RGBA,
     /// Importance of the color (e.g. number of occurrences)
-    pub count: c_uint,
+    pub count: u32,
 }
 
 /// Generate one shared palette for multiple images
