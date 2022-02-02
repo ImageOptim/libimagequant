@@ -22,7 +22,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-imagequant = "4.0.0-beta.8"
+imagequant = "4.0.0"
 ```
 
 [See docs.rs for the library API documentation](https://docs.rs/imagequant).
@@ -86,7 +86,7 @@ pngquant v2 can use this library as a dynamic library. However, pngquant v4 does
 
 ### Upgrading for Rust users
 
-If you've used the [`imagequant-sys`](//lib.rs/imagequant-sys) crate, switch to the higher-level [`imagequant`](//lib.rs/imagequant) crate. The `imagequant` v4 is almost entirely backwards-compatible, with small changes that the Rust compiler will point out (e.g. changed use of `c_int` to `u32`). See [docs](https://docs.rs/imagequant/4.0.0-beta.7/imagequant/index.html). Please fix deprecation warnings, because the deprecated functions will be removed.
+If you've used the [`imagequant-sys`](//lib.rs/imagequant-sys) crate, switch to the higher-level [`imagequant`](//lib.rs/imagequant) crate. The `imagequant` v4 is almost entirely backwards-compatible, with small changes that the Rust compiler will point out (e.g. changed use of `c_int` to `u32`). See [docs](https://docs.rs/imagequant/4.0.0/imagequant/index.html). Please fix deprecation warnings, because the deprecated functions will be removed.
 
 The `openmp` Cargo feature has been renamed to `threads`.
 
@@ -102,7 +102,7 @@ To disable threads when using this library as a dependency, disable default feat
 
 ```toml
 [dependencies]
-imagequant = { version = "4.0.0-beta.7", default-features = false }
+imagequant = { version = "4.0.0", default-features = false }
 ```
 
 When you compile the library directly, add `--no-default-features` flag.
