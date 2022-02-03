@@ -95,8 +95,8 @@ fn histogram() {
     let mut image2 = attr.new_image(&bitmap2[..], 1, 1, 0.0).unwrap();
     hist.add_image(&attr, &mut image2).unwrap();
 
-    hist.add_colors(&[HistogramEntry{
-        color: RGBA::new(255,128,255,128),
+    hist.add_colors(&[HistogramEntry {
+        color: RGBA::new(255, 128, 255, 128),
         count: 10,
     }], 0.0).unwrap();
 
@@ -206,7 +206,9 @@ fn r_callback_test() {
             }
             called2.fetch_add(1, SeqCst);
         };
-        let mut img = unsafe { Image::new_fn(&a, get_row, 123, 5, 0.).unwrap() };
+        let mut img = unsafe {
+            Image::new_fn(&a, get_row, 123, 5, 0.).unwrap()
+        };
         a.quantize(&mut img).unwrap()
     };
     let called = called.load(SeqCst);

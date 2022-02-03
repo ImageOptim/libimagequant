@@ -146,7 +146,6 @@ impl Attributes {
         Ok(())
     }
 
-
     /// Number of least significant bits to ignore.
     ///
     /// Useful for generating palettes for VGA, 15-bit textures, or other retro platforms.
@@ -343,8 +342,8 @@ impl Default for Attributes {
 }
 
 /// Result of callback in [`Attributes::set_progress_callback`]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ControlFlow {
     /// Continue processing as normal
     Continue = 1,
