@@ -1,6 +1,6 @@
 [package]
 name = "imagequant"
-version = "4.0.0"
+version = "4.0.1"
 description = "Convert 24/32-bit images to 8-bit palette with alpha channel.\nFor lossy PNG compression and high-quality GIF images\nDual-licensed like pngquant. See https://pngquant.org for details."
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 license = "GPL-3.0-or-later"
@@ -11,11 +11,12 @@ categories = ["multimedia::images"]
 keywords = ["quantization", "palette", "pngquant", "compression", "gif"]
 include = ["COPYRIGHT", "src/*.rs", "*.h", "README.md", "Cargo.toml"]
 readme = "README.md"
-edition = "2018"
+edition = "2021"
+rust-version = "1.60"
 
 [features]
 default = ["threads"]
-threads = ["rayon", "thread_local"]
+threads = ["dep:rayon", "dep:thread_local"]
 
 # this is private and unstable for imagequant-sys only, do not use
 _internal_c_ffi = []
