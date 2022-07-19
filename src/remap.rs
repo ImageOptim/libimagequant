@@ -6,7 +6,6 @@ use crate::pal::{ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A, PalF, PalIndex, Palette, f
 use crate::quant::{quality_to_mse, QuantizationResult};
 use crate::rows::temp_buf;
 use crate::seacow::{RowBitmap, RowBitmapMut};
-use fallible_collections::FallibleVec;
 use crate::rayoff::*;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
@@ -161,7 +160,8 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     let mut background = input_image.background.as_mut().map(|bg| bg.px.rows_iter(&mut temp_row)).transpose()?;
 
     let errwidth = width + 2; // +2 saves from checking out of bounds access
-    let mut thiserr_data: Vec<_> = FallibleVec::try_with_capacity(errwidth * 2)?;
+    let mut thiserr_data = Vec::new();
+    thiserr_data.try_reserve_exact(errwidth * 2)?;
     thiserr_data.resize(errwidth * 2, f_pixel::default());
     let (mut thiserr, mut nexterr) = thiserr_data.split_at_mut(errwidth);
     let n = Nearest::new(&quant.palette)?;

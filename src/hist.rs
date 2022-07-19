@@ -1,14 +1,13 @@
 use crate::error::*;
 use crate::image::Image;
-use crate::pal::MAX_COLORS;
 use crate::pal::PalIndex;
 use crate::pal::ARGBF;
+use crate::pal::MAX_COLORS;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
 use crate::quant::QuantizationResult;
 use crate::rows::temp_buf;
 use crate::rows::DynamicRows;
 use crate::Attributes;
-use fallible_collections::FallibleVec;
 use rgb::ComponentSlice;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
@@ -262,7 +261,8 @@ impl Histogram {
         debug_assert!(gamma > 0.);
 
         let mut counts = [0; LIQ_MAXCLUSTER];
-        let mut temp: Vec<_> = FallibleVec::try_with_capacity(self.hashmap.len())?;
+        let mut temp = Vec::new();
+        temp.try_reserve_exact(self.hashmap.len())?;
         // Limit perceptual weight to 1/10th of the image surface area to prevent
         // a single color from dominating all others.
         let max_perceptual_weight = 0.1 * self.total_area as f32;
@@ -308,7 +308,8 @@ impl Histogram {
             next_begin += count;
         }
 
-        let mut items: Vec<_> = FallibleVec::try_with_capacity(temp.len())?;
+        let mut items = Vec::new();
+        items.try_reserve_exact(temp.len())?;
         items.resize(temp.len(), HistItem {
             color: if cfg!(debug_assertions) { f_pixel( ARGBF { r:f32::NAN, g:f32::NAN, b:f32::NAN, a:f32::NAN } ) } else { f_pixel::default() },
             adjusted_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },

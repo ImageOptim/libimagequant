@@ -9,7 +9,6 @@ use crate::remap::{mse_to_standard_mse, DitherMapMode, Remapped};
 use crate::seacow::RowBitmapMut;
 use crate::OrdFloat;
 use arrayvec::ArrayVec;
-use fallible_collections::FallibleVec;
 use std::cmp::Reverse;
 use std::fmt;
 use std::mem::MaybeUninit;
@@ -184,10 +183,11 @@ impl QuantizationResult {
         let len = image.width() * image.height();
         // Capacity is essential here, as it creates uninitialized buffer
         unsafe {
-            let mut buf: Vec<u8> = FallibleVec::try_with_capacity(len)?;
-            let uninit_slice = std::slice::from_raw_parts_mut(buf.as_mut_ptr().cast::<MaybeUninit<u8>>(), buf.capacity());
+            let mut buf = Vec::new();
+            buf.try_reserve_exact(len)?;
+            let uninit_slice = &mut buf.spare_capacity_mut()[..len];
             self.remap_into(image, uninit_slice)?;
-            buf.set_len(uninit_slice.len());
+            buf.set_len(len);
             Ok((self.palette_vec(), buf))
         }
     }
@@ -215,7 +215,8 @@ impl QuantizationResult {
     #[must_use]
     pub fn palette_vec(&mut self) -> Vec<RGBA> {
         let pal = self.palette();
-        let mut out: Vec<RGBA> = FallibleVec::try_with_capacity(pal.len()).unwrap();
+        let mut out: Vec<RGBA> = Vec::new();
+        out.try_reserve_exact(pal.len()).unwrap();
         out.extend_from_slice(pal);
         out
     }

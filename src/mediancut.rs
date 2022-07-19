@@ -3,7 +3,6 @@ use crate::pal::{f_pixel, PalF, PalPop};
 use crate::pal::{PalLen, ARGBF};
 use crate::quant::quality_to_mse;
 use crate::{OrdFloat, Error};
-use fallible_collections::FallibleVec;
 use rgb::ComponentMap;
 use rgb::ComponentSlice;
 use std::cmp::Reverse;
@@ -232,7 +231,8 @@ impl<'hist> MedianCutter<'hist> {
         debug_assert!(hist.clusters.last().unwrap().end as usize == hist.items.len());
 
         let mut hist_items = &mut hist.items[..];
-        let mut boxes: Vec<_> = FallibleVec::try_with_capacity(target_colors as usize)?;
+        let mut boxes = Vec::new();
+        boxes.try_reserve(target_colors as usize)?;
 
         let used_boxes = hist.clusters.iter().filter(|b| b.begin != b.end).count();
         if used_boxes <= target_colors as usize / 3 {

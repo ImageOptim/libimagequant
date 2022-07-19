@@ -1,12 +1,11 @@
-use crate::Error;
 use crate::hist::{HistItem, HistogramInternal};
 use crate::nearest::Nearest;
-use crate::pal::{PalF, PalIndex, PalPop, f_pixel};
-use fallible_collections::FallibleVec;
+use crate::pal::{f_pixel, PalF, PalIndex, PalPop};
+use crate::rayoff::*;
+use crate::Error;
 use rgb::alt::ARGB;
 use rgb::ComponentMap;
 use std::cell::RefCell;
-use crate::rayoff::*;
 
 pub(crate) struct Kmeans {
     averages: Vec<ColorAvg>,
@@ -23,7 +22,8 @@ struct ColorAvg {
 impl Kmeans {
     #[inline]
     pub fn new(pal_len: usize) -> Result<Self, Error> {
-        let mut averages: Vec<_> = FallibleVec::try_with_capacity(pal_len)?;
+        let mut averages = Vec::new();
+        averages.try_reserve_exact(pal_len)?;
         averages.resize(pal_len, ColorAvg::default());
         Ok(Self {
             averages,

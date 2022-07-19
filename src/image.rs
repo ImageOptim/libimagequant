@@ -7,7 +7,6 @@ use crate::rows::{DynamicRows, PixelsSource};
 use crate::seacow::RowBitmap;
 use crate::seacow::SeaCow;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
-use fallible_collections::FallibleVec;
 use rgb::ComponentMap;
 use std::mem::MaybeUninit;
 
@@ -205,7 +204,8 @@ impl<'pixels> Image<'pixels> {
     pub fn add_fixed_color(&mut self, color: RGBA) -> Result<(), Error> {
         if self.fixed_colors.len() >= MAX_COLORS { return Err(Unsupported); }
         let lut = gamma_lut(self.px.gamma);
-        self.fixed_colors.try_push(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}))?;
+        self.fixed_colors.try_reserve(1)?;
+        self.fixed_colors.push(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}));
         Ok(())
     }
 
@@ -335,7 +335,8 @@ impl<'pixels> Image<'pixels> {
 }
 
 fn try_zero_vec(len: usize) -> Result<Vec<u8>, Error> {
-    let mut vec: Vec<_> = FallibleVec::try_with_capacity(len)?;
+    let mut vec = Vec::new();
+    vec.try_reserve_exact(len)?;
     vec.resize(len, 0);
     Ok(vec)
 }

@@ -2,7 +2,6 @@ use crate::pal::MAX_COLORS;
 use crate::pal::PalIndex;
 use crate::pal::{f_pixel, PalF};
 use crate::{OrdFloat, Error};
-use fallible_collections::FallibleVec;
 
 impl<'pal> Nearest<'pal> {
     #[inline(never)]
@@ -131,7 +130,8 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, Error>
     let radius = radius_squared.sqrt();
 
     let (near, far, rest) = if num_indexes < 7 {
-        let mut rest: Vec<_> = FallibleVec::try_with_capacity(num_indexes)?;
+        let mut rest = Vec::new();
+        rest.try_reserve_exact(num_indexes)?;
         rest.extend(near.iter().chain(far.iter()).map(|i| Leaf {
             idx: i.idx,
             color: palette[usize::from(i.idx)],

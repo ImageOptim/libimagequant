@@ -1,6 +1,6 @@
-use fallible_collections::TryReserveError;
-pub use Error::*;
+use std::collections::TryReserveError;
 use std::fmt;
+pub use Error::*;
 
 /// Error codes
 #[cfg_attr(feature = "_internal_c_ffi", repr(C))]

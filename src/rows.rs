@@ -1,5 +1,3 @@
-use fallible_collections::FallibleVec;
-
 use crate::error::*;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
 use crate::seacow::SeaCow;
@@ -197,7 +195,8 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
 }
 
 pub(crate) fn temp_buf<T>(len: usize) -> Result<Box<[MaybeUninit<T>]>, Error> {
-    let mut v: Vec<_> = FallibleVec::try_with_capacity(len)?;
+    let mut v = Vec::new();
+    v.try_reserve_exact(len)?;
     unsafe { v.set_len(len) };
     Ok(v.into_boxed_slice())
 }
