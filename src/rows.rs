@@ -3,13 +3,14 @@ use crate::pal::{f_pixel, gamma_lut, RGBA};
 use crate::seacow::SeaCow;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
 use std::mem::MaybeUninit;
+use crate::seacow::Pointer;
 
 pub(crate) type RowCallback<'a> = dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync + 'a;
 
 pub(crate) enum PixelsSource<'pixels, 'rows> {
     /// The `pixels` field is never read, but it is used to store the rows.
     #[allow(dead_code)]
-    Pixels { rows: SeaCow<'rows, *const RGBA>, pixels: Option<SeaCow<'pixels, RGBA>> },
+    Pixels { rows: SeaCow<'rows, Pointer<RGBA>>, pixels: Option<SeaCow<'pixels, RGBA>> },
     Callback(Box<RowCallback<'rows>>),
 }
 
@@ -71,7 +72,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     fn row_rgba<'px>(&'px self, temp_row: &'px mut [MaybeUninit<RGBA>], row: usize) -> &[RGBA] {
         match &self.pixels {
             PixelsSource::Pixels { rows, .. } => unsafe {
-                std::slice::from_raw_parts(rows.as_slice()[row], self.width())
+                std::slice::from_raw_parts(rows.as_slice()[row].0, self.width())
             },
             PixelsSource::Callback(cb) => {
                 cb(temp_row, row);
@@ -168,7 +169,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
                 PixelsSource::Pixels { pixels: Some(pixels), .. } => pixels.make_owned(free_fn),
                 PixelsSource::Pixels { pixels, rows } => {
                     // the row with the lowest address is assumed to be at the start of the bitmap
-                    let ptr = rows.as_slice().iter().copied().min().ok_or(Error::Unsupported)?;
+                    let ptr = rows.as_slice().iter().map(|p| p.0).min().ok_or(Error::Unsupported)?;
                     *pixels = Some(SeaCow::c_owned(ptr as *mut _, len, free_fn));
                 },
                 PixelsSource::Callback(_) => return Err(Error::ValueOutOfRange),

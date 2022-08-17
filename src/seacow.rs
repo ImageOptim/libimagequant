@@ -9,8 +9,20 @@ pub struct SeaCow<'a, T> {
 unsafe impl<T: Send> Send for SeaCowInner<'_, T> {}
 unsafe impl<T: Sync> Sync for SeaCowInner<'_, T> {}
 
-unsafe impl<T: Send> Send for SeaCow<'_, *const T> {}
-unsafe impl<T: Sync> Sync for SeaCow<'_, *const T> {}
+/// Rust assumes `*const T` is never `Send`/`Sync`, but it can be.
+/// This is fudge for https://github.com/rust-lang/rust/issues/93367
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub(crate) struct Pointer<T>(pub *const T);
+
+#[derive(Copy, Clone)]
+#[repr(transparent)]
+pub(crate) struct PointerMut<T>(pub *mut T);
+
+unsafe impl<T: Send + Sync> Send for Pointer<T> {}
+unsafe impl<T: Send + Sync> Sync for Pointer<T> {}
+unsafe impl<T: Send + Sync> Send for PointerMut<T> {}
+unsafe impl<T: Send + Sync> Sync for PointerMut<T> {}
 
 impl<'a, T> SeaCow<'a, T> {
     #[inline]
@@ -78,13 +90,13 @@ impl<'a, T> SeaCow<'a, T> {
 }
 
 pub(crate) struct RowBitmap<'a, T> {
-    rows: &'a [*const T],
+    rows: &'a [Pointer<T>],
     width: usize,
 }
 unsafe impl<T: Send + Sync> Send for RowBitmap<'_, T> {}
 
 pub(crate) struct RowBitmapMut<'a, T> {
-    rows: MutCow<'a, [*mut T]>,
+    rows: MutCow<'a, [PointerMut<T>]>,
     width: usize,
 }
 unsafe impl<T: Send + Sync> Send for RowBitmapMut<'_, T> {}
@@ -94,7 +106,7 @@ impl<'a, T> RowBitmapMut<'a, MaybeUninit<T>> {
     pub(crate) unsafe fn assume_init<'maybeowned>(&'maybeowned mut self) -> RowBitmap<'maybeowned, T> {
         RowBitmap {
             width: self.width,
-            rows: std::mem::transmute::<&'maybeowned [*mut MaybeUninit<T>], &'maybeowned [*const T]>(self.rows.borrow()),
+            rows: std::mem::transmute::<&'maybeowned [PointerMut<MaybeUninit<T>>], &'maybeowned [Pointer<T>]>(self.rows.borrow()),
         }
     }
 }
@@ -102,8 +114,8 @@ impl<'a, T> RowBitmapMut<'a, MaybeUninit<T>> {
 impl<'a, T> RowBitmap<'a, T> {
     pub fn rows(&self) -> impl Iterator<Item = &[T]> {
         let width = self.width;
-        self.rows.iter().map(move |&row| {
-            unsafe { std::slice::from_raw_parts(row, width) }
+        self.rows.iter().map(move |row| {
+            unsafe { std::slice::from_raw_parts(row.0, width) }
         })
     }
 }
@@ -127,7 +139,7 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
     #[inline]
     pub fn new_contiguous(data: &mut [T], width: usize) -> Self {
         Self {
-            rows: MutCow::Owned(data.chunks_exact_mut(width).map(|r| r.as_mut_ptr()).collect()),
+            rows: MutCow::Owned(data.chunks_exact_mut(width).map(|r| PointerMut(r.as_mut_ptr())).collect()),
             width,
         }
     }
@@ -137,18 +149,14 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
     #[cfg(feature = "_internal_c_ffi")]
     pub unsafe fn new(rows: &'a mut [*mut T], width: usize) -> Self {
         Self {
-            rows: MutCow::Borrowed(rows),
+            rows: MutCow::Borrowed(std::mem::transmute::<&'a mut [*mut T], &'a mut [PointerMut<T>]>(rows)),
             width,
         }
     }
 
     pub fn rows_mut(&mut self) -> impl Iterator<Item = &mut [T]> + Send {
         let width = self.width;
-        // Rust is pessimistic about `*mut` pointers
-        struct ItIsSync<T>(*mut T);
-        unsafe impl<T: Send + Sync> Sync for ItIsSync<T> {}
-        let send_slice = unsafe { std::mem::transmute::<&mut [*mut T], &mut [ItIsSync<T>]>(self.rows.borrow()) };
-        send_slice.iter().map(move |row| {
+        self.rows.borrow().iter().map(move |row| {
             unsafe { std::slice::from_raw_parts_mut(row.0, width) }
         })
     }

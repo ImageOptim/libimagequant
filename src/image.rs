@@ -6,6 +6,7 @@ use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
 use crate::seacow::RowBitmap;
 use crate::seacow::SeaCow;
+use crate::seacow::Pointer;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
 use rgb::ComponentMap;
 use std::mem::MaybeUninit;
@@ -329,7 +330,7 @@ impl<'pixels> Image<'pixels> {
             return Err(BufferTooSmall);
         }
 
-        let rows = SeaCow::boxed(slice.chunks(stride).map(|row| row.as_ptr()).take(height).collect());
+        let rows = SeaCow::boxed(slice.chunks(stride).map(|row| Pointer(row.as_ptr())).take(height).collect());
         Image::new_internal(attr, PixelsSource::Pixels { rows, pixels: Some(pixels) }, width as u32, height as u32, gamma)
     }
 }
