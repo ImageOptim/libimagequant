@@ -45,7 +45,7 @@ impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
         }
     }
 
-    pub fn row_f2<'px>(&'px self, temp_row: &mut [MaybeUninit<RGBA>], temp_row_f: &'px mut [MaybeUninit<f_pixel>], row: usize) -> &'px [f_pixel] {
+    pub fn row_f_shared<'px>(&'px self, temp_row: &mut [MaybeUninit<RGBA>], temp_row_f: &'px mut [MaybeUninit<f_pixel>], row: usize) -> &'px [f_pixel] {
         match self.px.f_pixels.as_ref() {
             Some(pixels) => &pixels[self.px.width as usize * row as usize..],
             None => {
@@ -96,16 +96,16 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 
     #[inline]
-    fn prepare_f_pixels(&mut self, temp_row: &mut [MaybeUninit<RGBA>], allow_steamed: bool) -> Result<Option<Box<[MaybeUninit<f_pixel>]>>, Error> {
+    fn prepare_iter_if_needed(&mut self, temp_row: &mut [MaybeUninit<RGBA>], allow_steamed: bool) -> Result<Option<Box<[MaybeUninit<f_pixel>]>>, Error> {
         debug_assert_eq!(temp_row.len(), self.width as _);
         if self.f_pixels.is_some() {
             return Ok(None);
         }
 
-        self.prepare_generated_image(temp_row, allow_steamed)
+        self.prepare_iter_inner(temp_row, allow_steamed)
     }
 
-    fn prepare_generated_image(&mut self, temp_row: &mut [MaybeUninit<RGBA>], allow_steamed: bool) -> Result<Option<Box<[MaybeUninit<f_pixel>]>>, Error> {
+    fn prepare_iter_inner(&mut self, temp_row: &mut [MaybeUninit<RGBA>], allow_steamed: bool) -> Result<Option<Box<[MaybeUninit<f_pixel>]>>, Error> {
         debug_assert_eq!(temp_row.len(), self.width as _);
 
         if allow_steamed && self.should_use_low_memory() {
@@ -128,7 +128,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     #[inline]
     pub fn rows_iter(&mut self, temp_row: &mut [MaybeUninit<RGBA>]) -> Result<DynamicRowsIter<'_, 'pixels, 'rows>, Error> {
         Ok(DynamicRowsIter {
-            temp_f_row: self.prepare_f_pixels(temp_row, true)?,
+            temp_f_row: self.prepare_iter_if_needed(temp_row, true)?,
             px: self,
         })
     }
@@ -149,7 +149,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
         if self.f_pixels.is_some() {
             return Ok(self.f_pixels.as_ref().unwrap()); // borrow-checker :(
         }
-        let _ = self.prepare_f_pixels(&mut temp_buf(self.width())?, false)?;
+        let _ = self.prepare_iter_if_needed(&mut temp_buf(self.width())?, false)?;
         self.f_pixels.as_deref().ok_or(Error::Unsupported)
     }
 

@@ -63,9 +63,9 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
         let (kmeans, temp_row, temp_row_f, temp_row_f_bg) = &mut *tls_res.borrow_mut();
 
         let output_pixels_row = &mut output_pixels_row[..width];
-        let row_pixels = &input_rows.row_f2(temp_row, temp_row_f, row)[..width];
+        let row_pixels = &input_rows.row_f_shared(temp_row, temp_row_f, row)[..width];
         let bg_pixels = if let Some(background) = &background  {
-            &background.row_f2(temp_row, temp_row_f_bg, row)[..width]
+            &background.row_f_shared(temp_row, temp_row_f_bg, row)[..width]
         } else { &[] };
 
         let mut last_match = 0;
@@ -160,10 +160,9 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     let mut background = input_image.background.as_mut().map(|bg| bg.px.rows_iter(&mut temp_row)).transpose()?;
 
     let errwidth = width + 2; // +2 saves from checking out of bounds access
-    let mut thiserr_data = Vec::new();
-    thiserr_data.try_reserve_exact(errwidth * 2)?;
-    thiserr_data.resize(errwidth * 2, f_pixel::default());
-    let (mut thiserr, mut nexterr) = thiserr_data.split_at_mut(errwidth);
+    let mut diffusion = Vec::new();
+    diffusion.try_reserve_exact(errwidth * 2)?;
+    diffusion.resize(errwidth * 2, f_pixel::default());
     let n = Nearest::new(&quant.palette)?;
     let palette = quant.palette.as_slice();
     if palette.len() > u8::MAX as usize + 1 {
@@ -191,24 +190,29 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
         let row_pixels = input_image_iter.row_f(&mut temp_row, row as _);
         let bg_pixels = background.as_mut().map(|b| b.row_f(&mut temp_row, row as _)).unwrap_or(&[]);
         let dither_map = dither_map.get(row * width .. row * width + width).unwrap_or(&[]);
-        let scan_forward = row & 1 == 0;
-        dither_row(row_pixels, output_pixels_row, width as u32, dither_map, base_dithering_level, max_dither_error, &n, palette, transparent_index, bg_pixels, guess_from_remapped_pixels, thiserr, nexterr, scan_forward);
-        std::mem::swap(&mut thiserr, &mut nexterr);
+        let even_row = row & 1 == 0;
+        dither_row(row_pixels, output_pixels_row, width as u32, dither_map, base_dithering_level, max_dither_error, &n, palette, transparent_index, bg_pixels, guess_from_remapped_pixels, &mut diffusion, even_row);
     }
     Ok(())
 }
 
-fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIndex>], width: u32, dither_map: &[u8], base_dithering_level: f32, max_dither_error: f32, n: &Nearest, palette: &[f_pixel], transparent_index: PalIndex, bg_pixels: &[f_pixel], guess_from_remapped_pixels: bool, thiserr: &mut [f_pixel], nexterr: &mut [f_pixel], scan_forward: bool) {
+fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIndex>], width: u32, dither_map: &[u8], base_dithering_level: f32, max_dither_error: f32, n: &Nearest, palette: &[f_pixel], transparent_index: PalIndex, bg_pixels: &[f_pixel], guess_from_remapped_pixels: bool, diffusion: &mut [f_pixel], even_row: bool) {
     let width = width as usize;
     assert_eq!(row_pixels.len(), width);
     assert_eq!(output_pixels_row.len(), width);
+
+    let (thiserr, nexterr) = {
+        // +2 saves from checking out of bounds access
+        let (d1, d2) = diffusion.split_at_mut(width + 2);
+        if even_row { (d1, d2) } else { (d2, d1) }
+    };
 
     nexterr.fill_with(f_pixel::default);
 
     let mut undithered_bg_used = 0u8;
     let mut last_match = 0;
     for x in 0..width {
-        let col = if scan_forward { x } else { width - 1 - x };
+        let col = if even_row { x } else { width - 1 - x };
         let thiserr = &mut thiserr[col .. col + 3];
         let nexterr = &mut nexterr[col .. col + 3];
         let input_px = row_pixels[col];
@@ -263,7 +267,7 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIn
         if err.r * err.r + err.g * err.g + err.b * err.b + err.a * err.a > max_dither_error {
             err *= 0.75;
         }
-        if scan_forward {
+        if even_row {
             thiserr[2].0 += err * (7. / 16.);
             nexterr[0].0 += err * (3. / 16.);
             nexterr[1].0 += err * (5. / 16.);

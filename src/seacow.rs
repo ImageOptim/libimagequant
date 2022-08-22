@@ -106,7 +106,7 @@ impl<'a, T> RowBitmapMut<'a, MaybeUninit<T>> {
     pub(crate) unsafe fn assume_init<'maybeowned>(&'maybeowned mut self) -> RowBitmap<'maybeowned, T> {
         RowBitmap {
             width: self.width,
-            rows: std::mem::transmute::<&'maybeowned [PointerMut<MaybeUninit<T>>], &'maybeowned [Pointer<T>]>(self.rows.borrow()),
+            rows: std::mem::transmute::<&'maybeowned [PointerMut<MaybeUninit<T>>], &'maybeowned [Pointer<T>]>(self.rows.borrow_mut()),
         }
     }
 }
@@ -127,7 +127,7 @@ enum MutCow<'a, T: ?Sized> {
 }
 
 impl<'a, T: ?Sized> MutCow<'a, T> {
-    pub fn borrow(&mut self) -> &mut T {
+    pub fn borrow_mut(&mut self) -> &mut T {
         match self {
             Self::Owned(a) => a,
             Self::Borrowed(a) => a,
@@ -156,7 +156,7 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
 
     pub fn rows_mut(&mut self) -> impl Iterator<Item = &mut [T]> + Send {
         let width = self.width;
-        self.rows.borrow().iter().map(move |row| {
+        self.rows.borrow_mut().iter().map(move |row| {
             unsafe { std::slice::from_raw_parts_mut(row.0, width) }
         })
     }

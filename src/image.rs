@@ -123,7 +123,7 @@ impl<'pixels> Image<'pixels> {
         true
     }
 
-    pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, PalIndex>, palette: &mut PalF) {
+    pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, PalIndex>, palette: &PalF) {
         let width = self.width();
         let mut edges = match self.edges.take() {
             Some(e) => e,
