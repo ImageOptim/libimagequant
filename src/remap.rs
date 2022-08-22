@@ -179,8 +179,6 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     if !dither_map.is_empty() {
         base_dithering_level *= 1. / 255.; // dither_map is in 0-255 scale
     }
-    let mut scan_forward = true;
-    let mut temp_row = temp_buf(width)?;
 
     // when using remapping on top of a background, lots of pixels may be transparent, making poor guesses
     // (guesses are only for speed, don't affect visuals)
@@ -190,91 +188,93 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
         if quant.remap_progress(progress_stage1 as f32 + row as f32 * (100. - progress_stage1 as f32) / height as f32) {
             return Err(Error::Aborted);
         }
-        nexterr.fill_with(f_pixel::default);
-        let mut col = if scan_forward { 0 } else { width - 1 };
         let row_pixels = input_image_iter.row_f(&mut temp_row, row as _);
         let bg_pixels = background.as_mut().map(|b| b.row_f(&mut temp_row, row as _)).unwrap_or(&[]);
         let dither_map = dither_map.get(row * width .. row * width + width).unwrap_or(&[]);
-        let mut undithered_bg_used = 0;
-        let mut last_match = 0;
-        loop {
-            let mut dither_level = base_dithering_level;
-            if let Some(&l) = dither_map.get(col) {
-                dither_level *= l as f32;
-            }
-            let input_px = row_pixels[col];
-            let spx = get_dithered_pixel(dither_level, max_dither_error, thiserr[col + 1], input_px);
-            let guessed_match = if guess_from_remapped_pixels {
-                unsafe { output_pixels_row[col].assume_init() as PalIndex }
+        let scan_forward = row & 1 == 0;
+        dither_row(row_pixels, output_pixels_row, width as u32, dither_map, base_dithering_level, max_dither_error, &n, palette, transparent_index, bg_pixels, guess_from_remapped_pixels, thiserr, nexterr, scan_forward);
+        std::mem::swap(&mut thiserr, &mut nexterr);
+    }
+    Ok(())
+}
+
+fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<u8>], width: u32, dither_map: &[u8], base_dithering_level: f32, max_dither_error: f32, n: &Nearest, palette: &[f_pixel], transparent_index: u8, bg_pixels: &[f_pixel], guess_from_remapped_pixels: bool, thiserr: &mut [f_pixel], nexterr: &mut [f_pixel], scan_forward: bool) {
+    let width = width as usize;
+    assert_eq!(row_pixels.len(), width);
+    assert_eq!(output_pixels_row.len(), width);
+
+    nexterr.fill_with(f_pixel::default);
+
+    let mut undithered_bg_used = 0u8;
+    let mut last_match = 0;
+    for x in 0..width {
+        let col = if scan_forward { x } else { width - 1 - x };
+        let thiserr = &mut thiserr[col .. col + 3];
+        let nexterr = &mut nexterr[col .. col + 3];
+        let input_px = row_pixels[col];
+
+        let mut dither_level = base_dithering_level;
+        if let Some(&l) = dither_map.get(col) {
+            dither_level *= l as f32;
+        }
+
+        let spx = get_dithered_pixel(dither_level, max_dither_error, thiserr[1], input_px);
+        let guessed_match = if guess_from_remapped_pixels {
+            unsafe { output_pixels_row[col].assume_init() as PalIndex }
+        } else {
+            last_match
+        };
+        let (mut matched, dither_diff) = n.search(&spx, guessed_match);
+        last_match = matched;
+        let mut output_px = palette[last_match as usize];
+        if let Some(bg_pixel) = bg_pixels.get(col) {
+            // if the background makes better match *with* dithering, it's a definitive win
+            let bg_for_dither_diff = spx.diff(bg_pixel);
+            if bg_for_dither_diff <= dither_diff {
+                output_px = *bg_pixel;
+                matched = transparent_index;
+            } else if undithered_bg_used > 1 {
+                // the undithered fallback can cause artifacts when too many undithered pixels accumulate a big dithering error
+                // so periodically ignore undithered fallback to prevent that
+                undithered_bg_used = 0;
             } else {
-                last_match
-            };
-            let (mut matched, dither_diff) = n.search(&spx, guessed_match);
-            last_match = matched;
-            let mut output_px = palette[last_match as usize];
-            if let Some(bg_pixel) = bg_pixels.get(col) {
-                // if the background makes better match *with* dithering, it's a definitive win
-                let bg_for_dither_diff = spx.diff(bg_pixel);
-                if bg_for_dither_diff <= dither_diff {
-                    output_px = *bg_pixel;
-                    matched = transparent_index;
-                } else if undithered_bg_used > 1 {
-                    // the undithered fallback can cause artifacts when too many undithered pixels accumulate a big dithering error
-                    // so periodically ignore undithered fallback to prevent that
-                    undithered_bg_used = 0;
-                } else {
-                    // if dithering is not applied, there's a high risk of creating artifacts (flat areas, error accumulating badly),
-                    // OTOH poor dithering disturbs static backgrounds and creates oscilalting frames that break backgrounds
-                    // back and forth in two differently bad ways
-                    let max_diff = input_px.diff(bg_pixel);
-                    let dithered_diff = input_px.diff(&output_px);
-                    // if dithering is worse than natural difference between frames
-                    // (this rule dithers moving areas, but does not dither static areas)
-                    if dithered_diff > max_diff {
-                        // then see if an undithered color is closer to the ideal
-                        let guessed_px = palette[guessed_match as usize];
-                        let undithered_diff = input_px.diff(&guessed_px); // If dithering error is crazy high, don't propagate it that much
-                        if undithered_diff < max_diff {
-                            undithered_bg_used += 1;
-                            output_px = guessed_px;
-                            matched = guessed_match;
-                        }
+                // if dithering is not applied, there's a high risk of creating artifacts (flat areas, error accumulating badly),
+                // OTOH poor dithering disturbs static backgrounds and creates oscilalting frames that break backgrounds
+                // back and forth in two differently bad ways
+                let max_diff = input_px.diff(bg_pixel);
+                let dithered_diff = input_px.diff(&output_px);
+                // if dithering is worse than natural difference between frames
+                // (this rule dithers moving areas, but does not dither static areas)
+                if dithered_diff > max_diff {
+                    // then see if an undithered color is closer to the ideal
+                    let guessed_px = palette[guessed_match as usize];
+                    let undithered_diff = input_px.diff(&guessed_px); // If dithering error is crazy high, don't propagate it that much
+                    if undithered_diff < max_diff {
+                        undithered_bg_used += 1;
+                        output_px = guessed_px;
+                        matched = guessed_match;
                     }
                 }
             }
-            output_pixels_row[col].write(matched as u8);
-            let mut err = spx.0 - output_px.0;
-            // This prevents crazy geen pixels popping out of the blue (or red or black! ;)
-            if err.r * err.r + err.g * err.g + err.b * err.b + err.a * err.a > max_dither_error {
-                err *= 0.75;
-            }
-            if scan_forward {
-                thiserr[col + 2].0 += err * (7. / 16.);
-                nexterr[col + 2].0 = err * (1. / 16.);
-                nexterr[col + 1].0 += err * (5. / 16.);
-                nexterr[col].0 += err * (3. / 16.);
-            } else {
-                thiserr[col].0 += err * (7. / 16.);
-                nexterr[col + 2].0 += err * (3. / 16.);
-                nexterr[col + 1].0 += err * (5. / 16.);
-                nexterr[col].0 = err * (1. / 16.);
-            }
-            if scan_forward {
-                col += 1;
-                if col >= width {
-                    break;
-                }
-            } else {
-                if col == 0 {
-                    break;
-                }
-                col -= 1;
-            }
         }
-        std::mem::swap(&mut thiserr, &mut nexterr);
-        scan_forward = !scan_forward;
+        output_pixels_row[col].write(matched as u8);
+        let mut err = spx.0 - output_px.0;
+        // This prevents weird green pixels popping out of the blue (or red or black! ;)
+        if err.r * err.r + err.g * err.g + err.b * err.b + err.a * err.a > max_dither_error {
+            err *= 0.75;
+        }
+        if scan_forward {
+            thiserr[2].0 += err * (7. / 16.);
+            nexterr[0].0 += err * (3. / 16.);
+            nexterr[1].0 += err * (5. / 16.);
+            nexterr[2].0 = err * (1. / 16.);
+        } else {
+            thiserr[0].0 += err * (7. / 16.);
+            nexterr[0].0 = err * (1. / 16.);
+            nexterr[1].0 += err * (5. / 16.);
+            nexterr[2].0 += err * (3. / 16.);
+        }
     }
-    Ok(())
 }
 
 impl Remapped {
