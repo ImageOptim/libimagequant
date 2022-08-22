@@ -24,7 +24,7 @@ pub(crate) struct Remapped {
 }
 
 #[inline(never)]
-pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<u8>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, u8>), Error> {
+pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<PalIndex>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, PalIndex>), Error> {
     let width = image.width();
 
     let n = Nearest::new(palette)?;
@@ -76,12 +76,12 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
                 let bg_diff = bg.diff(inp);
                 if bg_diff <= diff {
                     remapping_error += bg_diff as f64;
-                    out.write(transparent_index as u8);
+                    out.write(transparent_index);
                     continue;
                 }
             }
             remapping_error += diff as f64;
-            out.write(matched as u8);
+            out.write(matched);
             kmeans.update_color(*inp, 1., matched);
         }
         remapping_error
@@ -143,7 +143,7 @@ fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel
 ///
 ///  If output_image_is_remapped is true, only pixels noticeably changed by error diffusion will be written to output image.
 #[inline(never)]
-pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), Error> {
+pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), Error> {
     let progress_stage1 = if quant.use_dither_map != DitherMapMode::None { 20 } else { 0 };
 
     let width = input_image.width();
@@ -198,7 +198,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     Ok(())
 }
 
-fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<u8>], width: u32, dither_map: &[u8], base_dithering_level: f32, max_dither_error: f32, n: &Nearest, palette: &[f_pixel], transparent_index: u8, bg_pixels: &[f_pixel], guess_from_remapped_pixels: bool, thiserr: &mut [f_pixel], nexterr: &mut [f_pixel], scan_forward: bool) {
+fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIndex>], width: u32, dither_map: &[u8], base_dithering_level: f32, max_dither_error: f32, n: &Nearest, palette: &[f_pixel], transparent_index: PalIndex, bg_pixels: &[f_pixel], guess_from_remapped_pixels: bool, thiserr: &mut [f_pixel], nexterr: &mut [f_pixel], scan_forward: bool) {
     let width = width as usize;
     assert_eq!(row_pixels.len(), width);
     assert_eq!(output_pixels_row.len(), width);
@@ -220,7 +220,7 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<u8>],
 
         let spx = get_dithered_pixel(dither_level, max_dither_error, thiserr[1], input_px);
         let guessed_match = if guess_from_remapped_pixels {
-            unsafe { output_pixels_row[col].assume_init() as PalIndex }
+            unsafe { output_pixels_row[col].assume_init() }
         } else {
             last_match
         };
@@ -257,7 +257,7 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<u8>],
                 }
             }
         }
-        output_pixels_row[col].write(matched as u8);
+        output_pixels_row[col].write(matched);
         let mut err = spx.0 - output_px.0;
         // This prevents weird green pixels popping out of the blue (or red or black! ;)
         if err.r * err.r + err.g * err.g + err.b * err.b + err.a * err.a > max_dither_error {
@@ -279,7 +279,7 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<u8>],
 
 impl Remapped {
     #[allow(clippy::or_fun_call)]
-    pub fn new(result: &QuantizationResult, image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>) -> Result<Self, Error> {
+    pub fn new(result: &QuantizationResult, image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>) -> Result<Self, Error> {
         let mut palette = result.palette.clone();
         let progress_stage1 = if result.use_dither_map != DitherMapMode::None { 20 } else { 0 };
 

@@ -213,6 +213,7 @@ pub(crate) struct PalF {
 impl PalF {
     #[inline]
     pub fn new() -> Self {
+        debug_assert!(PalIndex::MAX as usize + 1 >= MAX_COLORS);
         debug_assert!(PalLen::MAX as usize >= MAX_COLORS);
         Self {
             colors: Default::default(),
@@ -329,7 +330,7 @@ pub struct Palette {
     /// Number of used colors in the `entries`
     pub count: u32,
     /// The colors, up to `count`
-    pub entries: [RGBA; 256],
+    pub entries: [RGBA; MAX_COLORS],
 }
 
 impl std::ops::Deref for Palette {

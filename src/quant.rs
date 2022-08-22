@@ -4,7 +4,7 @@ use crate::hist::{FixedColorsSet, HistogramInternal};
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
-use crate::pal::{PalF, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
+use crate::pal::{PalIndex, PalF, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
 use crate::remap::{mse_to_standard_mse, DitherMapMode, Remapped};
 use crate::seacow::RowBitmapMut;
 use crate::OrdFloat;
@@ -68,7 +68,7 @@ impl QuantizationResult {
         })
     }
 
-    pub(crate) fn write_remapped_image_rows_internal(&mut self, image: &mut Image, output_pixels: RowBitmapMut<'_, MaybeUninit<u8>>) -> Result<(), Error> {
+    pub(crate) fn write_remapped_image_rows_internal(&mut self, image: &mut Image, output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>) -> Result<(), Error> {
         if image.edges.is_none() && image.dither_map.is_none() && self.use_dither_map != DitherMapMode::None {
             image.contrast_maps()?;
         }
@@ -179,7 +179,7 @@ impl QuantizationResult {
     /// Remap image into a palette + indices.
     ///
     /// Returns the palette and a 1-byte-per-pixel uncompressed bitmap
-    pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<RGBA>, Vec<u8>), Error> {
+    pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<RGBA>, Vec<PalIndex>), Error> {
         let len = image.width() * image.height();
         // Capacity is essential here, as it creates uninitialized buffer
         unsafe {
@@ -201,7 +201,7 @@ impl QuantizationResult {
     /// You should call `palette()` _after_ this call, but not before it,
     /// because remapping refines the palette.
     #[inline]
-    pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<u8>]) -> Result<(), Error> {
+    pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<PalIndex>]) -> Result<(), Error> {
         let required_size = (image.width()) * (image.height());
         let output_buf = output_buf.get_mut(0..required_size).ok_or(BufferTooSmall)?;
 

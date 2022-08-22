@@ -220,7 +220,7 @@ fn r_callback_test() {
 fn sizes() {
     use pal::PalF;
     use pal::Palette;
-    assert!(std::mem::size_of::<PalF>() < 256*(8*4)+32, "{}", std::mem::size_of::<PalF>());
+    assert!(std::mem::size_of::<PalF>() < crate::pal::MAX_COLORS*(8*4)+32, "{}", std::mem::size_of::<PalF>());
     assert!(std::mem::size_of::<QuantizationResult>() < std::mem::size_of::<PalF>() + std::mem::size_of::<Palette>() + 100, "{}", std::mem::size_of::<QuantizationResult>());
     assert!(std::mem::size_of::<Attributes>() < 200);
     assert!(std::mem::size_of::<Image>() < 300);
