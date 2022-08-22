@@ -57,3 +57,7 @@ impl<'a, T> FakeRayonIntoIter<T> for Box<[T]> {
         self.chunks_mut(chunk_size)
     }
 }
+
+pub(crate) fn num_cpus() -> usize {
+    1
+}

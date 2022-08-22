@@ -22,6 +22,7 @@ pub struct Attributes {
     min_posterization_input: u8,
     pub(crate) last_index_transparent: bool,
     pub(crate) use_contrast_maps: bool,
+    pub(crate) single_threaded_dithering: bool,
     pub(crate) use_dither_map: DitherMapMode,
     speed: u8,
     pub(crate) progress_stage1: u8,
@@ -53,6 +54,7 @@ impl Attributes {
             feedback_loop_trials: 0,
             use_contrast_maps: false,
             use_dither_map: DitherMapMode::None,
+            single_threaded_dithering: false,
             speed: 0,
             progress_stage1: 0,
             progress_stage2: 0,
@@ -136,6 +138,7 @@ impl Attributes {
             self.use_dither_map = DitherMapMode::Always;
         }
         self.use_contrast_maps = (value <= 7) || self.use_dither_map != DitherMapMode::None;
+        self.single_threaded_dithering = value == 1;
         self.speed = value as u8;
         self.progress_stage1 = if self.use_contrast_maps { 20 } else { 8 };
         if self.feedback_loop_trials < 2 {

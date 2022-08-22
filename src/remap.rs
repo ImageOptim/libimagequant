@@ -156,18 +156,17 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     } else {
         &[]
     };
-    let mut input_image_iter = input_image.px.rows_iter(&mut temp_row)?;
-    let mut background = input_image.background.as_mut().map(|bg| bg.px.rows_iter(&mut temp_row)).transpose()?;
 
-    let errwidth = width + 2; // +2 saves from checking out of bounds access
-    let mut diffusion = Vec::new();
-    diffusion.try_reserve_exact(errwidth * 2)?;
-    diffusion.resize(errwidth * 2, f_pixel::default());
     let n = Nearest::new(&quant.palette)?;
     let palette = quant.palette.as_slice();
     if palette.len() > u8::MAX as usize + 1 {
         return Err(Error::Unsupported);
     }
+
+    let mut background = input_image.background.as_mut().map(|bg| {
+        bg.px.prepare_iter(&mut temp_row, true)?;
+        Ok::<_, Error>(&bg.px)
+    }).transpose()?;
 
     let transparent_index = if background.is_some() { n.search(&f_pixel::default(), 0).0 } else { 0 };
     if background.is_some() && palette[transparent_index as usize].a > MIN_OPAQUE_A {
@@ -183,17 +182,55 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     // (guesses are only for speed, don't affect visuals)
     let guess_from_remapped_pixels = output_image_is_remapped && background.is_none();
 
-    for (row, output_pixels_row) in output_pixels.rows_mut().enumerate() {
-        if quant.remap_progress(progress_stage1 as f32 + row as f32 * (100. - progress_stage1 as f32) / height as f32) {
-            return Err(Error::Aborted);
+    input_image.px.prepare_iter(&mut temp_row, true)?;
+    let input_image_px = &input_image.px;
+    let n = &n;
+
+    // Chunks have overhead, so should be big (more than 2 bring diminishing results). Chunks risk causing seams, so should be tall.
+    let num_chunks = if quant.single_threaded_dithering { 1 } else { (width * height / 524_288).min(height / 128).max(if height > 128 {2} else {1}).min(num_cpus()) };
+    let chunks = output_pixels.chunks((height + num_chunks - 1) / num_chunks);
+    rayon::scope(move |s| {
+        let mut chunk_start_row = 0;
+        for mut chunk in chunks {
+            let chunk_len = chunk.len();
+            let mut temp_row = temp_buf(width)?;
+            let mut input_image_iter = input_image_px.rows_iter_prepared()?;
+            let mut background = background.map(|bg| bg.rows_iter_prepared()).transpose()?;
+            let mut diffusion = Vec::new();
+            let errwidth = width + 2; // +2 saves from checking out of bounds access
+            diffusion.try_reserve_exact(errwidth * 2)?;
+            diffusion.resize(errwidth * 2, f_pixel::default());
+
+            // restart of dithering creates a seam. this does redundant work to init diffusion state,
+            // so that later chunks don't start from scratch
+            if chunk_start_row > 2 {
+                let mut discard_row = temp_buf(width)?;
+                for row in (chunk_start_row - 2) .. chunk_start_row {
+                    let row_pixels = input_image_iter.row_f(&mut temp_row, row as _);
+                    let bg_pixels = background.as_mut().map(|b| b.row_f(&mut temp_row, row as _)).unwrap_or(&[]);
+                    let dither_map = dither_map.get(row * width .. row * width + width).unwrap_or(&[]);
+                    let scan_forward = row & 1 == 0;
+                    dither_row(row_pixels, &mut discard_row, width as u32, dither_map, base_dithering_level, max_dither_error, n, palette, transparent_index, bg_pixels, guess_from_remapped_pixels, &mut diffusion, scan_forward);
+                }
+            }
+            // parallel remap makes progress not very useful
+            if quant.remap_progress(progress_stage1 as f32 + chunk_start_row as f32 * (100. - progress_stage1 as f32) / height as f32) {
+                return Err(Error::Aborted);
+            }
+            s.spawn(move |_| {
+                for (chunk_row, output_pixels_row) in chunk.rows_mut().enumerate() {
+                    let row = chunk_start_row + chunk_row;
+                    let row_pixels = input_image_iter.row_f(&mut temp_row, row as _);
+                    let bg_pixels = background.as_mut().map(|b| b.row_f(&mut temp_row, row as _)).unwrap_or(&[]);
+                    let dither_map = dither_map.get(row * width .. row * width + width).unwrap_or(&[]);
+                    let scan_forward = row & 1 == 0;
+                    dither_row(row_pixels, output_pixels_row, width as u32, dither_map, base_dithering_level, max_dither_error, n, palette, transparent_index, bg_pixels, guess_from_remapped_pixels, &mut diffusion, scan_forward);
+                }
+            });
+            chunk_start_row += chunk_len;
         }
-        let row_pixels = input_image_iter.row_f(&mut temp_row, row as _);
-        let bg_pixels = background.as_mut().map(|b| b.row_f(&mut temp_row, row as _)).unwrap_or(&[]);
-        let dither_map = dither_map.get(row * width .. row * width + width).unwrap_or(&[]);
-        let even_row = row & 1 == 0;
-        dither_row(row_pixels, output_pixels_row, width as u32, dither_map, base_dithering_level, max_dither_error, &n, palette, transparent_index, bg_pixels, guess_from_remapped_pixels, &mut diffusion, even_row);
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIndex>], width: u32, dither_map: &[u8], base_dithering_level: f32, max_dither_error: f32, n: &Nearest, palette: &[f_pixel], transparent_index: PalIndex, bg_pixels: &[f_pixel], guess_from_remapped_pixels: bool, diffusion: &mut [f_pixel], even_row: bool) {

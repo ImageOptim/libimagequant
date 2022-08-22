@@ -24,6 +24,7 @@ pub struct QuantizationResult {
     pub(crate) palette_error: Option<f64>,
     pub(crate) min_posterization_output: u8,
     pub(crate) use_dither_map: DitherMapMode,
+    pub(crate) single_threaded_dithering: bool,
 }
 
 impl QuantizationResult {
@@ -65,6 +66,7 @@ impl QuantizationResult {
                 entries: [Default::default(); MAX_COLORS],
             },
             dither_level: 1.,
+            single_threaded_dithering: attr.single_threaded_dithering,
         })
     }
 

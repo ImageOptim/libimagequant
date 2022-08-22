@@ -160,4 +160,15 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
             unsafe { std::slice::from_raw_parts_mut(row.0, width) }
         })
     }
+
+    pub(crate) fn chunks(&mut self, chunk_size: usize) -> impl Iterator<Item=RowBitmapMut<'_, T>> {
+        self.rows.borrow_mut().chunks_mut(chunk_size).map(|chunk| RowBitmapMut {
+            width: self.width,
+            rows: MutCow::Borrowed(chunk),
+        })
+    }
+
+    pub(crate) fn len(&mut self) -> usize {
+        self.rows.borrow_mut().len()
+    }
 }
