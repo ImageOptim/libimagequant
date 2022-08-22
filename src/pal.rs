@@ -25,13 +25,13 @@ pub const MAX_TRANSP_A: f32 = 255. / 256. * LIQ_WEIGHT_A;
 ///
 /// ARGB layout is important for x86 SIMD.
 /// I've created the newtype wrapper to try a 16-byte alignment, but it didn't improve perf :(
-#[repr(transparent)]
+#[repr(C, align(16))]
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
 #[allow(non_camel_case_types)]
 pub struct f_pixel(pub ARGBF);
 
 impl f_pixel {
-    #[cfg(not(target_arch = "x86_64"))]
+    #[cfg(not(any(target_arch = "x86_64", all(target_feature = "neon", target_arch = "aarch64"))))]
     #[inline(always)]
     pub fn diff(&self, other: &f_pixel) -> f32 {
         let alphas = other.0.a - self.0.a;
@@ -45,6 +45,39 @@ impl f_pixel {
         (black.r * black.r).max(white.r * white.r) +
         (black.g * black.g).max(white.g * white.g) +
         (black.b * black.b).max(white.b * white.b)
+    }
+
+    #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
+    #[inline(always)]
+    pub fn diff(&self, other: &f_pixel) -> f32 {
+        unsafe {
+            use std::arch::aarch64::*;
+
+            let px = vld1q_f32(self as *const f_pixel as *const f32);
+            let py = vld1q_f32(other as *const f_pixel as *const f32);
+
+            // y.a - x.a
+            let mut alphas = vsubq_f32(py, px);
+            alphas = vdupq_laneq_f32(alphas, 0); // copy first to all four
+
+            let mut onblack = vsubq_f32(px, py); // x - y
+            let mut onwhite = vaddq_f32(onblack, alphas); // x - y + (y.a - x.a)
+
+            onblack = vmulq_f32(onblack, onblack);
+            onwhite = vmulq_f32(onwhite, onwhite);
+
+            let max = vmaxq_f32(onwhite, onblack);
+
+            let mut max_r = [0.; 4];
+            vst1q_f32(max_r.as_mut_ptr(), max);
+
+            let mut max_gb = [0.; 4];
+            vst1q_f32(max_gb.as_mut_ptr(), vpaddq_f32(max, max));
+
+            // add rgb, not a
+            let res = max_r[1] + max_gb[1];
+            res
+        }
     }
 
     #[cfg(target_arch = "x86_64")]
@@ -69,7 +102,7 @@ impl f_pixel {
 
             // the compiler is better at horizontal add than I am
             let mut tmp = [0.; 4];
-            _mm_storeu_ps(&mut tmp as *mut _ as *mut f32, max);
+            _mm_storeu_ps(tmp.as_mut_ptr(), max);
 
             // add rgb, not a
             let res = tmp[1] + tmp[2] + tmp[3];
@@ -328,6 +361,29 @@ impl Palette {
     }
 }
 
+#[test]
+fn diff_test() {
+    let a = f_pixel(ARGBF {a: 1., r: 0.2, g: 0.3, b: 0.5});
+    let b = f_pixel(ARGBF {a: 1., r: 0.3, g: 0.3, b: 0.5});
+    let c = f_pixel(ARGBF {a: 1., r: 1., g: 0.3, b: 0.5});
+    let d = f_pixel(ARGBF {a: 0., r: 1., g: 0.3, b: 0.5});
+    assert!(a.diff(&b) < b.diff(&c));
+    assert!(c.diff(&b) < c.diff(&d));
+
+    let a = f_pixel(ARGBF {a: 1., b: 0.2, r: 0.3, g: 0.5});
+    let b = f_pixel(ARGBF {a: 1., b: 0.3, r: 0.3, g: 0.5});
+    let c = f_pixel(ARGBF {a: 1., b: 1., r: 0.3, g: 0.5});
+    let d = f_pixel(ARGBF {a: 0., b: 1., r: 0.3, g: 0.5});
+    assert!(a.diff(&b) < b.diff(&c));
+    assert!(c.diff(&b) < c.diff(&d));
+
+    let a = f_pixel(ARGBF {a: 1., g: 0.2, b: 0.3, r: 0.5});
+    let b = f_pixel(ARGBF {a: 1., g: 0.3, b: 0.3, r: 0.5});
+    let c = f_pixel(ARGBF {a: 1., g: 1., b: 0.3, r: 0.5});
+    let d = f_pixel(ARGBF {a: 0., g: 1., b: 0.3, r: 0.5});
+    assert!(a.diff(&b) < b.diff(&c));
+    assert!(c.diff(&b) < c.diff(&d));
+}
 
 #[test]
 fn pal_test() {
