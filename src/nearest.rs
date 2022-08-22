@@ -81,19 +81,27 @@ impl Visitor {
     }
 }
 
-pub struct Leaf {
-    pub color: f_pixel,
-    pub idx: PalIndex,
+
+pub(crate) struct Node {
+    vantage_point: f_pixel,
+    inner: NodeInner,
+    idx: PalIndex,
 }
 
-pub struct Node {
-    pub near: Option<Box<Node>>,
-    pub far: Option<Box<Node>>,
-    pub vantage_point: f_pixel,
-    pub radius: f32,
-    pub radius_squared: f32,
-    pub idx: PalIndex,
-    pub rest: Box<[Leaf]>,
+const LEAF_MAX_SIZE: usize = 6;
+
+enum NodeInner {
+    Nodes {
+        radius: f32,
+        radius_squared: f32,
+        near: Box<Node>,
+        far: Box<Node>,
+    },
+    Leaf {
+        len: u8,
+        idxs: [PalIndex; LEAF_MAX_SIZE],
+        colors: Box<[f_pixel; LEAF_MAX_SIZE]>,
+    },
 }
 
 #[inline(never)]
@@ -101,15 +109,11 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, Error>
     debug_assert!(!indexes.is_empty());
     let palette = items.as_slice();
 
-    if indexes.len() <= 1 {
+    if indexes.len() == 1 {
         return Ok(Node {
             vantage_point: palette[usize::from(indexes[0].idx)],
-            radius: f32::NAN,
-            radius_squared: f32::NAN,
             idx: indexes[0].idx,
-            near: None,
-            far: None,
-            rest: [].into(),
+            inner: NodeInner::Leaf { len: 0, idxs: [Default::default(); LEAF_MAX_SIZE], colors: Box::new([Default::default(); LEAF_MAX_SIZE]) },
         });
     }
 
@@ -123,34 +127,38 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, Error>
     indexes.sort_unstable_by_key(move |i| OrdFloat::<f32>::unchecked_new(vantage_point.diff(&palette[usize::from(i.idx)])));
 
     let num_indexes = indexes.len();
-    let half_index = num_indexes / 2;
-    let (near, far) = indexes.split_at_mut(half_index);
 
-    let radius_squared = vantage_point.diff(&palette[usize::from(far[0].idx)]);
-    let radius = radius_squared.sqrt();
+    let inner = if num_indexes <= LEAF_MAX_SIZE {
+        let mut colors = [Default::default(); LEAF_MAX_SIZE];
+        let mut idxs = [Default::default(); LEAF_MAX_SIZE];
 
-    let (near, far, rest) = if num_indexes < 7 {
-        let mut rest = Vec::new();
-        rest.try_reserve_exact(num_indexes)?;
-        rest.extend(near.iter().chain(far.iter()).map(|i| Leaf {
-            idx: i.idx,
-            color: palette[usize::from(i.idx)],
-        }));
-        (None, None, rest.into_boxed_slice())
+        indexes.iter().zip(colors.iter_mut().zip(idxs.iter_mut())).for_each(|(i, (color, idx))| {
+            *idx = i.idx;
+            *color = palette[usize::from(i.idx)];
+        });
+        NodeInner::Leaf {
+            len: num_indexes as _,
+            idxs,
+            colors: Box::new(colors),
+        }
     } else {
-        (
-            if !near.is_empty() { Some(Box::new(vp_create_node(near, items)?)) } else { None },
-            if !far.is_empty() { Some(Box::new(vp_create_node(far, items)?)) } else { None },
-            [].into(),
-        )
+        let half_index = num_indexes / 2;
+        let (near, far) = indexes.split_at_mut(half_index);
+        debug_assert!(!near.is_empty());
+        debug_assert!(!far.is_empty());
+        let radius_squared = vantage_point.diff(&palette[usize::from(far[0].idx)]);
+        let radius = radius_squared.sqrt();
+        NodeInner::Nodes {
+            radius, radius_squared,
+            near: Box::new(vp_create_node(near, items)?),
+            far: Box::new(vp_create_node(far, items)?),
+        }
     };
 
     Ok(Node {
+        inner,
         vantage_point: palette[usize::from(ref_.idx)],
-        radius,
-        radius_squared,
         idx: ref_.idx,
-        near, far, rest,
     })
 }
 
@@ -162,39 +170,34 @@ fn vp_search_node(mut node: &Node, needle: &f_pixel, best_candidate: &mut Visito
 
         best_candidate.visit(distance, distance_squared, node.idx);
 
-        if !node.rest.is_empty() {
-            for r in node.rest.iter() {
-                let distance_squared = r.color.diff(needle);
-                best_candidate.visit(distance_squared.sqrt(), distance_squared, r.idx);
-            }
-            break;
-        }
-
-        // Recurse towards most likely candidate first to narrow best candidate's distance as soon as possible
-        if distance_squared < node.radius_squared {
-            if let Some(near) = &node.near {
-                vp_search_node(near, needle, best_candidate);
-            }
-            // The best node (final answer) may be just ouside the radius, but not farther than
-            // the best distance we know so far. The vp_search_node above should have narrowed
-            // best_candidate->distance, so this path is rarely taken.
-            if distance >= node.radius - best_candidate.distance {
-                if let Some(far) = &node.far {
-                    node = far;
-                    continue;
+        match node.inner {
+            NodeInner::Nodes { radius, radius_squared, ref near, ref far } => {
+                // Recurse towards most likely candidate first to narrow best candidate's distance as soon as possible
+                if distance_squared < radius_squared {
+                    vp_search_node(near, needle, best_candidate);
+                    // The best node (final answer) may be just ouside the radius, but not farther than
+                    // the best distance we know so far. The vp_search_node above should have narrowed
+                    // best_candidate->distance, so this path is rarely taken.
+                    if distance >= radius - best_candidate.distance {
+                        node = far;
+                        continue;
+                    }
+                } else {
+                    vp_search_node(far, needle, best_candidate);
+                    if distance <= radius + best_candidate.distance {
+                        node = near;
+                        continue;
+                    }
                 }
-            }
-        } else {
-            if let Some(far) = &node.far {
-                vp_search_node(far, needle, best_candidate);
-            }
-            if distance <= node.radius + best_candidate.distance {
-                if let Some(near) = &node.near {
-                    node = near;
-                    continue;
-                }
-            }
+                break;
+            },
+            NodeInner::Leaf { len: num, ref idxs, ref colors } => {
+                colors.iter().zip(idxs.iter().copied()).take(num as usize).for_each(|(color, idx)| {
+                    let distance_squared = color.diff(needle);
+                    best_candidate.visit(distance_squared.sqrt(), distance_squared, idx);
+                });
+                break;
+            },
         }
-        break;
     }
 }
