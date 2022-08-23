@@ -12,9 +12,10 @@ This library can be used in C programs via [imagequant-sys](https://github.com/I
 git clone https://github.com/ImageOptim/libimagequant
 cd imagequant-sys
 cargo build --release
+# makes target/release/libimagequant_sys.a
 ```
 
-See [library documentation for more details](https://pngquant.org/lib/).
+See [the C library documentation for more details](https://pngquant.org/lib/).
 
 ## Getting started in Rust
 
@@ -22,7 +23,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-imagequant = "4.0.0"
+imagequant = "4.0"
 ```
 
 [See docs.rs for the library API documentation](https://docs.rs/imagequant).
@@ -36,23 +37,23 @@ Libimagequant is dual-licensed:
 
 ## Upgrading instructions
 
-libimagequant v2 used to be a C library. libimagequant v4 is written entirely in Rust, but still exports a C interface for C programs. You will need to install Rust 1.56+ to build it, and adjust your build commands. If you do not want to upgrade, you can keep using [the C version of the library](https://github.com/imageoptim/libimagequant/tree/2.x) in the `2.x` branch of the [repo](https://github.com/ImageOptim/libimagequant).
+libimagequant v2 used to be a C library. libimagequant v4 is written entirely in Rust, but still exports the same C interface for C programs. You will need to install Rust 1.60+ to build it, and adjust your build commands. If you do not want to upgrade, you can keep using [the C version of the library](https://github.com/imageoptim/libimagequant/tree/2.x) in the `2.x` branch of the [repo](https://github.com/ImageOptim/libimagequant).
 
 ### C static library users
 
 Files for C/C++ are now in the `imagequant-sys/` subdirectory, not in the root of the repo. There is no `configure && make` any more.
 
-To build the library, install [Rust](https://rustup.rs), and run:
+To build the library, install [Rust via rustup](https://rustup.rs), and run:
 
 ```bash
 cd imagequant-sys
 cargo build --release
 ```
 
-It produces `target/release/libimagequant.a` static library. The API, ABI, and header files remain the same, so everything else should work the same.
-If you're building for macOS or iOS, see included xcodeproj file (add it as a subproject to yours).
+It produces `target/release/libimagequant_sys.a` static library. The API, ABI, and header files remain the same, so everything else should work the same.
+If you're building for macOS or iOS, see included xcodeproj file (add it as a [subproject](https://gitlab.com/kornelski/cargo-xcode#usage) to yours).
 
-If you're building for Android, run `rustup target add aarch64-linux-android; cargo build --release --target aarch64-linux-android` and use `target/aarch64-linux-android/release/libimagequant.a`. Same for cross-compiling to other platforms. See `rustup target list`.
+If you're building for Android, run `rustup target add aarch64-linux-android; cargo build --release --target aarch64-linux-android` and use `target/aarch64-linux-android/release/libimagequant_sys.a`. Same for cross-compiling to other platforms. See `rustup target list`.
 
 ### C dynamic library for package maintainers
 
@@ -78,7 +79,7 @@ cargo install cargo-c
 cargo cinstall --prefix=/usr/local --destdir=.
 ```
 
-This makes Rust 1.56 and `cargo-c` package a build-time dependency. No runtime deps (apart from Cargo-internal ones). OpenMP has been dropped entirely.
+This makes Rust 1.60 and `cargo-c` package a build-time dependency. No runtime deps (apart from Cargo-internal ones). OpenMP has been dropped entirely.
 
 #### Interaction with pngquant
 
@@ -86,7 +87,7 @@ pngquant v2 can use this library as a dynamic library. However, pngquant v4 does
 
 ### Upgrading for Rust users
 
-If you've used the [`imagequant-sys`](//lib.rs/imagequant-sys) crate, switch to the higher-level [`imagequant`](//lib.rs/imagequant) crate. The `imagequant` v4 is almost entirely backwards-compatible, with small changes that the Rust compiler will point out (e.g. changed use of `c_int` to `u32`). See [docs](https://docs.rs/imagequant/4.0.0/imagequant/index.html). Please fix deprecation warnings, because the deprecated functions will be removed.
+If you've used the [`imagequant-sys`](//lib.rs/imagequant-sys) crate, switch to the higher-level [`imagequant`](//lib.rs/imagequant) crate. The `imagequant` v4 is almost entirely backwards-compatible, with small changes that the Rust compiler will point out (e.g. changed use of `c_int` to `u32`). See [docs](https://docs.rs/imagequant). Please fix any deprecation warnings you may get, because the deprecated functions will be removed.
 
 The `openmp` Cargo feature has been renamed to `threads`.
 
@@ -102,8 +103,8 @@ To disable threads when using this library as a dependency, disable default feat
 
 ```toml
 [dependencies]
-imagequant = { version = "4.0.0", default-features = false }
+imagequant = { version = "4.0", default-features = false }
 ```
 
-When you compile the library directly, add `--no-default-features` flag.
+When you compile the library directly, add `--no-default-features` flag instead.
 
