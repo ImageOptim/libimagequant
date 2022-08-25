@@ -189,7 +189,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     // Chunks have overhead, so should be big (more than 2 bring diminishing results). Chunks risk causing seams, so should be tall.
     let num_chunks = if quant.single_threaded_dithering { 1 } else { (width * height / 524_288).min(height / 128).max(if height > 128 {2} else {1}).min(num_cpus()) };
     let chunks = output_pixels.chunks((height + num_chunks - 1) / num_chunks);
-    rayon::scope(move |s| {
+    scope(move |s| {
         let mut chunk_start_row = 0;
         for mut chunk in chunks {
             let chunk_len = chunk.len();

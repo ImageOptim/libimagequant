@@ -27,6 +27,7 @@ mod rayoff;
 mod rayoff {
     pub(crate) use rayon::prelude::{ParallelSliceMut, ParallelIterator, ParallelBridge};
     pub(crate) use thread_local::ThreadLocal;
+    pub(crate) use rayon::scope;
     pub(crate) use num_cpus::get as num_cpus;
 }
 
