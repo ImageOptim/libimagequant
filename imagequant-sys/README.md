@@ -18,7 +18,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-imagequant = "4.0.0"
+imagequant = "4.0"
 ```
 
 [See docs.rs for the library API documentation](https://docs.rs/imagequant).
@@ -27,14 +27,14 @@ imagequant = "4.0.0"
 
 ### Building for C
 
-1. Get Rust 1.57 or later via [rustup](https://rustup.rs).
+1. Get Rust 1.60 or later via [rustup](https://rustup.rs) and run `rustup update`.
 2. `cd imagequant-sys`
 
    The C API is exposed by a separate package called [`imagequant-sys`](https://github.com/ImageOptim/libimagequant/tree/main/imagequant-sys).
 3. Run `cargo build --release`
 
    This will build `target/release/libimagequant.a` or `target\release\libimagequant.lib` that you can use for static linking.
-   Please don't worry about the size of the `.a` file. It includes a few unused objects. It only adds 500KB when linked. Use LTO or `-Wl,--as-needed` if necessary.
+   Please don't worry about the size of the `.a` file. It includes a few unused objects. It only adds 500KB when linked. Use Link-Time-Optimization (LTO) option in your compiler, and/or add `-Wl,--as-needed` to linker flags if necessary.
 
 The repository includes an Xcode project file that can be used on iOS and macOS.
 

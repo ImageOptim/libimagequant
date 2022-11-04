@@ -11,6 +11,7 @@ This library can be used in C programs via [imagequant-sys](https://github.com/I
 ```bash
 git clone https://github.com/ImageOptim/libimagequant
 cd imagequant-sys
+rustup update
 cargo build --release
 # makes target/release/libimagequant_sys.a
 ```
@@ -47,6 +48,7 @@ To build the library, install [Rust via rustup](https://rustup.rs), and run:
 
 ```bash
 cd imagequant-sys
+rustup update
 cargo build --release
 ```
 
@@ -75,6 +77,7 @@ The [`cargo-c`](//lib.rs/cargo-c) tool knows how to build and link so/dylib prop
 
 ```bash
 cd imagequant-sys
+rustup update
 cargo install cargo-c
 cargo cinstall --prefix=/usr/local --destdir=.
 ```

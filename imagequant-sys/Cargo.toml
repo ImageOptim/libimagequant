@@ -1,6 +1,6 @@
 [package]
 name = "imagequant-sys"
-version = "4.0.0"
+version = "4.0.1"
 description = "Convert 24/32-bit images to 8-bit palette with alpha channel.\nC API/FFI libimagequant that powers pngquant lossy PNG compressor.\n\nDual-licensed like pngquant. See https://pngquant.org for details."
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 license = "GPL-3.0-or-later"
@@ -11,9 +11,10 @@ categories = ["multimedia::images"]
 keywords = ["quantization", "palette", "image", "dither", "quant"]
 include = ["COPYRIGHT", "src/*.rs", "build.rs", "*.h", "README.md", "Cargo.toml"]
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 links = "imagequant"
 build = "build.rs"
+rust-version = "1.60"
 
 [lib]
 crate-type = ["staticlib", "lib"]
