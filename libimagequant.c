@@ -504,6 +504,9 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_fixed_color(liq_histogram *hi
 
 LIQ_NONNULL static bool liq_image_use_low_memory(liq_image *img)
 {
+    if (img->temp_f_row) {
+        img->free(img->temp_f_row);
+    }
     img->temp_f_row = img->malloc(sizeof(img->f_pixels[0]) * LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_max_threads());
     return img->temp_f_row != NULL;
 }
