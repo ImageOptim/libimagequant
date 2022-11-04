@@ -504,7 +504,10 @@ LIQ_EXPORT LIQ_NONNULL liq_error liq_histogram_add_fixed_color(liq_histogram *hi
 
 LIQ_NONNULL static bool liq_image_use_low_memory(liq_image *img)
 {
-    img->temp_f_row = img->malloc(sizeof(img->f_pixels[0]) * LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_max_threads());
+    if (img->temp_f_row == NULL)
+    {
+        img->temp_f_row = img->malloc(sizeof(img->f_pixels[0]) * LIQ_TEMP_ROW_WIDTH(img->width) * omp_get_max_threads());
+    }
     return img->temp_f_row != NULL;
 }
 
@@ -542,6 +545,8 @@ static liq_image *liq_image_create_internal(const liq_attr *attr, liq_color* row
         img->temp_row = attr->malloc(sizeof(img->temp_row[0]) * LIQ_TEMP_ROW_WIDTH(width) * omp_get_max_threads());
         if (!img->temp_row) return NULL;
     }
+
+    img->temp_f_row = NULL;
 
     // if image is huge or converted pixels are not likely to be reused then don't cache converted pixels
     if (liq_image_should_use_low_memory(img, !img->temp_row && !attr->use_contrast_maps && !attr->use_dither_map)) {
