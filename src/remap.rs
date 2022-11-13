@@ -342,7 +342,7 @@ impl Remapped {
                 // If dithering (with dither map) is required, this image is used to find areas that require dithering
                 let (tmp_re, row_pointers_remapped) = remap_to_palette(image, &mut output_pixels, &mut palette)?;
                 palette_error = Some(tmp_re);
-                image.update_dither_map(&row_pointers_remapped, &mut palette);
+                image.update_dither_map(&row_pointers_remapped, &palette);
             }
             let output_image_is_remapped = generate_dither_map;
 

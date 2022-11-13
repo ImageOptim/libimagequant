@@ -32,7 +32,7 @@ impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
         debug_assert_eq!(temp_row.len(), self.px.width as usize);
         match self.px.f_pixels.as_ref() {
             Some(pixels) => {
-                let start = self.px.width as usize * row as usize;
+                let start = self.px.width as usize * row;
                 &pixels[start..start + self.px.width as usize]
             },
             None => {
@@ -47,7 +47,7 @@ impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
 
     pub fn row_f_shared<'px>(&'px self, temp_row: &mut [MaybeUninit<RGBA>], temp_row_f: &'px mut [MaybeUninit<f_pixel>], row: usize) -> &'px [f_pixel] {
         match self.px.f_pixels.as_ref() {
-            Some(pixels) => &pixels[self.px.width as usize * row as usize..],
+            Some(pixels) => &pixels[self.px.width as usize * row..],
             None => {
                 let lut = gamma_lut(self.px.gamma);
                 let row_pixels = self.px.row_rgba(temp_row, row);

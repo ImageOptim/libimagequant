@@ -75,8 +75,8 @@ impl f_pixel {
             vst1q_f32(max_gb.as_mut_ptr(), vpaddq_f32(max, max));
 
             // add rgb, not a
-            let res = max_r[1] + max_gb[1];
-            res
+            
+            max_r[1] + max_gb[1]
         }
     }
 
@@ -261,7 +261,7 @@ impl PalF {
 
     #[inline(always)]
     pub(crate) fn len(&self) -> usize {
-        self.colors.len() as usize
+        self.colors.len()
     }
 
     #[inline(always)]

@@ -17,7 +17,7 @@ fn main() {
     // The magic happens in quantize()
     let mut res = match liq.quantize(&mut img) {
         Ok(res) => res,
-        Err(err) => panic!("Quantization failed, because: {:?}", err),
+        Err(err) => panic!("Quantization failed, because: {err:?}"),
     };
 
     // Enable dithering for subsequent remappings
@@ -26,5 +26,5 @@ fn main() {
     // You can reuse the result to generate several images with the same palette
     let (palette, pixels) = res.remapped(&mut img).unwrap();
 
-    println!("Done! Got palette {:?} and {} pixels with {}% quality", palette, pixels.len(), res.quantization_quality().unwrap());
+    println!("Done! Got palette {palette:?} and {} pixels with {}% quality", pixels.len(), res.quantization_quality().unwrap());
 }

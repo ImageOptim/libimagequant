@@ -275,7 +275,7 @@ impl Histogram {
             if boost == 0 && !temp.is_empty() {
                 return 0.;
             }
-            let cluster_index = (((color.r >> 7) << 3) | ((color.g >> 7) << 2) | ((color.b >> 7) << 1) | (color.a >> 7)) as u8;
+            let cluster_index = ((color.r >> 7) << 3) | ((color.g >> 7) << 2) | ((color.b >> 7) << 1) | (color.a >> 7);
 
             let weight = (boost as f32 / 170.).min(max_perceptual_weight);
             if weight == 0. {
