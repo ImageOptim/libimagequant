@@ -1,3 +1,4 @@
+use crate::PushInCapacity;
 use crate::hist::{HistItem, HistogramInternal};
 use crate::pal::{f_pixel, PalF, PalPop};
 use crate::pal::{PalLen, ARGBF};
@@ -245,10 +246,10 @@ impl<'hist> MedianCutter<'hist> {
                 prev_end = end;
                 let (this_box, rest) = hist_items.split_at_mut(end - begin);
                 hist_items = rest;
-                boxes.push(MBox::new(this_box));
+                boxes.push_in_cap(MBox::new(this_box));
             }
         } else {
-            boxes.push(MBox::new(hist_items));
+            boxes.push_in_cap(MBox::new(hist_items));
         };
 
         Ok(Self {

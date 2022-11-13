@@ -1,3 +1,4 @@
+use crate::PushInCapacity;
 use crate::attr::Attributes;
 use crate::blur::{liq_blur, liq_max3, liq_min3};
 use crate::error::*;
@@ -206,7 +207,7 @@ impl<'pixels> Image<'pixels> {
         if self.fixed_colors.len() >= MAX_COLORS { return Err(Unsupported); }
         let lut = gamma_lut(self.px.gamma);
         self.fixed_colors.try_reserve(1)?;
-        self.fixed_colors.push(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}));
+        self.fixed_colors.push_in_cap(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}));
         Ok(())
     }
 

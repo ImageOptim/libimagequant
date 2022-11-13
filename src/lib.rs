@@ -256,3 +256,18 @@ pub fn _unstable_internal_kmeans_bench() -> impl FnMut() {
         kmeans::Kmeans::iteration(&mut hist, &mut p, false).unwrap();
     }
 }
+
+trait PushInCapacity<T> {
+    fn push_in_cap(&mut self, val: T);
+}
+
+impl<T> PushInCapacity<T> for Vec<T> {
+    #[track_caller]
+    #[inline(always)]
+    fn push_in_cap(&mut self, val: T) {
+        debug_assert!(self.capacity() != self.len());
+        if self.capacity() != self.len() {
+            self.push(val);
+        }
+    }
+}
