@@ -9,9 +9,9 @@ Image encoding/decoding isn't handled by the library itself, bring your own enco
 This library can be used in C programs via [imagequant-sys](https://github.com/ImageOptim/libimagequant/tree/main/imagequant-sys) [Rust](https://www.rust-lang.org/) package.
 
 ```bash
+rustup update
 git clone https://github.com/ImageOptim/libimagequant
 cd imagequant-sys
-rustup update
 cargo build --release
 # makes target/release/libimagequant_sys.a
 ```
@@ -22,9 +22,9 @@ See [the C library documentation for more details](https://pngquant.org/lib/).
 
 Add to `Cargo.toml`:
 
-```toml
-[dependencies]
-imagequant = "4.0"
+```bash
+rustup update
+cargo add imagequant
 ```
 
 [See docs.rs for the library API documentation](https://docs.rs/imagequant).
@@ -47,8 +47,8 @@ Files for C/C++ are now in the `imagequant-sys/` subdirectory, not in the root o
 To build the library, install [Rust via rustup](https://rustup.rs), and run:
 
 ```bash
-cd imagequant-sys
 rustup update
+cd imagequant-sys
 cargo build --release
 ```
 
@@ -76,8 +76,8 @@ If you want to build a dynamic library, but aren't bothered by soname and rpath 
 The [`cargo-c`](//lib.rs/cargo-c) tool knows how to build and link so/dylib properly, and generates an accurate pkg-config file, so it's de-facto required for a correct system-wide install of a dynamic library.
 
 ```bash
-cd imagequant-sys
 rustup update
+cd imagequant-sys
 cargo install cargo-c
 cargo cinstall --prefix=/usr/local --destdir=.
 ```
@@ -102,7 +102,7 @@ By default, when the `threads` Cargo feature is enabled, this library uses multi
 
 Threads in WASM are experimental, and require [special handling](https://github.com/GoogleChromeLabs/wasm-bindgen-rayon). If you're targeting WASM, you'll most likely want to disable threads.
 
-To disable threads when using this library as a dependency, disable default features like this:
+To disable threads when using this library as a dependency, disable default features like this in `Cargo.toml`:
 
 ```toml
 [dependencies]
