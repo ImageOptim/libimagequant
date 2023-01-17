@@ -243,17 +243,17 @@ impl PalF {
         }
 
         let mut new_pal = PalF::new();
-        let is_fixed = &PalPop::new(1.).to_fixed();
+        let is_fixed = PalPop::new(1.).to_fixed();
 
         let mut fixed_colors: Vec<_> = fixed_colors.iter().collect();
         fixed_colors.sort_by_key(|c| c.1); // original order
 
-        let new_colors = fixed_colors.iter().map(move |HashColor(color, _)| (color, is_fixed))
+        let new_colors = fixed_colors.iter().map(move |HashColor(color, _)| (*color, is_fixed))
             .chain(self.iter())
             .take(max_colors as usize);
 
         for (c, pop) in new_colors {
-            new_pal.push(*c, *pop);
+            new_pal.push(c, pop);
         }
 
         new_pal
@@ -272,10 +272,10 @@ impl PalF {
     }
 
     #[inline(always)]
-    pub fn iter(&self) -> impl Iterator<Item = (&f_pixel, &PalPop)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (f_pixel, PalPop)> + '_ {
         let c = &self.colors[..];
         let pop = &self.pops[..c.len()];
-        c.iter().zip(pop)
+        c.iter().copied().zip(pop.iter().copied())
     }
 
     pub(crate) fn swap(&mut self, a: usize, b: usize) {
