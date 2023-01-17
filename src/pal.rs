@@ -227,6 +227,11 @@ impl PalF {
         self.colors.push(color);
     }
 
+    pub fn set(&mut self, idx: usize, color: f_pixel, popularity: PalPop) {
+        self.pops[idx] = popularity;
+        self.colors[idx] = color;
+    }
+
     #[inline(always)]
     pub fn as_slice(&self) -> &[f_pixel] {
         &self.colors

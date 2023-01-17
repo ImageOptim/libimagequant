@@ -79,11 +79,7 @@ impl Kmeans {
                 kmeans.finalize(palette) / total
             }).unwrap_or(0.);
 
-        // kmeans may have obsoleted some palette entries. Replace them with any entry from the histogram
-        // (it happens so rarely that there's no point doing something smarter)
-        palette.iter_mut().filter(|(_, p)| !p.is_fixed() && p.popularity() == 0.).zip(hist.items.iter()).for_each(|((c, _), item)| {
-            *c = item.color;
-        });
+        replace_unused_colors(palette, hist)?;
         Ok(diff)
     }
 
@@ -121,4 +117,36 @@ impl Kmeans {
             (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }
+}
+
+/// kmeans may have merged or obsoleted some palette entries.
+/// This replaces these entries with histogram colors that are currently least-fitting the palette.
+fn replace_unused_colors(palette: &mut PalF, hist: &HistogramInternal) -> Result<(), Error> {
+    for pal_idx in 0..palette.len() {
+        let pop = palette.pop_as_slice()[pal_idx];
+        if pop.popularity() == 0. && !pop.is_fixed() {
+            let n = Nearest::new(&palette)?;
+            let mut worst = None;
+            let mut worst_diff = 0.;
+            let colors = palette.as_slice();
+            // the search is just for diff, ignoring adjusted_weight,
+            // because the palette already optimizes for the max weight, so it'd likely find another redundant entry.
+            for item in hist.items.iter() {
+                // the early reject avoids running full palette search for every entry
+                let may_be_worst = colors.get(item.likely_palette_index() as usize)
+                    .map_or(true, |pal| pal.diff(&item.color) > worst_diff);
+                if may_be_worst {
+                    let diff = n.search(&item.color, item.likely_palette_index()).1;
+                    if diff > worst_diff {
+                        worst_diff = diff;
+                        worst = Some(item);
+                    }
+                }
+            }
+            if let Some(worst) = worst {
+                palette.set(pal_idx, worst.color, PalPop::new(worst.adjusted_weight));
+            }
+        }
+    }
+    Ok(())
 }
