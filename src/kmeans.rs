@@ -1,8 +1,8 @@
+use crate::Error;
 use crate::hist::{HistItem, HistogramInternal};
 use crate::nearest::Nearest;
 use crate::pal::{f_pixel, PalF, PalIndex, PalPop};
 use crate::rayoff::*;
-use crate::Error;
 use rgb::alt::ARGB;
 use rgb::ComponentMap;
 use std::cell::RefCell;
@@ -63,12 +63,13 @@ impl Kmeans {
         let total = hist.total_perceptual_weight;
 
         // chunk size is a trade-off between parallelization and overhead
-        hist.items.par_chunks_mut(256).for_each(|batch| {
+        hist.items.par_chunks_mut(256).for_each({
+            let tls = &tls; move |batch| {
             let kmeans = tls.get_or(move || RefCell::new(Kmeans::new(len)));
             if let Ok(ref mut kmeans) = *kmeans.borrow_mut() {
                 kmeans.iterate_batch(batch, &n, colors, adjust_weight);
             }
-        });
+        }});
 
         let diff = tls.into_iter()
             .map(RefCell::into_inner)
