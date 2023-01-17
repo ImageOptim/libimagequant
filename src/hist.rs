@@ -59,6 +59,13 @@ impl HistItem {
     pub fn mc_sort_value(&self) -> u32 {
         unsafe { self.tmp.mc_sort_value }
     }
+
+    // The u32 has been initialized when constructing the object, and u8/u16 is smaller than that
+    #[inline(always)]
+    pub fn likely_palette_index(&self) -> PalIndex {
+        assert!(std::mem::size_of::<PalIndex>() <= std::mem::size_of::<u32>());
+        unsafe { self.tmp.likely_palette_index }
+    }
 }
 
 impl fmt::Debug for HistItem {

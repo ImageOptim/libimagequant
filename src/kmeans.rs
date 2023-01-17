@@ -89,7 +89,7 @@ impl Kmeans {
     fn iterate_batch(&mut self, batch: &mut [HistItem], n: &Nearest, colors: &[f_pixel], adjust_weight: bool) {
         self.weighed_diff_sum += batch.iter_mut().map(|item| {
             let px = item.color;
-            let (matched, mut diff) = n.search(&px, unsafe { item.tmp.likely_palette_index });
+            let (matched, mut diff) = n.search(&px, item.likely_palette_index());
             item.tmp.likely_palette_index = matched;
             if adjust_weight {
                 let remapped = colors[matched as usize];
