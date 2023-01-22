@@ -220,21 +220,32 @@ impl QuantizationResult {
     ///
     /// Returns the palette and a 1-byte-per-pixel uncompressed bitmap
     pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<RGBA>, Vec<PalIndex>), Error> {
+        let mut buf = Vec::new();
+        let pal = self.remap_into_vec(image, &mut buf)?;
+        Ok((pal, buf))
+    }
+
+    /// Remap image into an existing buffer. Use [`remapped()`][Self::remapped] if you don't have a pre-allocated buffer to reuse.
+    ///
+    /// Writes 1-byte-per-pixel uncompressed bitmap into the `Vec`.
+    ///
+    /// Returns the palette.
+    #[inline]
+    pub fn remap_into_vec(&mut self, image: &mut Image<'_>, buf: &mut Vec<PalIndex>) -> Result<Vec<RGBA>, Error> {
         let len = image.width() * image.height();
         // Capacity is essential here, as it creates uninitialized buffer
         unsafe {
-            let mut buf = Vec::new();
+            buf.clear();
             buf.try_reserve_exact(len)?;
-            let uninit_slice = &mut buf.spare_capacity_mut()[..len];
-            self.remap_into(image, uninit_slice)?;
+            self.remap_into(image, &mut buf.spare_capacity_mut()[..len])?;
             buf.set_len(len);
-            Ok((self.palette_vec(), buf))
         }
+        Ok(self.palette_vec())
     }
 
     /// Remap image into an existing buffer.
     ///
-    /// This is a low-level call for use when existing memory has to be reused. Use `remapped()` if possible.
+    /// This is a low-level call for use when existing memory has to be reused. Use [`remapped()`][Self::remapped] or [`remap_into_vec()`][Self::remap_into_vec] if possible.
     ///
     /// Writes 1-byte-per-pixel uncompressed bitmap into the pre-allocated buffer.
     ///
