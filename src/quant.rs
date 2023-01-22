@@ -71,6 +71,15 @@ impl QuantizationResult {
         })
     }
 
+    /// This is 100% redundant and unnecessary. This work is done anyway when remap is called.
+    /// However, this can be called before calling `image.set_background()`, so it may allow better parallelization while the background is generated on another thread.
+    #[doc(hidden)]
+    pub fn optionally_prepare_for_dithering_with_background_set(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<PalIndex>]) -> Result<(), Error> {
+        let mut output_pixels = RowBitmapMut::new_contiguous(output_buf, image.width());
+        Self::optionally_generate_dither_map(self.use_dither_map, image, true, &mut output_pixels, &mut self.palette)?;
+        Ok(())
+    }
+
     #[inline(never)]
     pub(crate) fn write_remapped_image_rows_internal(&mut self, image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>) -> Result<(), Error> {
         let progress_stage1 = if self.use_dither_map != DitherMapMode::None { 20 } else { 0 };
