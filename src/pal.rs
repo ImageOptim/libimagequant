@@ -329,6 +329,7 @@ pub fn gamma_lut(gamma: f64) -> [f32; 256] {
     tmp
 }
 
+/// Not used in the Rust API.
 /// RGBA colors obtained from [`QuantizationResult`](crate::QuantizationResult)
 #[repr(C)]
 pub struct Palette {

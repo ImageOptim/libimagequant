@@ -178,7 +178,7 @@ impl QuantizationResult {
 
     /// The final palette
     ///
-    /// It's slighly better if you get palette from the `remapped()` call instead
+    /// It's slighly better if you get palette from the [`remapped()`][Self::remapped] call instead
     #[inline]
     pub fn palette(&mut self) -> &[RGBA] {
         self.int_palette().as_slice()
@@ -237,7 +237,7 @@ impl QuantizationResult {
     ///
     /// Writes 1-byte-per-pixel uncompressed bitmap into the pre-allocated buffer.
     ///
-    /// You should call `palette()` _after_ this call, but not before it,
+    /// You should call [`palette()`][Self::palette] _after_ this call, but not before it,
     /// because remapping refines the palette.
     #[inline]
     pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<PalIndex>]) -> Result<(), Error> {
@@ -250,7 +250,7 @@ impl QuantizationResult {
 
     /// The final palette, copied.
     ///
-    /// It's slighly better if you get palette from the `remapped()` call instead
+    /// It's slighly better if you get palette from the [`remapped()`][Self::remapped] call instead
     #[must_use]
     pub fn palette_vec(&mut self) -> Vec<RGBA> {
         let pal = self.palette();

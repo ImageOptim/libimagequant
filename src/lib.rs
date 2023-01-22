@@ -41,6 +41,7 @@ pub use error::Error;
 pub use hist::Histogram;
 pub use hist::HistogramEntry;
 pub use image::Image;
+#[doc(hidden)]
 pub use pal::Palette;
 pub use pal::RGBA;
 pub use quant::QuantizationResult;
