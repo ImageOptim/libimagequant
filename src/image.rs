@@ -1,14 +1,14 @@
-use crate::PushInCapacity;
 use crate::attr::Attributes;
 use crate::blur::{liq_blur, liq_max3, liq_min3};
 use crate::error::*;
+use crate::LIQ_HIGH_MEMORY_LIMIT;
 use crate::pal::{PalIndex, MAX_COLORS, MIN_OPAQUE_A, PalF, RGBA, f_pixel, gamma_lut};
+use crate::PushInCapacity;
 use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
+use crate::seacow::Pointer;
 use crate::seacow::RowBitmap;
 use crate::seacow::SeaCow;
-use crate::seacow::Pointer;
-use crate::LIQ_HIGH_MEMORY_LIMIT;
 use rgb::ComponentMap;
 use std::mem::MaybeUninit;
 
@@ -124,14 +124,17 @@ impl<'pixels> Image<'pixels> {
         true
     }
 
-    pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, PalIndex>, palette: &PalF, uses_background: bool) {
-        let width = self.width();
+    pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, PalIndex>, palette: &PalF, uses_background: bool) -> Result<(), Error> {
+        if self.edges.is_none() {
+            self.contrast_maps()?;
+        }
         let mut edges = match self.edges.take() {
             Some(e) => e,
-            None => return,
+            None => return Ok(()),
         };
         let colors = palette.as_slice();
 
+        let width = self.width();
         let mut prev_row: Option<&[_]> = None;
         let mut rows = remapped_image.rows().zip(edges.chunks_exact_mut(width)).peekable();
         while let Some((this_row, edges)) = rows.next() {
@@ -169,6 +172,7 @@ impl<'pixels> Image<'pixels> {
             prev_row = Some(this_row);
         }
         self.dither_map = Some(edges);
+        Ok(())
     }
 
     /// Set which pixels are more important (and more likely to get a palette entry)

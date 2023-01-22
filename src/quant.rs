@@ -85,28 +85,15 @@ impl QuantizationResult {
                 palette_error: Some(remap_to_palette(&mut image.px, image.background.as_deref_mut(), &mut output_pixels, &mut palette)?.0),
             }
         } else {
-            let is_image_huge = (image.px.width * image.px.height) > 2000 * 2000;
-            let allow_dither_map = self.use_dither_map == DitherMapMode::Always || (!is_image_huge && self.use_dither_map != DitherMapMode::None);
-            let generate_dither_map = allow_dither_map && image.dither_map.is_none();
-            let palette_error;
-            if generate_dither_map {
-                if image.edges.is_none() {
-                    image.contrast_maps()?;
-                }
-                // If dithering (with dither map) is required, this image is used to find areas that require dithering
-                let (tmp_re, row_pointers_remapped) = remap_to_palette(&mut image.px, None, &mut output_pixels, &mut palette)?;
-                palette_error = Some(tmp_re);
-                let uses_background = image.background.is_some();
-                image.update_dither_map(&row_pointers_remapped, &palette, uses_background);
-            } else {
-                palette_error = self.palette_error;
-            }
-
+            let uses_background = image.background.is_some();
+            let dither_map_error = Self::optionally_generate_dither_map(self.use_dither_map, image, uses_background, &mut output_pixels, &mut palette)?;
             if self.remap_progress(progress_stage1 as f32 * 0.5) {
                 return Err(Error::Aborted);
             }
 
-            let output_image_is_remapped = generate_dither_map;
+            let output_image_is_remapped = dither_map_error.is_some();
+            let palette_error = dither_map_error.or(self.palette_error);
+
             // remapping above was the last chance to do K-Means iteration, hence the final palette is set after remapping
             let int_palette = palette.make_int_palette(self.gamma, self.min_posterization_output);
             let max_dither_error = (palette_error.unwrap_or(quality_to_mse(80)) * 2.4).max(quality_to_mse(35)) as f32;
@@ -114,6 +101,20 @@ impl QuantizationResult {
             Remapped { int_palette, palette_error }
         }));
         Ok(())
+    }
+
+    fn optionally_generate_dither_map(use_dither_map: DitherMapMode, image: &mut Image<'_>, uses_background: bool, output_pixels: &mut RowBitmapMut<'_, MaybeUninit<PalIndex>>, palette: &mut PalF) -> Result<Option<f64>, Error> {
+        let is_image_huge = (image.px.width * image.px.height) > 2000 * 2000;
+        let allow_dither_map = use_dither_map == DitherMapMode::Always || (!is_image_huge && use_dither_map != DitherMapMode::None);
+        let generate_dither_map = allow_dither_map && image.dither_map.is_none();
+        if !generate_dither_map {
+            return Ok(None);
+        }
+
+        // If dithering (with dither map) is required, this image is used to find areas that require dithering
+        let (palette_error, row_pointers_remapped) = remap_to_palette(&mut image.px, None, output_pixels, palette)?;
+        image.update_dither_map(&row_pointers_remapped, &*palette, uses_background)?;
+        Ok(Some(palette_error))
     }
 
     /// Set to 1.0 to get nice smooth image
