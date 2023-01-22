@@ -1,14 +1,15 @@
+use arrayvec::ArrayVec;
 use crate::attr::{Attributes, ControlFlow};
 use crate::error::*;
 use crate::hist::{FixedColorsSet, HistogramInternal};
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
+use crate::OrdFloat;
 use crate::pal::{PalIndex, PalF, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
 use crate::remap::{mse_to_standard_mse, DitherMapMode, Remapped};
+use crate::remap::{remap_to_palette, remap_to_palette_floyd};
 use crate::seacow::RowBitmapMut;
-use crate::OrdFloat;
-use arrayvec::ArrayVec;
 use std::cmp::Reverse;
 use std::fmt;
 use std::mem::MaybeUninit;
@@ -70,12 +71,47 @@ impl QuantizationResult {
         })
     }
 
-    pub(crate) fn write_remapped_image_rows_internal(&mut self, image: &mut Image, output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>) -> Result<(), Error> {
-        if image.edges.is_none() && image.dither_map.is_none() && self.use_dither_map != DitherMapMode::None {
-            image.contrast_maps()?;
+    #[inline(never)]
+    pub(crate) fn write_remapped_image_rows_internal(&mut self, image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>) -> Result<(), Error> {
+        let progress_stage1 = if self.use_dither_map != DitherMapMode::None { 20 } else { 0 };
+        if self.remap_progress(progress_stage1 as f32 * 0.25) {
+            return Err(Error::Aborted);
         }
 
-        self.remapped = Some(Box::new(Remapped::new(self, image, output_pixels)?));
+        let mut palette = self.palette.clone();
+        self.remapped = Some(Box::new(if self.dither_level == 0. {
+            Remapped {
+                int_palette: palette.make_int_palette(self.gamma, self.min_posterization_output),
+                palette_error: Some(remap_to_palette(image, &mut output_pixels, &mut palette)?.0),
+            }
+        } else {
+            let is_image_huge = (image.px.width * image.px.height) > 2000 * 2000;
+            let allow_dither_map = self.use_dither_map == DitherMapMode::Always || (!is_image_huge && self.use_dither_map != DitherMapMode::None);
+            let generate_dither_map = allow_dither_map && image.dither_map.is_none();
+            let palette_error;
+            if generate_dither_map {
+                if image.edges.is_none() {
+                    image.contrast_maps()?;
+                }
+                // If dithering (with dither map) is required, this image is used to find areas that require dithering
+                let (tmp_re, row_pointers_remapped) = remap_to_palette(image, &mut output_pixels, &mut palette)?;
+                palette_error = Some(tmp_re);
+                image.update_dither_map(&row_pointers_remapped, &palette);
+            } else {
+                palette_error = self.palette_error;
+            }
+
+            if self.remap_progress(progress_stage1 as f32 * 0.5) {
+                return Err(Error::Aborted);
+            }
+
+            let output_image_is_remapped = generate_dither_map;
+            // remapping above was the last chance to do K-Means iteration, hence the final palette is set after remapping
+            let int_palette = palette.make_int_palette(self.gamma, self.min_posterization_output);
+            let max_dither_error = (palette_error.unwrap_or(quality_to_mse(80)) * 2.4).max(quality_to_mse(35)) as f32;
+            remap_to_palette_floyd(image, output_pixels, &palette, self, max_dither_error, output_image_is_remapped)?;
+            Remapped { int_palette, palette_error }
+        }));
         Ok(())
     }
 

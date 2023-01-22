@@ -3,10 +3,10 @@ use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::nearest::Nearest;
 use crate::pal::{ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A, PalF, PalIndex, Palette, f_pixel};
-use crate::quant::{quality_to_mse, QuantizationResult};
+use crate::quant::QuantizationResult;
+use crate::rayoff::*;
 use crate::rows::temp_buf;
 use crate::seacow::{RowBitmap, RowBitmapMut};
-use crate::rayoff::*;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
 
@@ -143,7 +143,7 @@ fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel
 ///
 ///  If output_image_is_remapped is true, only pixels noticeably changed by error diffusion will be written to output image.
 #[inline(never)]
-pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), Error> {
+pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>, palette: &PalF, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), Error> {
     let progress_stage1 = if quant.use_dither_map != DitherMapMode::None { 20 } else { 0 };
 
     let width = input_image.width();
@@ -157,8 +157,8 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
         &[]
     };
 
-    let n = Nearest::new(&quant.palette)?;
-    let palette = quant.palette.as_slice();
+    let n = Nearest::new(palette)?;
+    let palette = palette.as_slice();
     if palette.len() > u8::MAX as usize + 1 {
         return Err(Error::Unsupported);
     }
@@ -316,50 +316,6 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIn
             nexterr[1].0 += err * (5. / 16.);
             nexterr[2].0 += err * (3. / 16.);
         }
-    }
-}
-
-impl Remapped {
-    #[allow(clippy::or_fun_call)]
-    pub fn new(result: &QuantizationResult, image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>) -> Result<Self, Error> {
-        let mut palette = result.palette.clone();
-        let progress_stage1 = if result.use_dither_map != DitherMapMode::None { 20 } else { 0 };
-
-        let posterize = result.min_posterization_output;
-        if result.remap_progress(progress_stage1 as f32 * 0.25) {
-            return Err(Error::Aborted);
-        }
-
-        let mut palette_error = result.palette_error;
-        let int_palette;
-        if result.dither_level == 0. {
-            int_palette = palette.make_int_palette(result.gamma, posterize);
-            palette_error = Some(remap_to_palette(image, &mut output_pixels, &mut palette)?.0);
-        } else {
-            let is_image_huge = (image.px.width * image.px.height) > 2000 * 2000;
-            let allow_dither_map = result.use_dither_map == DitherMapMode::Always || (!is_image_huge && result.use_dither_map != DitherMapMode::None);
-            let generate_dither_map = allow_dither_map && (image.edges.is_some() && image.dither_map.is_none());
-            if generate_dither_map {
-                // If dithering (with dither map) is required, this image is used to find areas that require dithering
-                let (tmp_re, row_pointers_remapped) = remap_to_palette(image, &mut output_pixels, &mut palette)?;
-                palette_error = Some(tmp_re);
-                image.update_dither_map(&row_pointers_remapped, &palette);
-            }
-            let output_image_is_remapped = generate_dither_map;
-
-            if result.remap_progress(progress_stage1 as f32 * 0.5) {
-                return Err(Error::Aborted);
-            }
-
-            // remapping above was the last chance to do K-Means iteration, hence the final palette is set after remapping
-            int_palette = palette.make_int_palette(result.gamma, posterize);
-            let max_dither_error = (palette_error.unwrap_or(quality_to_mse(80)) * 2.4).max(quality_to_mse(35)) as f32;
-            remap_to_palette_floyd(image, output_pixels, result, max_dither_error, output_image_is_remapped)?;
-        }
-
-        Ok(Self {
-            int_palette, palette_error,
-        })
     }
 }
 
