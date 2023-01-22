@@ -1,8 +1,8 @@
-use crate::Error;
 use crate::hist::{HistItem, HistogramInternal};
 use crate::nearest::Nearest;
 use crate::pal::{f_pixel, PalF, PalIndex, PalPop};
 use crate::rayoff::*;
+use crate::Error;
 use rgb::alt::ARGB;
 use rgb::ComponentMap;
 use std::cell::RefCell;
@@ -34,8 +34,8 @@ impl Kmeans {
     #[inline]
     pub fn update_color(&mut self, px: f_pixel, value: f32, matched: PalIndex) {
         let c = &mut self.averages[matched as usize];
-        c.sum += (px.0 * value).map(|c| c as f64);
-        c.total += value as f64;
+        c.sum += (px.0 * value).map(|c| f64::from(c));
+        c.total += f64::from(value);
     }
 
     pub fn finalize(self, palette: &mut PalF) -> f64 {
@@ -75,9 +75,9 @@ impl Kmeans {
             .map(RefCell::into_inner)
             .reduce(Kmeans::try_merge)
             .transpose()?
-            .map(|kmeans| {
+            .map_or(0., |kmeans| {
                 kmeans.finalize(palette) / total
-            }).unwrap_or(0.);
+            });
 
         replace_unused_colors(palette, hist)?;
         Ok(diff)
@@ -94,9 +94,9 @@ impl Kmeans {
                 diff = new_diff;
                 item.adjusted_weight = (item.perceptual_weight + 2. * item.adjusted_weight) * (0.5 + diff);
             }
-            debug_assert!((diff as f64) < 1e20);
+            debug_assert!(f64::from(diff) < 1e20);
             self.update_color(px, item.adjusted_weight, matched);
-            (diff * item.perceptual_weight) as f64
+            f64::from(diff * item.perceptual_weight)
         }).sum::<f64>();
     }
 
@@ -125,7 +125,7 @@ fn replace_unused_colors(palette: &mut PalF, hist: &HistogramInternal) -> Result
     for pal_idx in 0..palette.len() {
         let pop = palette.pop_as_slice()[pal_idx];
         if pop.popularity() == 0. && !pop.is_fixed() {
-            let n = Nearest::new(&palette)?;
+            let n = Nearest::new(palette)?;
             let mut worst = None;
             let mut worst_diff = 0.;
             let colors = palette.as_slice();

@@ -6,23 +6,23 @@ fn transposing_1d_blur(src: &[u8], dst: &mut [u8], width: usize, height: usize, 
     }
 
     for (j, row) in src.chunks_exact(width).enumerate() {
-        let mut sum = row[0] as u16 * size;
+        let mut sum = u16::from(row[0]) * size;
         for &v in &row[0..size as usize] {
-            sum += v as u16;
+            sum += u16::from(v);
         }
         for i in 0..size as usize {
-            sum -= row[0] as u16;
-            sum += row[i + size as usize] as u16;
+            sum -= u16::from(row[0]);
+            sum += u16::from(row[i + size as usize]);
             dst[i * height + j] = (sum / (size * 2)) as u8;
         }
         for i in size as usize..width - size as usize {
-            sum -= row[i - size as usize] as u16;
-            sum += row[i + size as usize] as u16;
+            sum -= u16::from(row[i - size as usize]);
+            sum += u16::from(row[i + size as usize]);
             dst[i * height + j] = (sum / (size * 2)) as u8;
         }
         for i in width - size as usize..width {
-            sum -= row[i - size as usize] as u16;
-            sum += row[width - 1] as u16;
+            sum -= u16::from(row[i - size as usize]);
+            sum += u16::from(row[width - 1]);
             dst[i * height + j] = (sum / (size * 2)) as u8;
         }
     }

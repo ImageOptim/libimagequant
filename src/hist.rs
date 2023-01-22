@@ -122,7 +122,7 @@ impl Histogram {
             self.fixed_colors.insert(HashColor(c, idx as _));
         }
 
-        if attr.progress(attr.progress_stage1 as f32 * 0.40) {
+        if attr.progress(f32::from(attr.progress_stage1) * 0.40) {
             return Err(Aborted); // bow can free the RGBA source if copy has been made in f_pixels
         }
 
@@ -190,7 +190,7 @@ impl Histogram {
         }
 
         if attr.progress(0.) { return Err(Aborted); }
-        if attr.progress(attr.progress_stage1 as f32 * 0.89) {
+        if attr.progress(f32::from(attr.progress_stage1) * 0.89) {
             return Err(Aborted);
         }
 
@@ -210,8 +210,8 @@ impl Histogram {
         } else { 0 };
 
         self.hashmap.entry(px_int)
-            .and_modify(move |e| e.0 += boost as u32)
-            .or_insert((boost as u32, rgba));
+            .and_modify(move |e| e.0 += u32::from(boost))
+            .or_insert((u32::from(boost), rgba));
     }
 
     fn reserve(&mut self, entries: usize) {
@@ -253,7 +253,7 @@ impl Histogram {
             let pixels_row = &image_iter.row_rgba(&mut temp_row, row)[..width];
             let importance_map = importance_map.next().map(move |m| &m[..width]).unwrap_or(&[]);
             for (col, px) in pixels_row.iter().copied().enumerate() {
-                self.add_color(px, importance_map.get(col).copied().unwrap_or(255) as u16);
+                self.add_color(px, u16::from(importance_map.get(col).copied().unwrap_or(255)));
             }
         }
         self.init_posterize_bits(posterize_bits);
@@ -301,10 +301,8 @@ impl Histogram {
 
             counts[cluster_index as usize] += 1;
 
-            temp.push(TempHistItem {
-                color, cluster_index, weight,
-            });
-            weight as f64
+            temp.push(TempHistItem { color, weight, cluster_index });
+            f64::from(weight)
         }).sum::<f64>();
 
         let mut clusters = [Cluster { begin: 0, end: 0 }; LIQ_MAXCLUSTER];
@@ -336,11 +334,7 @@ impl Histogram {
             items[next_index].adjusted_weight = temp_item.weight;
         }
 
-        Ok(HistogramInternal {
-            items,
-            clusters,
-            total_perceptual_weight,
-        })
+        Ok(HistogramInternal { items, total_perceptual_weight, clusters })
     }
 }
 
@@ -404,12 +398,12 @@ impl std::hash::Hasher for RgbaHasher {
     fn write_isize(&mut self, _i: isize) { unimplemented!() }
 }
 
-/// libstd's HashSet is afraid of NaN.
+/// libstd's `HashSet` is afraid of NaN.
 /// contains color + original index (since hashmap forgets order)
 #[derive(PartialEq, Debug)]
 pub(crate) struct HashColor(pub f_pixel, pub u32);
 
-#[allow(clippy::derive_hash_xor_eq)]
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl Hash for HashColor {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

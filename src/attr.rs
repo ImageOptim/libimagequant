@@ -1,8 +1,8 @@
 use crate::error::Error;
 use crate::hist::Histogram;
 use crate::image::Image;
-use crate::pal::MAX_COLORS;
 use crate::pal::PalLen;
+use crate::pal::MAX_COLORS;
 use crate::pal::RGBA;
 use crate::quant::{mse_to_quality, quality_to_mse, QuantizationResult};
 use crate::remap::DitherMapMode;
@@ -129,7 +129,7 @@ impl Attributes {
         let mut iterations = (8 - value).max(0) as u16;
         iterations += iterations * iterations / 2;
         self.kmeans_iterations = iterations;
-        self.kmeans_iteration_limit = 1. / ((1 << (23 - value)) as f64);
+        self.kmeans_iteration_limit = 1. / f64::from(1 << (23 - value));
         self.feedback_loop_trials = (56 - 9 * value).max(0) as _;
         self.max_histogram_entries = ((1 << 17) + (1 << 18) * (10 - value)) as _;
         self.min_posterization_input = if value >= 8 { 1 } else { 0 };
@@ -186,7 +186,7 @@ impl Attributes {
     #[must_use]
     pub fn quality(&self) -> (u8, u8) {
         (
-            self.max_mse.map(mse_to_quality).unwrap_or(0),
+            self.max_mse.map_or(0, mse_to_quality),
             mse_to_quality(self.target_mse),
         )
     }
@@ -285,24 +285,24 @@ impl Attributes {
         if hist_items > 50000 {
             feedback_loop_trials = (feedback_loop_trials * 3 + 3) / 4;
         }
-        if hist_items > 100000 {
+        if hist_items > 100_000 {
             feedback_loop_trials = (feedback_loop_trials * 3 + 3) / 4;
         }
         feedback_loop_trials
     }
 
-    /// max_mse, target_mse, user asked for perfect quality
+    /// `max_mse`, `target_mse`, user asked for perfect quality
     pub(crate) fn target_mse(&self, hist_items_len: usize) -> (Option<f64>, f64, bool) {
         let max_mse = self.max_mse.map(|mse| mse * if hist_items_len <= MAX_COLORS { 0.33 } else { 1. });
         let aim_for_perfect_quality = self.target_mse == 0.;
-        let mut target_mse = self.target_mse.max(((1 << self.min_posterization_output) as f64 / 1024.).powi(2));
+        let mut target_mse = self.target_mse.max((f64::from(1 << self.min_posterization_output) / 1024.).powi(2));
         if let Some(max_mse) = max_mse {
             target_mse = target_mse.min(max_mse);
         }
         (max_mse, target_mse, aim_for_perfect_quality)
     }
 
-    /// returns iterations, iteration_limit
+    /// returns iterations, `iteration_limit`
     pub(crate) fn kmeans_iterations(&self, hist_items_len: usize, palette_error_is_known: bool) -> (u16, f64) {
         let mut iteration_limit = self.kmeans_iteration_limit;
         let mut iterations = self.kmeans_iterations;
@@ -315,7 +315,7 @@ impl Attributes {
         if hist_items_len > 50000 {
             iterations = (iterations * 3 + 3) / 4;
         }
-        if hist_items_len > 100000 {
+        if hist_items_len > 100_000 {
             iterations = (iterations * 3 + 3) / 4;
             iteration_limit *= 2.;
         }

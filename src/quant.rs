@@ -1,15 +1,15 @@
-use arrayvec::ArrayVec;
 use crate::attr::{Attributes, ControlFlow};
 use crate::error::*;
 use crate::hist::{FixedColorsSet, HistogramInternal};
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
-use crate::OrdFloat;
 use crate::pal::{PalIndex, PalF, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
 use crate::remap::{mse_to_standard_mse, DitherMapMode, Remapped};
 use crate::remap::{remap_to_palette, remap_to_palette_floyd};
 use crate::seacow::RowBitmapMut;
+use crate::OrdFloat;
+use arrayvec::ArrayVec;
 use std::cmp::Reverse;
 use std::fmt;
 use std::mem::MaybeUninit;
@@ -30,13 +30,13 @@ pub struct QuantizationResult {
 
 impl QuantizationResult {
     pub(crate) fn new(attr: &Attributes, hist: HistogramInternal, freeze_result_colors: bool, fixed_colors: &FixedColorsSet, gamma: f64) -> Result<Self, Error> {
-        if attr.progress(attr.progress_stage1 as f32) { return Err(Aborted); }
+        if attr.progress(f32::from(attr.progress_stage1)) { return Err(Aborted); }
         let (max_mse, target_mse, target_mse_is_zero) = attr.target_mse(hist.items.len());
         let (mut palette, palette_error) = find_best_palette(attr, target_mse, target_mse_is_zero, max_mse, hist, fixed_colors)?;
         if freeze_result_colors {
             palette.iter_mut().for_each(|(_, p)| *p = p.to_fixed());
         }
-        if attr.progress(attr.progress_stage1 as f32 + attr.progress_stage2 as f32 + attr.progress_stage3 as f32 * 0.95) {
+        if attr.progress(f32::from(attr.progress_stage1) + f32::from(attr.progress_stage2) + f32::from(attr.progress_stage3) * 0.95) {
             return Err(Aborted);
         }
         if let (Some(palette_error), Some(max_mse)) = (palette_error, max_mse) {
@@ -324,7 +324,7 @@ impl fmt::Debug for QuantizationResult {
 
 /// Repeats mediancut with different histogram weights to find palette with minimum error.
 ///
-///  feedback_loop_trials controls how long the search will take. < 0 skips the iteration.
+///  `feedback_loop_trials` controls how long the search will take. < 0 skips the iteration.
 #[allow(clippy::or_fun_call)]
 pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_is_zero: bool, max_mse: Option<f64>, mut hist: HistogramInternal, fixed_colors: &FixedColorsSet) -> Result<(PalF, Option<f64>), Error> {
     let few_input_colors = hist.items.len() + fixed_colors.len() <= attr.max_colors as usize;
@@ -345,8 +345,8 @@ pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_i
         let mut new_palette = mediancut(&mut hist, max_colors - fixed_colors.len() as PalLen, target_mse * target_mse_overshoot, max_mse_per_color)?
             .with_fixed_colors(max_colors, fixed_colors);
 
-        let stage_done = 1. - (trials_left.max(0) as f32 / (total_trials + 1) as f32).powi(2);
-        let overall_done = attr.progress_stage1 as f32 + stage_done * attr.progress_stage2 as f32;
+        let stage_done = 1. - (f32::from(trials_left.max(0)) / f32::from(total_trials + 1)).powi(2);
+        let overall_done = f32::from(attr.progress_stage1) + stage_done * f32::from(attr.progress_stage2);
         attr.verbose_print(format!("  selecting colors...{}%", (100. * stage_done) as u8));
 
         if trials_left <= 0 { break Some(new_palette); }
@@ -384,8 +384,8 @@ fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInt
         attr.verbose_print("  moving colormap towards local minimum");
         let mut i = 0;
         while i < iterations {
-            let stage_done = i as f32 / iterations as f32;
-            let overall_done = attr.progress_stage1 as f32 + attr.progress_stage2 as f32 + stage_done * attr.progress_stage3 as f32 * 0.89;
+            let stage_done = f32::from(i) / f32::from(iterations);
+            let overall_done = f32::from(attr.progress_stage1) + f32::from(attr.progress_stage2) + stage_done * f32::from(attr.progress_stage3) * 0.89;
             if attr.progress(overall_done) {
                 break;
             }
@@ -421,8 +421,8 @@ pub(crate) fn quality_to_mse(quality: u8) -> f64 {
         return 1e20; // + epsilon for floating point errors
     }
     if quality >= 100 { return 0.; }
-    let extra_low_quality_fudge = (0.016 / (0.001 + quality as f64) - 0.001).max(0.);
-    LIQ_WEIGHT_MSE * (extra_low_quality_fudge + 2.5 / (210. + quality as f64).powf(1.2) * (100.1 - quality as f64) / 100.)
+    let extra_low_quality_fudge = (0.016 / (0.001 + f64::from(quality)) - 0.001).max(0.);
+    LIQ_WEIGHT_MSE * (extra_low_quality_fudge + 2.5 / (210. + f64::from(quality)).powf(1.2) * (100.1 - f64::from(quality)) / 100.)
 }
 
 pub(crate) fn mse_to_quality(mse: f64) -> u8 {

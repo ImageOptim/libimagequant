@@ -1,5 +1,5 @@
-use arrayvec::ArrayVec;
 use crate::hist::{FixedColorsSet, HashColor};
+use arrayvec::ArrayVec;
 use rgb::ComponentMap;
 use std::ops::{Deref, DerefMut};
 
@@ -53,8 +53,8 @@ impl f_pixel {
         unsafe {
             use std::arch::aarch64::*;
 
-            let px = vld1q_f32(self as *const f_pixel as *const f32);
-            let py = vld1q_f32(other as *const f_pixel as *const f32);
+            let px = vld1q_f32((self as *const f_pixel).cast::<f32>());
+            let py = vld1q_f32((other as *const f_pixel).cast::<f32>());
 
             // y.a - x.a
             let mut alphas = vsubq_f32(py, px);
@@ -134,7 +134,7 @@ impl f_pixel {
     }
 
     pub fn from_rgba(gamma_lut: &[f32; 256], px: RGBA) -> Self {
-        let a = px.a as f32 / 255.;
+        let a = f32::from(px.a) / 255.;
         Self(ARGBF {
             a: a * LIQ_WEIGHT_A,
             r: gamma_lut[px.r as usize] * LIQ_WEIGHT_R * a,
@@ -358,6 +358,7 @@ impl std::ops::DerefMut for Palette {
 impl Palette {
     /// Palette colors
     #[inline(always)]
+    #[must_use]
     pub fn as_slice(&self) -> &[RGBA] {
         &self.entries[..self.count as usize]
     }
@@ -397,7 +398,7 @@ fn pal_test() {
     let mut p = PalF::new();
     let gamma = gamma_lut(0.45455);
     for i in 0..=255u8 {
-        let rgba = RGBA::new(i,i,i,100+i/2);
+        let rgba = RGBA::new(i, i, i, 100 + i / 2);
         p.push(f_pixel::from_rgba(&gamma, rgba), PalPop::new(1.));
         assert_eq!(i as usize + 1, p.len());
         assert_eq!(i as usize + 1, p.pop_as_slice().len());
@@ -410,7 +411,7 @@ fn pal_test() {
 
     for i in 0..=255u8 {
         let rgba = p.as_slice()[i as usize].to_rgb(0.45455);
-        assert_eq!(rgba, RGBA::new(i,i,i,100+i/2));
-        assert_eq!(int_pal[i as usize], RGBA::new(i,i,i,100+i/2));
+        assert_eq!(rgba, RGBA::new(i, i, i, 100 + i / 2));
+        assert_eq!(int_pal[i as usize], RGBA::new(i, i, i, 100 + i / 2));
     }
 }

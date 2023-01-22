@@ -1,8 +1,8 @@
-use crate::error::*;
+use crate::error::Error;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::nearest::Nearest;
-use crate::pal::{ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A, PalF, PalIndex, Palette, f_pixel};
+use crate::pal::{f_pixel, PalF, PalIndex, Palette, ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A};
 use crate::quant::QuantizationResult;
 use crate::rayoff::*;
 use crate::rows::{temp_buf, DynamicRows};
@@ -74,12 +74,12 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
             if let Some(bg) = bg_pixels.get(col) {
                 let bg_diff = bg.diff(inp);
                 if bg_diff <= diff {
-                    remapping_error += bg_diff as f64;
+                    remapping_error += f64::from(bg_diff);
                     out.write(transparent_index);
                     continue;
                 }
             }
-            remapping_error += diff as f64;
+            remapping_error += f64::from(diff);
             out.write(matched);
             kmeans.update_color(*inp, 1., matched);
         }
@@ -95,7 +95,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
         .map(|t| RefCell::into_inner(t).0)
         .reduce(Kmeans::merge) { kmeans.finalize(palette); }
 
-    let remapping_error = remapping_error / (px.width * px.height) as f64;
+    let remapping_error = remapping_error / f64::from(px.width * px.height);
     Ok((remapping_error, unsafe { output_pixels.assume_init() }))
 }
 
@@ -140,7 +140,7 @@ fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel
 
 /// Uses edge/noise map to apply dithering only to flat areas. Dithering on edges creates jagged lines, and noisy areas are "naturally" dithered.
 ///
-///  If output_image_is_remapped is true, only pixels noticeably changed by error diffusion will be written to output image.
+///  If `output_image_is_remapped` is true, only pixels noticeably changed by error diffusion will be written to output image.
 #[inline(never)]
 pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>, palette: &PalF, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), Error> {
     let progress_stage1 = if quant.use_dither_map != DitherMapMode::None { 20 } else { 0 };
@@ -256,7 +256,7 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIn
 
         let mut dither_level = base_dithering_level;
         if let Some(&l) = dither_map.get(col) {
-            dither_level *= l as f32;
+            dither_level *= f32::from(l);
         }
 
         let spx = get_dithered_pixel(dither_level, max_dither_error, thiserr[1], input_px);
@@ -343,7 +343,7 @@ fn background_to_nop() {
     let mut res = attr.quantize(&mut img).unwrap();
     res.set_dithering_level(0.).unwrap();
     let (_, idx) = res.remapped(&mut img).unwrap();
-     let first = idx[0];
+    let first = idx[0];
     assert!(idx.iter().all(|&x| x == first));
 
     res.set_dithering_level(1.).unwrap();

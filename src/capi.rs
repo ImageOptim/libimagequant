@@ -2,16 +2,16 @@
 //! For public stable a C FFI interface, see imagequant-sys crate instead.
 #![allow(missing_docs)]
 
-use crate::Error;
-use crate::RGBA;
-use crate::Attributes;
-use crate::Palette;
-use crate::QuantizationResult;
-use crate::Image;
 use crate::rows::RowCallback;
+use crate::seacow::Pointer;
 use crate::seacow::RowBitmapMut;
 use crate::seacow::SeaCow;
-use crate::seacow::Pointer;
+use crate::Attributes;
+use crate::Error;
+use crate::Image;
+use crate::Palette;
+use crate::QuantizationResult;
+use crate::RGBA;
 use std::mem::MaybeUninit;
 
 pub const LIQ_VERSION: u32 = 40000;

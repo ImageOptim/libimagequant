@@ -1,9 +1,9 @@
-use crate::PushInCapacity;
 use crate::hist::{HistItem, HistogramInternal};
 use crate::pal::{f_pixel, PalF, PalPop};
 use crate::pal::{PalLen, ARGBF};
 use crate::quant::quality_to_mse;
-use crate::{OrdFloat, Error};
+use crate::PushInCapacity;
+use crate::{Error, OrdFloat};
 use rgb::ComponentMap;
 use rgb::ComponentSlice;
 use std::cmp::Reverse;
@@ -32,7 +32,7 @@ impl<'hist> MBox<'hist> {
         let weight_sum = hist.iter().map(|a| {
             debug_assert!(a.adjusted_weight.is_finite());
             debug_assert!(a.adjusted_weight > 0.);
-            a.adjusted_weight as f64
+            f64::from(a.adjusted_weight)
         }).sum();
         Self::new_c(hist, weight_sum, weighed_average_color(hist))
     }
@@ -86,7 +86,7 @@ impl<'hist> MBox<'hist> {
 
     pub fn compute_total_error(&mut self) -> f64 {
         let avg = self.avg_color;
-        let e = self.colors.iter().map(move |a| avg.diff(&a.color) as f64 * a.perceptual_weight as f64).sum::<f64>();
+        let e = self.colors.iter().map(move |a| f64::from(avg.diff(&a.color)) * f64::from(a.perceptual_weight)).sum::<f64>();
         self.total_error = Some(e);
         e
     }
@@ -128,7 +128,7 @@ impl<'hist> MBox<'hist> {
             let w = median.diff(&a.color).sqrt() * ((1. + a.adjusted_weight).sqrt() - 1.);
             debug_assert!(w.is_finite());
             a.mc_color_weight = w;
-            w as f64
+            f64::from(w)
         })
         .sum()
     }
@@ -141,7 +141,7 @@ impl<'hist> MBox<'hist> {
         let break_at = hist_item_sort_half(self.colors, half_weight).max(1);
 
         let (left, right) = self.colors.split_at_mut(break_at);
-        let left_sum = left.iter().map(|a| a.adjusted_weight as f64).sum();
+        let left_sum = left.iter().map(|a| f64::from(a.adjusted_weight)).sum();
         let right_sum = self.adjusted_weight_sum - left_sum;
 
         [MBox::new_s(left, left_sum, other_boxes),
@@ -192,7 +192,7 @@ fn hist_item_sort_half(mut base: &mut [HistItem], mut weight_half_sum: f64) -> u
     loop {
         let partition = qsort_partition(base);
         let (left, right) = base.split_at_mut(partition + 1); // +1, because pivot stays on the left side
-        let left_sum = left.iter().map(|c| c.mc_color_weight as f64).sum::<f64>();
+        let left_sum = left.iter().map(|c| f64::from(c.mc_color_weight)).sum::<f64>();
         if left_sum >= weight_half_sum {
             match left.get_mut(..partition) { // trim pivot point, avoid panick branch in []
                 Some(left) if !left.is_empty() => { base = left; continue; },
@@ -266,7 +266,7 @@ impl<'hist> MedianCutter<'hist> {
             b.colors.iter_mut().for_each(move |a| a.tmp.likely_palette_index = i as _);
 
             // store total color popularity (perceptual_weight is approximation of it)
-            let pop = b.colors.iter().map(|a| a.perceptual_weight as f64).sum::<f64>();
+            let pop = b.colors.iter().map(|a| f64::from(a.perceptual_weight)).sum::<f64>();
             palette.push(b.avg_color, PalPop::new(pop as f32));
         }
         palette
@@ -278,7 +278,7 @@ impl<'hist> MedianCutter<'hist> {
         while self.boxes.len() < self.target_colors as usize {
             // first splits boxes that exceed quality limit (to have colors for things like odd green pixel),
             // later raises the limit to allow large smooth areas/gradients get colors.
-            let fraction_done = self.boxes.len() as f64 / (self.target_colors as f64);
+            let fraction_done = self.boxes.len() as f64 / f64::from(self.target_colors);
             let current_max_mse = max_mse + fraction_done * 16. * max_mse;
             let bi = match self.take_best_splittable_box(current_max_mse) {
                 Some(bi) => bi,
@@ -300,9 +300,9 @@ impl<'hist> MedianCutter<'hist> {
             .filter(|(_, b)| b.colors.len() > 1)
             .map(move |(i, b)| {
                 let cv = b.variance.r.max(b.variance.g).max(b.variance.b);
-                let mut thissum = b.adjusted_weight_sum * cv.max(b.variance.a) as f64;
-                if b.max_error as f64 > max_mse {
-                    thissum = thissum * b.max_error as f64 / max_mse;
+                let mut thissum = b.adjusted_weight_sum * f64::from(cv.max(b.variance.a));
+                if f64::from(b.max_error) > max_mse {
+                    thissum = thissum * f64::from(b.max_error) / max_mse;
                 }
                 (i, thissum)
             })

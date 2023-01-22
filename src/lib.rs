@@ -25,10 +25,10 @@ mod rayoff;
 
 #[cfg(feature = "threads")]
 mod rayoff {
-    pub(crate) use rayon::prelude::{ParallelSliceMut, ParallelIterator, ParallelBridge};
-    pub(crate) use thread_local::ThreadLocal;
-    pub(crate) use rayon::scope;
     pub(crate) use num_cpus::get as num_cpus;
+    pub(crate) use rayon::prelude::{ParallelBridge, ParallelIterator, ParallelSliceMut};
+    pub(crate) use rayon::scope;
+    pub(crate) use thread_local::ThreadLocal;
 }
 
 /// Use imagequant-sys crate instead
@@ -149,7 +149,7 @@ fn poke_it() {
     // The magic happens in quantize()
     let mut res = match liq.quantize(img) {
         Ok(res) => res,
-        Err(err) => panic!("Quantization failed, because: {:?}", err),
+        Err(err) => panic!("Quantization failed, because: {err:?}"),
     };
 
     // Enable dithering for subsequent remappings
@@ -176,7 +176,7 @@ fn set_importance_map() {
     img.set_importance_map(&map[..]).unwrap();
     let mut res = liq.quantize(&mut img).unwrap();
     let pal = res.palette();
-    assert_eq!(1, pal.len(), "{:?}", pal);
+    assert_eq!(1, pal.len(), "{pal:?}");
     assert_eq!(bitmap[0], pal[0]);
 }
 

@@ -1,5 +1,5 @@
-use std::slice::ChunksMut;
 use once_cell::unsync::OnceCell;
+use std::slice::ChunksMut;
 
 pub(crate) struct ThreadLocal<T>(OnceCell<T>);
 

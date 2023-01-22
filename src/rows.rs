@@ -1,16 +1,19 @@
-use crate::error::*;
+use crate::error::Error;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
+use crate::seacow::Pointer;
 use crate::seacow::SeaCow;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
 use std::mem::MaybeUninit;
-use crate::seacow::Pointer;
 
 pub(crate) type RowCallback<'a> = dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync + 'a;
 
 pub(crate) enum PixelsSource<'pixels, 'rows> {
     /// The `pixels` field is never read, but it is used to store the rows.
     #[allow(dead_code)]
-    Pixels { rows: SeaCow<'rows, Pointer<RGBA>>, pixels: Option<SeaCow<'pixels, RGBA>> },
+    Pixels {
+        rows: SeaCow<'rows, Pointer<RGBA>>,
+        pixels: Option<SeaCow<'pixels, RGBA>>,
+    },
     Callback(Box<RowCallback<'rows>>),
 }
 

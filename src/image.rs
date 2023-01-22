@@ -1,14 +1,14 @@
 use crate::attr::Attributes;
 use crate::blur::{liq_blur, liq_max3, liq_min3};
 use crate::error::*;
-use crate::LIQ_HIGH_MEMORY_LIMIT;
-use crate::pal::{PalIndex, MAX_COLORS, MIN_OPAQUE_A, PalF, RGBA, f_pixel, gamma_lut};
-use crate::PushInCapacity;
+use crate::pal::{f_pixel, gamma_lut, PalF, PalIndex, MAX_COLORS, MIN_OPAQUE_A, RGBA};
 use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
 use crate::seacow::Pointer;
 use crate::seacow::RowBitmap;
 use crate::seacow::SeaCow;
+use crate::PushInCapacity;
+use crate::LIQ_HIGH_MEMORY_LIMIT;
 use rgb::ComponentMap;
 use std::mem::MaybeUninit;
 
@@ -27,7 +27,6 @@ pub struct Image<'pixels> {
 }
 
 impl<'pixels> Image<'pixels> {
-
     /// Makes an image from RGBA pixels.
     ///
     /// See the [`rgb`] and [`bytemuck`](//lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
@@ -160,7 +159,7 @@ impl<'pixels> Image<'pixels> {
                         i += 1;
                     }
                     while lastcol <= col {
-                        edges[lastcol] = ((edges[lastcol] as u16 + 128) as f32
+                        edges[lastcol] = ((u16::from(edges[lastcol]) + 128) as f32
                             * (255. / (255 + 128) as f32)
                             * (1. - 20. / (20 + neighbor_count) as f32))
                             as u8;
@@ -234,7 +233,7 @@ impl<'pixels> Image<'pixels> {
     }
 
     /// Builds two maps:
-    ///    importance_map - approximation of areas with high-frequency noise, except straight edges. 1=flat, 0=noisy.
+    ///    `importance_map` - approximation of areas with high-frequency noise, except straight edges. 1=flat, 0=noisy.
     ///    edges - noise map including all edges
     pub(crate) fn contrast_maps(&mut self) -> Result<(), Error> {
         let width = self.width();

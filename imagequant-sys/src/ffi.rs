@@ -4,9 +4,9 @@
 #![allow(non_camel_case_types)]
 #![allow(clippy::missing_safety_doc)]
 
-use imagequant::*;
 use imagequant::capi::*;
 use imagequant::Error::LIQ_OK;
+use imagequant::*;
 use std::ffi::CString;
 use std::mem::ManuallyDrop;
 use std::mem::MaybeUninit;
@@ -378,7 +378,7 @@ pub unsafe extern "C" fn liq_image_set_importance_map(img: &mut liq_image, impor
         img.set_importance_map(importance_map_slice).err().unwrap_or(LIQ_OK)
     } else if ownership == liq_ownership::LIQ_OWN_PIXELS {
         let copy: Box<[u8]> = importance_map_slice.into();
-        free_fn(importance_map as *mut _);
+        free_fn(importance_map.cast());
         img.set_importance_map(copy).err().unwrap_or(LIQ_OK);
         LIQ_OK
     } else {
@@ -425,7 +425,7 @@ pub extern "C" fn liq_attr_create_with_allocator(_unused: *mut c_void, free: uns
         inner: Attributes::new(),
         c_api_free: free,
     });
-    debug_assert_eq!((&*attr) as *const liq_attr, unsafe { attr_to_liq_attr_ptr(&attr.inner) } as *const liq_attr);
+    debug_assert_eq!(std::ptr::addr_of!(*attr), unsafe { attr_to_liq_attr_ptr(&attr.inner) } as *const liq_attr);
     Some(attr)
 }
 
@@ -494,14 +494,14 @@ pub extern "C" fn liq_get_remapping_error(result: &liq_result) -> f64 {
 #[inline(never)]
 pub extern "C" fn liq_get_quantization_quality(result: &liq_result) -> c_int {
     if bad_object!(result, LIQ_RESULT_MAGIC) { return -1; }
-    result.inner.quantization_quality().map(c_int::from).unwrap_or(-1)
+    result.inner.quantization_quality().map_or(-1, c_int::from)
 }
 
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn liq_get_remapping_quality(result: &liq_result) -> c_int {
     if bad_object!(result, LIQ_RESULT_MAGIC) { return -1; }
-    result.inner.remapping_quality().map(c_int::from).unwrap_or(-1)
+    result.inner.remapping_quality().map_or(-1, c_int::from)
 }
 
 #[no_mangle]
@@ -644,14 +644,14 @@ fn links_and_runs() {
     unsafe {
         assert!(liq_version() >= 40000);
         let attr = liq_attr_create().unwrap();
-        let mut hist = liq_histogram_create(&*attr).unwrap();
-        assert_eq!(LIQ_OK, liq_histogram_add_fixed_color(&mut *hist, liq_color {r: 0, g: 0, b: 0, a: 0}, 0.));
-        liq_histogram_add_colors(&mut *hist, &*attr, ptr::null(), 0, 0.);
+        let mut hist = liq_histogram_create(&attr).unwrap();
+        assert_eq!(LIQ_OK, liq_histogram_add_fixed_color(&mut hist, liq_color {r: 0, g: 0, b: 0, a: 0}, 0.));
+        liq_histogram_add_colors(&mut hist, &attr, ptr::null(), 0, 0.);
 
         let mut res = MaybeUninit::uninit();
 
         // this is fine, because there is 1 fixed color to generate
-        assert_eq!(LIQ_OK, liq_histogram_quantize(&mut *hist, &*attr, &mut res));
+        assert_eq!(LIQ_OK, liq_histogram_quantize(&mut hist, &attr, &mut res));
         let res = res.assume_init().unwrap();
 
         liq_result_destroy(Some(res));
@@ -728,12 +728,12 @@ fn c_callback_test_c() {
             assert_eq!(123, width);
             for i in 0..width as isize {
                 let n = i as u8;
-                (*output_row.offset(i as isize)).write(RGBA::new(n, n, n, n));
+                (*output_row.offset(i)).write(RGBA::new(n, n, n, n));
             }
-            let user_data = user_data.0 as *mut i32;
+            let user_data = user_data.0.cast::<i32>();
             *user_data += 1;
         }
-        let mut img = liq_image_create_custom(&a, get_row, AnySyncSendPtr((&mut called) as *mut _ as *mut c_void), 123, 5, 0.).unwrap();
+        let mut img = liq_image_create_custom(&a, get_row, AnySyncSendPtr(std::ptr::addr_of_mut!(called) as *mut c_void), 123, 5, 0.).unwrap();
         liq_quantize_image(&mut a, &mut img).unwrap()
     };
     assert!(called > 5 && called < 50);

@@ -1,7 +1,7 @@
-use crate::pal::MAX_COLORS;
 use crate::pal::PalIndex;
+use crate::pal::MAX_COLORS;
 use crate::pal::{f_pixel, PalF};
-use crate::{OrdFloat, Error};
+use crate::{Error, OrdFloat};
 
 impl<'pal> Nearest<'pal> {
     #[inline(never)]
@@ -73,14 +73,13 @@ pub struct Visitor {
 impl Visitor {
     #[inline]
     fn visit(&mut self, distance: f32, distance_squared: f32, idx: PalIndex) {
-        if distance_squared < self.distance_squared && self.exclude != idx as i16 {
+        if distance_squared < self.distance_squared && self.exclude != i16::from(idx) {
             self.distance = distance;
             self.distance_squared = distance_squared;
             self.idx = idx;
         }
     }
 }
-
 
 pub(crate) struct Node {
     vantage_point: f_pixel,
