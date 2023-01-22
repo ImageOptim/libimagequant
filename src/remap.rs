@@ -5,7 +5,7 @@ use crate::nearest::Nearest;
 use crate::pal::{ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A, PalF, PalIndex, Palette, f_pixel};
 use crate::quant::QuantizationResult;
 use crate::rayoff::*;
-use crate::rows::temp_buf;
+use crate::rows::{temp_buf, DynamicRows};
 use crate::seacow::{RowBitmap, RowBitmapMut};
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
@@ -24,9 +24,7 @@ pub(crate) struct Remapped {
 }
 
 #[inline(never)]
-pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<PalIndex>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, PalIndex>), Error> {
-    let width = image.width();
-
+pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Option<&mut Image<'_>>, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<PalIndex>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, PalIndex>), Error> {
     let n = Nearest::new(palette)?;
     let colors = palette.as_slice();
     let palette_len = colors.len();
@@ -35,13 +33,14 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
     }
 
     let tls = ThreadLocal::new();
+    let width = px.width as usize;
     let per_thread_buffers = move || -> Result<_, Error> { Ok(RefCell::new((Kmeans::new(palette_len)?, temp_buf(width)?, temp_buf(width)?, temp_buf(width)?))) };
 
     let tls_tmp1 = tls.get_or_try(per_thread_buffers)?;
     let mut tls_tmp = tls_tmp1.borrow_mut();
 
-    let input_rows = image.px.rows_iter(&mut tls_tmp.1)?;
-    let (background, transparent_index) = image.background.as_mut().map(|background| {
+    let input_rows = px.rows_iter(&mut tls_tmp.1)?;
+    let (background, transparent_index) = background.map(|background| {
         (Some(background), n.search(&f_pixel::default(), 0).0)
     })
     .filter(|&(_, transparent_index)| colors[usize::from(transparent_index)].a < MIN_OPAQUE_A)
@@ -96,7 +95,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(image: &mut Image, output_pixels: &'x
         .map(|t| RefCell::into_inner(t).0)
         .reduce(Kmeans::merge) { kmeans.finalize(palette); }
 
-    let remapping_error = remapping_error / (image.px.width * image.px.height) as f64;
+    let remapping_error = remapping_error / (px.width * px.height) as f64;
     Ok((remapping_error, unsafe { output_pixels.assume_init() }))
 }
 

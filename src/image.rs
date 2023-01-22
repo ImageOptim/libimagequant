@@ -124,7 +124,7 @@ impl<'pixels> Image<'pixels> {
         true
     }
 
-    pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, PalIndex>, palette: &PalF) {
+    pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, PalIndex>, palette: &PalF, uses_background: bool) {
         let width = self.width();
         let mut edges = match self.edges.take() {
             Some(e) => e,
@@ -138,7 +138,7 @@ impl<'pixels> Image<'pixels> {
             let mut lastpixel = this_row[0];
             let mut lastcol = 0;
             for (col, px) in this_row.iter().copied().enumerate().skip(1) {
-                if self.background.is_some() && (colors[px as usize]).a < MIN_OPAQUE_A {
+                if uses_background && (colors[px as usize]).a < MIN_OPAQUE_A {
                     // Transparency may or may not create an edge. When there's an explicit background set, assume no edge.
                     continue;
                 }
@@ -192,7 +192,6 @@ impl<'pixels> Image<'pixels> {
             return Err(BufferTooSmall);
         }
         self.background = Some(Box::new(background));
-        self.dither_map = None;
         Ok(())
     }
 

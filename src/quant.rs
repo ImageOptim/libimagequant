@@ -82,7 +82,7 @@ impl QuantizationResult {
         self.remapped = Some(Box::new(if self.dither_level == 0. {
             Remapped {
                 int_palette: palette.make_int_palette(self.gamma, self.min_posterization_output),
-                palette_error: Some(remap_to_palette(image, &mut output_pixels, &mut palette)?.0),
+                palette_error: Some(remap_to_palette(&mut image.px, image.background.as_deref_mut(), &mut output_pixels, &mut palette)?.0),
             }
         } else {
             let is_image_huge = (image.px.width * image.px.height) > 2000 * 2000;
@@ -94,9 +94,10 @@ impl QuantizationResult {
                     image.contrast_maps()?;
                 }
                 // If dithering (with dither map) is required, this image is used to find areas that require dithering
-                let (tmp_re, row_pointers_remapped) = remap_to_palette(image, &mut output_pixels, &mut palette)?;
+                let (tmp_re, row_pointers_remapped) = remap_to_palette(&mut image.px, None, &mut output_pixels, &mut palette)?;
                 palette_error = Some(tmp_re);
-                image.update_dither_map(&row_pointers_remapped, &palette);
+                let uses_background = image.background.is_some();
+                image.update_dither_map(&row_pointers_remapped, &palette, uses_background);
             } else {
                 palette_error = self.palette_error;
             }
