@@ -311,6 +311,7 @@ impl<'hist> MedianCutter<'hist> {
     }
 }
 
+#[inline(never)]
 pub(crate) fn mediancut(hist: &mut HistogramInternal, target_colors: PalLen, target_mse: f64, max_mse_per_color: f64) -> Result<PalF, Error> {
     Ok(MedianCutter::new(hist, target_colors)?.cut(target_mse, max_mse_per_color))
 }

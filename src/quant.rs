@@ -348,6 +348,7 @@ fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInt
     Ok(())
 }
 
+#[cold]
 fn palette_from_histogram(hist: &HistogramInternal, max_colors: PalLen, fixed_colors: &FixedColorsSet) -> (PalF, Option<f64>) {
     let mut hist_pal = PalF::new();
     for item in hist.items.iter() {
