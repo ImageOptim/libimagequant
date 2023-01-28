@@ -1,3 +1,22 @@
+version 4
+---------
+
+- rewritten in Rust
+- multi-threaded floyd-steinberg dithering gives 2x-3x remapping speed boost
+- better handling of remapping on top of backgrounds (for GIFs, gif.ski)
+- support for more than 256-colors (compile-time option)
+- WASM compatibility
+- the C API enables dithering by default
+
+Newer v3/v4 versions of the library are on crates.io: https://crates.io/crates/imagequant
+
+version 2.18
+------------
+ - improved handling of images with very few pixels with very diverse colors
+ - added more perceptually-weighed color selection
+ - dropped problematic omp_set_nested()
+ - fixed a rare memory leak
+
 version 2.17
 ------------
  - quality improvement
