@@ -211,7 +211,8 @@ impl Histogram {
         } else { 0 };
 
         self.hashmap.entry(px_int)
-            .and_modify(move |e| e.0 += u32::from(boost))
+            // it can overflow on images over 2^24 pixels large
+            .and_modify(move |e| e.0 = e.0.saturating_add(u32::from(boost)))
             .or_insert((u32::from(boost), rgba));
     }
 
