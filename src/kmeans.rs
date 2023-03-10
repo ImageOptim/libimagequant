@@ -42,7 +42,7 @@ impl Kmeans {
         for (avg, (color, pop)) in self.averages.iter().zip(palette.iter_mut()).filter(|(_, (_, pop))| !pop.is_fixed()) {
             let total = avg.total;
             *pop = PalPop::new(total as f32);
-            if total > 0. {
+            if total > 0. && color.a != 0. {
                 *color = avg.sum.map(move |c| (c / total) as f32).into();
             }
         }

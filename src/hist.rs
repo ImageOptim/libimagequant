@@ -267,6 +267,7 @@ impl Histogram {
 
     pub(crate) fn finalize_builder(&mut self, gamma: f64, target_mse: f64) -> Result<HistogramInternal, Error> {
         debug_assert!(gamma > 0.);
+        debug_assert!(self.total_area > 0);
 
         let mut counts = [0; LIQ_MAXCLUSTER];
         let mut temp = Vec::new();
@@ -280,16 +281,13 @@ impl Histogram {
         let lut = gamma_lut(gamma);
 
         let total_perceptual_weight = self.hashmap.values().map(|&(boost, color)| {
-            if boost == 0 && !temp.is_empty() {
+            if boost == 0 {
                 return 0.;
             }
-            let cluster_index = ((color.r >> 7) << 3) | ((color.g >> 7) << 2) | ((color.b >> 7) << 1) | (color.a >> 7);
 
             let weight = (boost as f32 / 170.).min(max_perceptual_weight);
-            if weight == 0. {
-                return 0.;
-            }
 
+            let cluster_index = ((color.r >> 7) << 3) | ((color.g >> 7) << 2) | ((color.b >> 7) << 1) | (color.a >> 7);
             let color = f_pixel::from_rgba(&lut, color);
 
             // fixed colors are always included in the palette, so it would be wasteful to duplicate them in palette from histogram
@@ -321,7 +319,7 @@ impl Histogram {
             adjusted_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },
             perceptual_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },
             mc_color_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },
-            tmp: HistSortTmp { mc_sort_value: 0 },
+            tmp: HistSortTmp { mc_sort_value: if cfg!(debug_assertions) { !0 } else { 0 } },
         });
         let mut items = items.into_boxed_slice();
 
