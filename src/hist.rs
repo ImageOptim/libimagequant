@@ -49,6 +49,7 @@ pub(crate) struct HistItem {
     pub color: f_pixel,
     pub adjusted_weight: f32,
     pub perceptual_weight: f32,
+    /// temporary in median cut
     pub mc_color_weight: f32,
     pub tmp: HistSortTmp,
 }
