@@ -267,14 +267,14 @@ impl Histogram {
 
     pub(crate) fn finalize_builder(&mut self, gamma: f64, target_mse: f64) -> Result<HistogramInternal, Error> {
         debug_assert!(gamma > 0.);
-        debug_assert!(self.total_area > 0);
 
         let mut counts = [0; LIQ_MAXCLUSTER];
         let mut temp = Vec::new();
         temp.try_reserve_exact(self.hashmap.len())?;
         // Limit perceptual weight to 1/10th of the image surface area to prevent
         // a single color from dominating all others.
-        let max_perceptual_weight = 0.1 * self.total_area as f32;
+        // total_area is 0 when using histogram.
+        let max_perceptual_weight = if self.total_area > 0 { 0.1 * self.total_area as f32 } else { f32::INFINITY };
 
         let max_fixed_color_difference = (target_mse / 2.).max(2. / 256. / 256.) as f32;
 
