@@ -1,7 +1,7 @@
 use crate::attr::Attributes;
 use crate::blur::{liq_blur, liq_max3, liq_min3};
 use crate::error::*;
-use crate::pal::{f_pixel, gamma_lut, PalF, PalIndex, MAX_COLORS, MIN_OPAQUE_A, RGBA};
+use crate::pal::{f_pixel, PalF, PalIndex, MAX_COLORS, MIN_OPAQUE_A, RGBA};
 use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
 use crate::seacow::Pointer;
@@ -23,7 +23,7 @@ pub struct Image<'pixels> {
     pub(crate) edges: Option<Box<[u8]>>,
     pub(crate) dither_map: Option<Box<[u8]>>,
     pub(crate) background: Option<Box<Image<'pixels>>>,
-    pub(crate) fixed_colors: Vec<f_pixel>,
+    pub(crate) fixed_colors: Vec<RGBA>,
 }
 
 impl<'pixels> Image<'pixels> {
@@ -207,9 +207,8 @@ impl<'pixels> Image<'pixels> {
     /// Returns error if more than 256 colors are added. If image is quantized to fewer colors than the number of fixed colors added, then excess fixed colors will be ignored.
     pub fn add_fixed_color(&mut self, color: RGBA) -> Result<(), Error> {
         if self.fixed_colors.len() >= MAX_COLORS { return Err(Unsupported); }
-        let lut = gamma_lut(self.px.gamma);
         self.fixed_colors.try_reserve(1)?;
-        self.fixed_colors.push_in_cap(f_pixel::from_rgba(&lut, RGBA {r: color.r, g: color.g, b: color.b, a: color.a}));
+        self.fixed_colors.push_in_cap(color);
         Ok(())
     }
 
@@ -228,8 +227,8 @@ impl<'pixels> Image<'pixels> {
     }
 
     #[inline(always)]
-    pub(crate) fn gamma(&self) -> f64 {
-        self.px.gamma
+    pub(crate) fn gamma(&self) -> Option<f64> {
+        if self.px.gamma > 0. { Some(self.px.gamma) } else { None }
     }
 
     /// Builds two maps:

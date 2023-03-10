@@ -117,10 +117,13 @@ impl Histogram {
             image.contrast_maps()?;
         }
 
-        self.gamma = Some(image.gamma());
+        self.gamma = image.gamma();
 
-        for (idx, c) in image.fixed_colors.iter().copied().enumerate() {
-            self.fixed_colors.insert(HashColor(c, idx as _));
+        if !image.fixed_colors.is_empty() {
+            let lut = gamma_lut(self.gamma.unwrap_or(0.45455));
+            self.fixed_colors.extend(image.fixed_colors.iter().copied().enumerate().map(|(idx, c)| {
+               HashColor(f_pixel::from_rgba(&lut, c), idx as _)
+            }));
         }
 
         if attr.progress(f32::from(attr.progress_stage1) * 0.40) {
@@ -141,6 +144,8 @@ impl Histogram {
     /// Alternative to `add_image()`. Intead of counting colors in an image, it directly takes an array of colors and their counts.
     ///
     /// This function is only useful if you already have a histogram of the image from another source.
+    ///
+    /// The gamma may be 0 to mean sRGB. All calls to `add_colors` and `add_fixed_color` should use the same gamma value.
     #[inline(never)]
     pub fn add_colors(&mut self, entries: &[HistogramEntry], gamma: f64) -> Result<(), Error> {
         if entries.is_empty() || entries.len() > 1 << 24 {
@@ -151,7 +156,10 @@ impl Histogram {
             return Err(ValueOutOfRange);
         }
 
-        self.gamma = Some(if gamma > 0. { gamma } else { 0.45455 });
+        if self.gamma.is_none() && gamma > 0. {
+            self.gamma = Some(gamma);
+        }
+
         self.reserve(entries.len());
 
         self.total_area += entries.len();
