@@ -204,7 +204,7 @@ impl Histogram {
 
         attr.verbose_print(format!("  made histogram...{} colors found", hist.items.len()));
 
-        QuantizationResult::new(attr, hist, freeze_result_colors, &self.fixed_colors, gamma)
+        QuantizationResult::new(attr, hist, freeze_result_colors, gamma)
     }
 
     #[inline(always)]
@@ -340,7 +340,11 @@ impl Histogram {
             items[next_index].adjusted_weight = weight;
         }
 
-        Ok(HistogramInternal { items, total_perceptual_weight, clusters })
+        let mut fixed_colors: Vec<_> = self.fixed_colors.iter().collect();
+        fixed_colors.sort_by_key(|c| c.index); // original order
+        let fixed_colors = fixed_colors.iter().map(|c| c.px).collect();
+
+        Ok(HistogramInternal { items, total_perceptual_weight, clusters, fixed_colors })
     }
 }
 
@@ -364,6 +368,7 @@ pub(crate) struct HistogramInternal {
     pub items: Box<[HistItem]>,
     pub total_perceptual_weight: f64,
     pub clusters: [Cluster; LIQ_MAXCLUSTER],
+    pub fixed_colors: Box<[f_pixel]>,
 }
 
 // Pre-grouped colors

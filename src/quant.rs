@@ -1,6 +1,6 @@
 use crate::attr::{Attributes, ControlFlow};
 use crate::error::*;
-use crate::hist::{FixedColorsSet, HistogramInternal};
+use crate::hist::HistogramInternal;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
@@ -29,10 +29,10 @@ pub struct QuantizationResult {
 }
 
 impl QuantizationResult {
-    pub(crate) fn new(attr: &Attributes, hist: HistogramInternal, freeze_result_colors: bool, fixed_colors: &FixedColorsSet, gamma: f64) -> Result<Self, Error> {
+    pub(crate) fn new(attr: &Attributes, hist: HistogramInternal, freeze_result_colors: bool, gamma: f64) -> Result<Self, Error> {
         if attr.progress(f32::from(attr.progress_stage1)) { return Err(Aborted); }
         let (max_mse, target_mse, target_mse_is_zero) = attr.target_mse(hist.items.len());
-        let (mut palette, palette_error) = find_best_palette(attr, target_mse, target_mse_is_zero, max_mse, hist, fixed_colors)?;
+        let (mut palette, palette_error) = find_best_palette(attr, target_mse, target_mse_is_zero, max_mse, hist)?;
         if freeze_result_colors {
             palette.iter_mut().for_each(|(_, p)| *p = p.to_fixed());
         }
@@ -326,11 +326,11 @@ impl fmt::Debug for QuantizationResult {
 ///
 ///  `feedback_loop_trials` controls how long the search will take. < 0 skips the iteration.
 #[allow(clippy::or_fun_call)]
-pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_is_zero: bool, max_mse: Option<f64>, mut hist: HistogramInternal, fixed_colors: &FixedColorsSet) -> Result<(PalF, Option<f64>), Error> {
-    let few_input_colors = hist.items.len() + fixed_colors.len() <= attr.max_colors as usize;
+pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_is_zero: bool, max_mse: Option<f64>, mut hist: HistogramInternal) -> Result<(PalF, Option<f64>), Error> {
+    let few_input_colors = hist.items.len() + hist.fixed_colors.len() <= attr.max_colors as usize;
     // actual target_mse passed to this method has extra diff from posterization
     if few_input_colors && target_mse_is_zero {
-        return Ok(palette_from_histogram(&hist, attr.max_colors, fixed_colors));
+        return Ok(palette_from_histogram(&hist, attr.max_colors));
     }
 
     let mut max_colors = attr.max_colors;
@@ -342,8 +342,9 @@ pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_i
     let mut palette_error = None;
     let mut palette = loop {
         let max_mse_per_color = target_mse.max(palette_error.unwrap_or(quality_to_mse(1))).max(quality_to_mse(51)) * 1.2;
-        let mut new_palette = mediancut(&mut hist, max_colors - fixed_colors.len() as PalLen, target_mse * target_mse_overshoot, max_mse_per_color)?
-            .with_fixed_colors(max_colors, fixed_colors);
+        let non_fixed_max_colors = max_colors - hist.fixed_colors.len() as PalLen;
+        let mut new_palette = mediancut(&mut hist, non_fixed_max_colors, target_mse * target_mse_overshoot, max_mse_per_color)?
+            .with_fixed_colors(max_colors, &hist.fixed_colors);
 
         let stage_done = 1. - (f32::from(trials_left.max(0)) / f32::from(total_trials + 1)).powi(2);
         let overall_done = f32::from(attr.progress_stage1) + stage_done * f32::from(attr.progress_stage2);
@@ -407,13 +408,13 @@ fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInt
 }
 
 #[cold]
-fn palette_from_histogram(hist: &HistogramInternal, max_colors: PalLen, fixed_colors: &FixedColorsSet) -> (PalF, Option<f64>) {
+fn palette_from_histogram(hist: &HistogramInternal, max_colors: PalLen) -> (PalF, Option<f64>) {
     let mut hist_pal = PalF::new();
     for item in hist.items.iter() {
         hist_pal.push(item.color, PalPop::new(item.perceptual_weight));
     }
 
-    (hist_pal.with_fixed_colors(max_colors, fixed_colors), Some(0.))
+    (hist_pal.with_fixed_colors(max_colors, &hist.fixed_colors), Some(0.))
 }
 
 pub(crate) fn quality_to_mse(quality: u8) -> f64 {

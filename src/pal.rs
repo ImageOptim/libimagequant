@@ -1,4 +1,3 @@
-use crate::hist::{FixedColorsSet, HashColor};
 use arrayvec::ArrayVec;
 use rgb::ComponentMap;
 use std::ops::{Deref, DerefMut};
@@ -242,7 +241,7 @@ impl PalF {
         &self.pops
     }
 
-    pub(crate) fn with_fixed_colors(self, max_colors: PalLen, fixed_colors: &FixedColorsSet) -> PalF {
+    pub(crate) fn with_fixed_colors(self, max_colors: PalLen, fixed_colors: &[f_pixel]) -> PalF {
         if fixed_colors.is_empty() {
             return self;
         }
@@ -250,10 +249,7 @@ impl PalF {
         let mut new_pal = PalF::new();
         let is_fixed = PalPop::new(1.).to_fixed();
 
-        let mut fixed_colors: Vec<_> = fixed_colors.iter().collect();
-        fixed_colors.sort_by_key(|c| c.index); // original order
-
-        let new_colors = fixed_colors.iter().map(move |HashColor { px, .. }| (*px, is_fixed))
+        let new_colors = fixed_colors.iter().map(|px| (*px, is_fixed))
             .chain(self.iter())
             .take(max_colors as usize);
 
