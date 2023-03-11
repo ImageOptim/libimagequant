@@ -245,7 +245,7 @@ pub fn _unstable_internal_kmeans_bench() -> impl FnMut() {
     }).collect::<Vec<_>>();
 
     h.add_colors(&e, 0.).unwrap();
-    let mut hist = h.finalize_builder(0.45455, 0.).unwrap();
+    let mut hist = h.finalize_builder(0.45455).unwrap();
 
     let lut = pal::gamma_lut(0.45455);
     let mut p = PalF::new();

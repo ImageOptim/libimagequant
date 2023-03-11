@@ -1,3 +1,4 @@
+use crate::OrdFloat;
 use arrayvec::ArrayVec;
 use rgb::ComponentMap;
 use std::ops::{Deref, DerefMut};
@@ -227,8 +228,8 @@ impl PalF {
     }
 
     pub fn set(&mut self, idx: usize, color: f_pixel, popularity: PalPop) {
-        self.pops[idx] = popularity;
         self.colors[idx] = color;
+        self.pops[idx] = popularity;
     }
 
     #[inline(always)]
@@ -241,27 +242,41 @@ impl PalF {
         &self.pops
     }
 
-    pub(crate) fn with_fixed_colors(self, max_colors: PalLen, fixed_colors: &[f_pixel]) -> PalF {
+    // this is max colors allowed by the user, not just max in the current (candidate/low-quality) palette
+    pub(crate) fn with_fixed_colors(mut self, max_colors: PalLen, fixed_colors: &[f_pixel]) -> PalF {
         if fixed_colors.is_empty() {
             return self;
         }
 
-        let mut new_pal = PalF::new();
-        let is_fixed = PalPop::new(1.).to_fixed();
-
-        let new_colors = fixed_colors.iter().map(|px| (*px, is_fixed))
-            .chain(self.iter())
-            .take(max_colors as usize);
-
-        for (c, pop) in new_colors {
-            new_pal.push(c, pop);
+        // if using low quality, there's a chance mediancut won't create enough colors in the palette
+        let max_fixed_colors = fixed_colors.len().min(max_colors.into());
+        if self.len() < max_fixed_colors {
+            let needs_extra = max_fixed_colors - self.len();
+            self.colors.extend(fixed_colors.iter().copied().take(needs_extra));
+            self.pops.extend(std::iter::repeat(PalPop::new(0.)).take(needs_extra));
+            debug_assert_eq!(self.len(), max_fixed_colors);
         }
 
-        new_pal
+        // since the fixed colors were in the histogram, expect them to be in the palette,
+        // and change closest existing one to be exact fixed
+        for (i, fixed_color) in fixed_colors.iter().enumerate().take(self.len()) {
+            let (best_idx, _) = self.colors.iter().enumerate().skip(i).min_by_key(|(_, pal_color)| {
+                // not using Nearest, because creation of the index may take longer than naive search once
+                OrdFloat::<f32>::unchecked_new(pal_color.diff(fixed_color))
+            }).expect("logic bug in fixed colors, please report a bug");
+            debug_assert!(best_idx >= i);
+            self.swap(i, best_idx);
+            self.set(i, *fixed_color, self.pops[i].to_fixed());
+        }
+
+        debug_assert!(self.colors.iter().zip(fixed_colors).all(|(p, f)| p == f));
+        debug_assert!(self.pops.iter().take(fixed_colors.len()).all(|pop| pop.is_fixed()));
+        self
     }
 
     #[inline(always)]
     pub(crate) fn len(&self) -> usize {
+        debug_assert_eq!(self.colors.len(), self.pops.len());
         self.colors.len()
     }
 
@@ -272,13 +287,7 @@ impl PalF {
         c.iter_mut().zip(pop)
     }
 
-    #[inline(always)]
-    pub fn iter(&self) -> impl Iterator<Item = (f_pixel, PalPop)> + '_ {
-        let c = &self.colors[..];
-        let pop = &self.pops[..c.len()];
-        c.iter().copied().zip(pop.iter().copied())
-    }
-
+    #[cfg_attr(debug_assertions, track_caller)]
     pub(crate) fn swap(&mut self, a: usize, b: usize) {
         self.colors.swap(a, b);
         self.pops.swap(a, b);
@@ -399,7 +408,8 @@ fn pal_test() {
         assert_eq!(i as usize + 1, p.len());
         assert_eq!(i as usize + 1, p.pop_as_slice().len());
         assert_eq!(i as usize + 1, p.as_slice().len());
-        assert_eq!(i as usize + 1, p.iter().count());
+        assert_eq!(i as usize + 1, p.colors.len());
+        assert_eq!(i as usize + 1, p.pops.len());
         assert_eq!(i as usize + 1, p.iter_mut().count());
     }
 

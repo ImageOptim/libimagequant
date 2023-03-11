@@ -32,7 +32,8 @@ pub struct Histogram {
     gamma: Option<f64>,
     fixed_colors: FixedColorsSet,
 
-    /// maps RGBA as u32 to (boosted) count
+    /// The key is the RGBA cast to u32
+    /// The value is a (boosted) count or 0 if it's a fixed color
     hashmap: HashMap<u32, (u32, RGBA), U32Hasher>,
 
     posterize_bits: u8,
@@ -116,9 +117,8 @@ impl Histogram {
         self.gamma = image.gamma();
 
         if !image.fixed_colors.is_empty() {
-            let lut = gamma_lut(self.gamma.unwrap_or(0.45455));
-            self.fixed_colors.extend(image.fixed_colors.iter().copied().enumerate().map(|(idx, c)| {
-               HashColor { px: f_pixel::from_rgba(&lut, c), index: idx as _ }
+            self.fixed_colors.extend(image.fixed_colors.iter().copied().enumerate().map(|(idx, rgba)| {
+               HashColor { rgba, index: idx as _ }
             }));
         }
 
@@ -166,15 +166,20 @@ impl Histogram {
     }
 
     /// Add a color guaranteed to be in the final palette
-    pub fn add_fixed_color(&mut self, color: RGBA, gamma: f64) -> Result<(), Error> {
-        let lut = gamma_lut(if gamma > 0. { gamma } else { 0.45455 });
-        let px = f_pixel::from_rgba(&lut, RGBA{r: color.r, g: color.g, b: color.b, a: color.a,});
-
+    ///
+    /// The gamma may be 0 to mean sRGB. All calls to `add_colors` and `add_fixed_color` should use the same gamma value.
+    pub fn add_fixed_color(&mut self, rgba: RGBA, gamma: f64) -> Result<(), Error> {
         if self.fixed_colors.len() >= MAX_COLORS {
             return Err(Unsupported);
         }
+
+        if self.gamma.is_none() && gamma > 0. {
+            self.gamma = Some(gamma);
+        }
+
         let idx = self.fixed_colors.len();
-        self.fixed_colors.insert(HashColor { px, index: idx as _ });
+        self.fixed_colors.insert(HashColor { rgba, index: idx as _ });
+
         Ok(())
     }
 
@@ -199,8 +204,7 @@ impl Histogram {
         }
 
         let gamma = self.gamma.unwrap_or(0.45455);
-        let (_, target_mse, _) = attr.target_mse(self.hashmap.len());
-        let hist = self.finalize_builder(gamma, target_mse).map_err(|_| OutOfMemory)?;
+        let hist = self.finalize_builder(gamma).map_err(|_| OutOfMemory)?;
 
         attr.verbose_print(format!("  made histogram...{} colors found", hist.items.len()));
 
@@ -273,34 +277,30 @@ impl Histogram {
         Ok(())
     }
 
-    pub(crate) fn finalize_builder(&mut self, gamma: f64, target_mse: f64) -> Result<HistogramInternal, Error> {
+    pub(crate) fn finalize_builder(&mut self, gamma: f64) -> Result<HistogramInternal, Error> {
         debug_assert!(gamma > 0.);
 
-        let mut counts = [0; LIQ_MAXCLUSTER];
+        // Fixed colors will be put into normal hashmap, but with very high weight,
+        // and temporarily 0 means this fixed max weight
+        for &HashColor { rgba, .. } in &self.fixed_colors {
+            let px_int = if rgba.a != 0 {
+                unsafe { RGBAInt { rgba }.int }
+            } else { 0 };
+
+            self.hashmap.insert(px_int, (0, rgba));
+        }
+
         let mut temp = Vec::new();
         temp.try_reserve_exact(self.hashmap.len())?;
 
-        let max_fixed_color_difference = (target_mse / 2.).max(2. / 256. / 256.) as f32;
-
-        let lut = gamma_lut(gamma);
-
-        temp.extend(self.hashmap.values().filter_map(|&(boost, color)| {
-            let weight = boost as f32;
-
+        let mut counts = [0; LIQ_MAXCLUSTER];
+        temp.extend(self.hashmap.values().map(|&(boost, color)| {
             let cluster_index = ((color.r >> 7) << 3) | ((color.g >> 7) << 2) | ((color.b >> 7) << 1) | (color.a >> 7);
-            let color = f_pixel::from_rgba(&lut, color);
-
-            // fixed colors are always included in the palette, so it would be wasteful to duplicate them in palette from histogram
-            // FIXME: removes fixed colors from histogram (could be done better by marking them as max importance instead)
-            for HashColor { px, .. } in &self.fixed_colors {
-                if color.diff(px) < max_fixed_color_difference {
-                    return None;
-                }
-            }
-
             counts[cluster_index as usize] += 1;
 
-            Some(TempHistItem { color, weight, cluster_index })
+            // fixed colors result in weight == 0.
+            let weight = boost as f32;
+            TempHistItem { color, weight, cluster_index }
         }));
 
         let mut clusters = [Cluster { begin: 0, end: 0 }; LIQ_MAXCLUSTER];
@@ -326,23 +326,29 @@ impl Histogram {
         // a single color from dominating all others.
         let max_perceptual_weight = 0.1 * (temp.iter().map(|t| f64::from(t.weight)).sum::<f64>() / 256.) as f32;
 
+        let lut = gamma_lut(gamma);
         let mut total_perceptual_weight = 0.;
         for temp_item in temp {
             let cluster = &mut clusters[temp_item.cluster_index as usize];
             let next_index = cluster.end as usize;
             cluster.end += 1;
 
-            let weight = (temp_item.weight * (1. / 256.)).min(max_perceptual_weight);
+            // weight == 0 means it's a fixed color
+            let weight = if temp_item.weight > 0. {
+                (temp_item.weight * (1. / 256.)).min(max_perceptual_weight)
+            } else {
+                max_perceptual_weight * 10.
+            };
             total_perceptual_weight += f64::from(weight);
 
-            items[next_index].color = temp_item.color;
+            items[next_index].color = f_pixel::from_rgba(&lut, temp_item.color);
             items[next_index].perceptual_weight = weight;
             items[next_index].adjusted_weight = weight;
         }
 
         let mut fixed_colors: Vec<_> = self.fixed_colors.iter().collect();
         fixed_colors.sort_by_key(|c| c.index); // original order
-        let fixed_colors = fixed_colors.iter().map(|c| c.px).collect();
+        let fixed_colors = fixed_colors.iter().map(|c| f_pixel::from_rgba(&lut, c.rgba)).collect();
 
         Ok(HistogramInternal { items, total_perceptual_weight, clusters, fixed_colors })
     }
@@ -350,7 +356,7 @@ impl Histogram {
 
 #[derive(Copy, Clone)]
 struct TempHistItem {
-    color: f_pixel, // FIXME: RGBA would be more efficient?
+    color: RGBA,
     weight: f32,
     cluster_index: u8,
 }
@@ -409,18 +415,15 @@ impl std::hash::Hasher for U32Hasher {
     fn write_isize(&mut self, _i: isize) { unimplemented!() }
 }
 
-/// libstd's `HashSet` is afraid of NaN.
-/// contains color + original index (since hashmap forgets order)
+/// ignores the index
 #[derive(PartialEq, Debug)]
-pub(crate) struct HashColor { pub px: f_pixel, pub index: PalIndex }
+pub(crate) struct HashColor { pub rgba: RGBA, pub index: PalIndex }
 
 #[allow(clippy::derived_hash_with_manual_eq)]
 impl Hash for HashColor {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for c in self.px.as_slice() {
-            u32::from_ne_bytes(c.to_ne_bytes()).hash(state);
-        }
+        u32::from_ne_bytes(self.rgba.as_slice().try_into().unwrap()).hash(state)
     }
 }
 

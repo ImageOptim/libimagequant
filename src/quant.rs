@@ -327,7 +327,8 @@ impl fmt::Debug for QuantizationResult {
 ///  `feedback_loop_trials` controls how long the search will take. < 0 skips the iteration.
 #[allow(clippy::or_fun_call)]
 pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_is_zero: bool, max_mse: Option<f64>, mut hist: HistogramInternal) -> Result<(PalF, Option<f64>), Error> {
-    let few_input_colors = hist.items.len() + hist.fixed_colors.len() <= attr.max_colors as usize;
+    // hist.items includes fixed colors already
+    let few_input_colors = hist.items.len() <= attr.max_colors as usize;
     // actual target_mse passed to this method has extra diff from posterization
     if few_input_colors && target_mse_is_zero {
         return Ok(palette_from_histogram(&hist, attr.max_colors));
@@ -342,9 +343,8 @@ pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_i
     let mut palette_error = None;
     let mut palette = loop {
         let max_mse_per_color = target_mse.max(palette_error.unwrap_or(quality_to_mse(1))).max(quality_to_mse(51)) * 1.2;
-        let non_fixed_max_colors = max_colors - hist.fixed_colors.len() as PalLen;
-        let mut new_palette = mediancut(&mut hist, non_fixed_max_colors, target_mse * target_mse_overshoot, max_mse_per_color)?
-            .with_fixed_colors(max_colors, &hist.fixed_colors);
+        let mut new_palette = mediancut(&mut hist, max_colors, target_mse * target_mse_overshoot, max_mse_per_color)?
+            .with_fixed_colors(attr.max_colors, &hist.fixed_colors);
 
         let stage_done = 1. - (f32::from(trials_left.max(0)) / f32::from(total_trials + 1)).powi(2);
         let overall_done = f32::from(attr.progress_stage1) + stage_done * f32::from(attr.progress_stage2);
