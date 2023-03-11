@@ -34,8 +34,6 @@ pub struct Histogram {
 
     /// maps RGBA as u32 to (boosted) count
     hashmap: HashMap<u32, (u32, RGBA), U32Hasher>,
-    /// how many pixels were counted
-    total_area: usize,
 
     posterize_bits: u8,
     max_histogram_entries: u32,
@@ -100,7 +98,6 @@ impl Histogram {
             fixed_colors: HashSet::with_hasher(U32Hasher(0)),
             hashmap: HashMap::with_hasher(U32Hasher(0)),
             gamma: None,
-            total_area: 0,
         }
     }
 
@@ -161,7 +158,6 @@ impl Histogram {
 
         self.reserve(entries.len());
 
-        self.total_area += entries.len();
         for e in entries {
             self.add_color(e.color, e.count);
         }
@@ -256,7 +252,6 @@ impl Histogram {
     pub(crate) fn add_pixel_rows(&mut self, image: &mut DynamicRows<'_, '_>, importance_map: Option<&[u8]>, posterize_bits: u8) -> Result<(), Error> {
         let width = image.width as usize;
         let height = image.height as usize;
-        self.total_area += width * height;
 
         let mut importance_map = importance_map.unwrap_or(&[]).chunks_exact(width).fuse();
         let image_iter = image.rgba_rows_iter()?;
@@ -284,21 +279,13 @@ impl Histogram {
         let mut counts = [0; LIQ_MAXCLUSTER];
         let mut temp = Vec::new();
         temp.try_reserve_exact(self.hashmap.len())?;
-        // Limit perceptual weight to 1/10th of the image surface area to prevent
-        // a single color from dominating all others.
-        // total_area is 0 when using histogram.
-        let max_perceptual_weight = if self.total_area > 0 { 0.1 * self.total_area as f32 } else { f32::INFINITY };
 
         let max_fixed_color_difference = (target_mse / 2.).max(2. / 256. / 256.) as f32;
 
         let lut = gamma_lut(gamma);
 
-        let total_perceptual_weight = self.hashmap.values().map(|&(boost, color)| {
-            if boost == 0 {
-                return 0.;
-            }
-
-            let weight = (boost as f32 / 170.).min(max_perceptual_weight);
+        temp.extend(self.hashmap.values().filter_map(|&(boost, color)| {
+            let weight = boost as f32;
 
             let cluster_index = ((color.r >> 7) << 3) | ((color.g >> 7) << 2) | ((color.b >> 7) << 1) | (color.a >> 7);
             let color = f_pixel::from_rgba(&lut, color);
@@ -307,15 +294,14 @@ impl Histogram {
             // FIXME: removes fixed colors from histogram (could be done better by marking them as max importance instead)
             for HashColor { px, .. } in &self.fixed_colors {
                 if color.diff(px) < max_fixed_color_difference {
-                    return 0.;
+                    return None;
                 }
             }
 
             counts[cluster_index as usize] += 1;
 
-            temp.push(TempHistItem { color, weight, cluster_index });
-            f64::from(weight)
-        }).sum::<f64>();
+            Some(TempHistItem { color, weight, cluster_index })
+        }));
 
         let mut clusters = [Cluster { begin: 0, end: 0 }; LIQ_MAXCLUSTER];
         let mut next_begin = 0;
@@ -336,14 +322,22 @@ impl Histogram {
         });
         let mut items = items.into_boxed_slice();
 
+        // Limit perceptual weight to 1/10th of the image surface area to prevent
+        // a single color from dominating all others.
+        let max_perceptual_weight = 0.1 * (temp.iter().map(|t| f64::from(t.weight)).sum::<f64>() / 256.) as f32;
+
+        let mut total_perceptual_weight = 0.;
         for temp_item in temp {
             let cluster = &mut clusters[temp_item.cluster_index as usize];
             let next_index = cluster.end as usize;
             cluster.end += 1;
 
+            let weight = (temp_item.weight * (1. / 256.)).min(max_perceptual_weight);
+            total_perceptual_weight += f64::from(weight);
+
             items[next_index].color = temp_item.color;
-            items[next_index].perceptual_weight = temp_item.weight;
-            items[next_index].adjusted_weight = temp_item.weight;
+            items[next_index].perceptual_weight = weight;
+            items[next_index].adjusted_weight = weight;
         }
 
         Ok(HistogramInternal { items, total_perceptual_weight, clusters })
