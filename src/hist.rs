@@ -10,7 +10,6 @@ use crate::rows::DynamicRows;
 use crate::Attributes;
 use rgb::ComponentSlice;
 use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
 use std::fmt;
 use std::hash::Hash;
 
@@ -122,7 +121,7 @@ impl Histogram {
         if !image.fixed_colors.is_empty() {
             let lut = gamma_lut(self.gamma.unwrap_or(0.45455));
             self.fixed_colors.extend(image.fixed_colors.iter().copied().enumerate().map(|(idx, c)| {
-               HashColor(f_pixel::from_rgba(&lut, c), idx as _)
+               HashColor { px: f_pixel::from_rgba(&lut, c), index: idx as _ }
             }));
         }
 
@@ -164,7 +163,7 @@ impl Histogram {
 
         self.total_area += entries.len();
         for e in entries {
-            self.add_color(e.color, e.count.try_into().unwrap_or(u16::MAX));
+            self.add_color(e.color, e.count);
         }
 
         Ok(())
@@ -179,7 +178,7 @@ impl Histogram {
             return Err(Unsupported);
         }
         let idx = self.fixed_colors.len();
-        self.fixed_colors.insert(HashColor(px, idx as _));
+        self.fixed_colors.insert(HashColor { px, index: idx as _ });
         Ok(())
     }
 
@@ -213,15 +212,19 @@ impl Histogram {
     }
 
     #[inline(always)]
-    fn add_color(&mut self, rgba: RGBA, boost: u16) {
+    fn add_color(&mut self, rgba: RGBA, boost: u32) {
+        if boost == 0 {
+            return;
+        }
+
         let px_int = if rgba.a != 0 {
             self.posterize_mask() & unsafe { RGBAInt { rgba }.int }
         } else { 0 };
 
         self.hashmap.entry(px_int)
             // it can overflow on images over 2^24 pixels large
-            .and_modify(move |e| e.0 = e.0.saturating_add(u32::from(boost)))
-            .or_insert((u32::from(boost), rgba));
+            .and_modify(move |e| e.0 = e.0.saturating_add(boost))
+            .or_insert((boost, rgba));
     }
 
     fn reserve(&mut self, entries: usize) {
@@ -263,7 +266,8 @@ impl Histogram {
             let pixels_row = &image_iter.row_rgba(&mut temp_row, row)[..width];
             let importance_map = importance_map.next().map(move |m| &m[..width]).unwrap_or(&[]);
             for (col, px) in pixels_row.iter().copied().enumerate() {
-                self.add_color(px, u16::from(importance_map.get(col).copied().unwrap_or(255)));
+                let boost = importance_map.get(col).copied().unwrap_or(255);
+                self.add_color(px, boost.into());
             }
         }
         self.init_posterize_bits(posterize_bits);
@@ -301,8 +305,8 @@ impl Histogram {
 
             // fixed colors are always included in the palette, so it would be wasteful to duplicate them in palette from histogram
             // FIXME: removes fixed colors from histogram (could be done better by marking them as max importance instead)
-            for HashColor(fixed, _) in &self.fixed_colors {
-                if color.diff(fixed) < max_fixed_color_difference {
+            for HashColor { px, .. } in &self.fixed_colors {
+                if color.diff(px) < max_fixed_color_difference {
                     return 0.;
                 }
             }
@@ -409,13 +413,13 @@ impl std::hash::Hasher for U32Hasher {
 /// libstd's `HashSet` is afraid of NaN.
 /// contains color + original index (since hashmap forgets order)
 #[derive(PartialEq, Debug)]
-pub(crate) struct HashColor(pub f_pixel, pub u32);
+pub(crate) struct HashColor { pub px: f_pixel, pub index: PalIndex }
 
 #[allow(clippy::derived_hash_with_manual_eq)]
 impl Hash for HashColor {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for c in self.0.as_slice() {
+        for c in self.px.as_slice() {
             u32::from_ne_bytes(c.to_ne_bytes()).hash(state);
         }
     }
