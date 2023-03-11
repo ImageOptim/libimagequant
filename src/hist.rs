@@ -34,7 +34,7 @@ pub struct Histogram {
     fixed_colors: FixedColorsSet,
 
     /// maps RGBA as u32 to (boosted) count
-    hashmap: HashMap<u32, (u32, RGBA), RgbaHasher>,
+    hashmap: HashMap<u32, (u32, RGBA), U32Hasher>,
     /// how many pixels were counted
     total_area: usize,
 
@@ -42,7 +42,7 @@ pub struct Histogram {
     max_histogram_entries: u32,
 }
 
-pub(crate) type FixedColorsSet = HashSet<HashColor, RgbaHasher>;
+pub(crate) type FixedColorsSet = HashSet<HashColor, U32Hasher>;
 
 #[derive(Clone)]
 pub(crate) struct HistItem {
@@ -98,8 +98,8 @@ impl Histogram {
         Self {
             posterize_bits: attr.posterize_bits(),
             max_histogram_entries: attr.max_histogram_entries,
-            fixed_colors: HashSet::with_hasher(RgbaHasher(0)),
-            hashmap: HashMap::with_hasher(RgbaHasher(0)),
+            fixed_colors: HashSet::with_hasher(U32Hasher(0)),
+            hashmap: HashMap::with_hasher(U32Hasher(0)),
             gamma: None,
             total_area: 0,
         }
@@ -244,7 +244,7 @@ impl Histogram {
         let new_posterize_mask = self.posterize_mask();
 
         let new_size = (self.hashmap.len()/3).max(self.hashmap.capacity()/5);
-        let old_hashmap = std::mem::replace(&mut self.hashmap, HashMap::with_capacity_and_hasher(new_size, RgbaHasher(0)));
+        let old_hashmap = std::mem::replace(&mut self.hashmap, HashMap::with_capacity_and_hasher(new_size, U32Hasher(0)));
         self.hashmap.extend(old_hashmap.into_iter().map(move |(k, v)| {
             (k & new_posterize_mask, v)
         }));
@@ -376,7 +376,7 @@ pub(crate) struct Cluster {
 }
 
 // Simple deterministic hasher for the color hashmap
-impl std::hash::BuildHasher for RgbaHasher {
+impl std::hash::BuildHasher for U32Hasher {
     type Hasher = Self;
     #[inline(always)]
     fn build_hasher(&self) -> Self {
@@ -384,8 +384,8 @@ impl std::hash::BuildHasher for RgbaHasher {
     }
 }
 
-pub(crate) struct RgbaHasher(pub u32);
-impl std::hash::Hasher for RgbaHasher {
+pub(crate) struct U32Hasher(pub u32);
+impl std::hash::Hasher for U32Hasher {
     // magic constant from fxhash. For a single 32-bit key that's all it needs!
     #[inline(always)]
     fn finish(&self) -> u64 { (self.0 as u64).wrapping_mul(0x517cc1b727220a95) }
