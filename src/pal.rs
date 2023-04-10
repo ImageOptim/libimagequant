@@ -294,13 +294,9 @@ impl PalF {
     }
 
     /// Also rounds the input pal
-    pub fn make_int_palette(&mut self, gamma: f64, posterize: u8) -> Palette {
-        let mut int_palette = Palette {
-            count: self.len() as _,
-            entries: [Default::default(); MAX_COLORS],
-        };
+    pub(crate) fn init_int_palette(&mut self, int_palette: &mut Palette, gamma: f64, posterize: u8) {
         let lut = gamma_lut(gamma);
-        for ((f_color, f_pop), int_pal) in self.iter_mut().zip(int_palette.as_mut_slice()) {
+        for ((f_color, f_pop), int_pal) in self.iter_mut().zip(&mut int_palette.entries) {
             let mut px = f_color.to_rgb(gamma)
                 .map(move |c| posterize_channel(c, posterize));
             *f_color = f_pixel::from_rgba(&lut, px);
@@ -311,7 +307,7 @@ impl PalF {
             }
             *int_pal = px;
         }
-        int_palette
+        int_palette.count = self.len() as _;
     }
 }
 
@@ -413,7 +409,11 @@ fn pal_test() {
         assert_eq!(i as usize + 1, p.iter_mut().count());
     }
 
-    let int_pal = p.make_int_palette(0.45455, 0);
+    let mut int_pal = Palette {
+        count: 0,
+        entries: [Default::default(); MAX_COLORS],
+    };
+    p.init_int_palette(&mut int_pal, 0.45455, 0);
 
     for i in 0..=255u8 {
         let rgba = p.as_slice()[i as usize].to_rgb(0.45455);

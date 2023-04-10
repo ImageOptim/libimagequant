@@ -88,11 +88,13 @@ impl QuantizationResult {
         }
 
         let mut palette = self.palette.clone();
-        self.remapped = Some(Box::new(if self.dither_level == 0. {
-            Remapped {
-                int_palette: palette.make_int_palette(self.gamma, self.min_posterization_output),
-                palette_error: Some(remap_to_palette(&mut image.px, image.background.as_deref_mut(), &mut output_pixels, &mut palette)?.0),
-            }
+        let mut remapped = Box::new(Remapped {
+            int_palette: Palette { count: 0, entries: [Default::default(); MAX_COLORS] },
+            palette_error: None,
+        });
+        if self.dither_level == 0. {
+            palette.init_int_palette(&mut remapped.int_palette, self.gamma, self.min_posterization_output);
+            remapped.palette_error = Some(remap_to_palette(&mut image.px, image.background.as_deref_mut(), &mut output_pixels, &mut palette)?.0);
         } else {
             let uses_background = image.background.is_some();
             let dither_map_error = Self::optionally_generate_dither_map(self.use_dither_map, image, uses_background, &mut output_pixels, &mut palette)?;
@@ -104,11 +106,12 @@ impl QuantizationResult {
             let palette_error = dither_map_error.or(self.palette_error);
 
             // remapping above was the last chance to do K-Means iteration, hence the final palette is set after remapping
-            let int_palette = palette.make_int_palette(self.gamma, self.min_posterization_output);
+            palette.init_int_palette(&mut remapped.int_palette, self.gamma, self.min_posterization_output);
+            remapped.palette_error = palette_error;
             let max_dither_error = (palette_error.unwrap_or(quality_to_mse(80)) * 2.4).max(quality_to_mse(35)) as f32;
             remap_to_palette_floyd(image, output_pixels, &palette, self, max_dither_error, output_image_is_remapped)?;
-            Remapped { int_palette, palette_error }
-        }));
+        }
+        self.remapped = Some(remapped);
         Ok(())
     }
 
@@ -202,7 +205,7 @@ impl QuantizationResult {
             }
             None => {
                 if self.int_palette.count == 0 {
-                    self.int_palette = self.palette.make_int_palette(self.gamma, self.min_posterization_output);
+                    self.palette.init_int_palette(&mut self.int_palette, self.gamma, self.min_posterization_output);
                 }
                 &self.int_palette
             },

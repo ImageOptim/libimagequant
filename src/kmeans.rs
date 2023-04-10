@@ -34,7 +34,7 @@ impl Kmeans {
     #[inline]
     pub fn update_color(&mut self, px: f_pixel, value: f32, matched: PalIndex) {
         let c = &mut self.averages[matched as usize];
-        c.sum += (px.0 * value).map(|c| f64::from(c));
+        c.sum += (px.0 * value).map(f64::from);
         c.total += f64::from(value);
     }
 

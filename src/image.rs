@@ -159,7 +159,7 @@ impl<'pixels> Image<'pixels> {
                         i += 1;
                     }
                     while lastcol <= col {
-                        edges[lastcol] = ((u16::from(edges[lastcol]) + 128) as f32
+                        edges[lastcol] = (f32::from(u16::from(edges[lastcol]) + 128)
                             * (255. / (255 + 128) as f32)
                             * (1. - 20. / (20 + neighbor_count) as f32))
                             as u8;
