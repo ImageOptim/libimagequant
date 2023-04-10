@@ -1,5 +1,8 @@
-cmake_minimum_required(VERSION 2.6)
-file(READ version.txt VERSION)
+message(DEPRECATION "The CMake build script of libimagequant is deprecated and unsupported. Please switch to Rust/Cargo https://lib.rs/crates/imagequant-sys")
+
+cmake_minimum_required(VERSION 2.9)
+
+set(VERSION 2.18.0)
 
 project(imagequant C)
 
@@ -33,6 +36,7 @@ add_library(imagequant SHARED
   nearest.c
   pam.c
   kmeans.c
+  remap.c
 )
 
 add_library(imagequant_a STATIC
@@ -43,6 +47,7 @@ add_library(imagequant_a STATIC
   nearest.c
   pam.c
   kmeans.c
+  remap.c
 )
 set_target_properties(imagequant PROPERTIES SOVERSION 0
   VERSION 0.0)
