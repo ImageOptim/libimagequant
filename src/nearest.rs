@@ -13,7 +13,7 @@ impl<'pal> Nearest<'pal> {
             return Err(Error::Unsupported);
         }
         let mut handle = Nearest {
-            root: vp_create_node(&mut indexes, palette)?,
+            root: vp_create_node(&mut indexes, palette),
             palette,
             nearest_other_color_dist: [0.; MAX_COLORS],
         };
@@ -104,16 +104,16 @@ enum NodeInner {
 }
 
 #[inline(never)]
-fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, Error> {
+fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
     debug_assert!(!indexes.is_empty());
     let palette = items.as_slice();
 
     if indexes.len() == 1 {
-        return Ok(Node {
+        return Node {
             vantage_point: palette[usize::from(indexes[0].idx)],
             idx: indexes[0].idx,
             inner: NodeInner::Leaf { len: 0, idxs: [Default::default(); LEAF_MAX_SIZE], colors: Box::new([Default::default(); LEAF_MAX_SIZE]) },
-        });
+        };
     }
 
     let most_popular_item = indexes.iter().enumerate().max_by_key(move |(_, idx)| {
@@ -149,16 +149,16 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Result<Node, Error>
         let radius = radius_squared.sqrt();
         NodeInner::Nodes {
             radius, radius_squared,
-            near: Box::new(vp_create_node(near, items)?),
-            far: Box::new(vp_create_node(far, items)?),
+            near: Box::new(vp_create_node(near, items)),
+            far: Box::new(vp_create_node(far, items)),
         }
     };
 
-    Ok(Node {
+    Node {
         inner,
         vantage_point: palette[usize::from(ref_.idx)],
         idx: ref_.idx,
-    })
+    }
 }
 
 #[inline(never)]
