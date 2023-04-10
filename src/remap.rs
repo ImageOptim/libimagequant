@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::nearest::Nearest;
-use crate::pal::{f_pixel, PalF, PalIndex, Palette, ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A};
+use crate::pal::{f_pixel, PalF, PalIndexRemap, Palette, ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A};
 use crate::quant::QuantizationResult;
 use crate::rayoff::*;
 use crate::rows::{temp_buf, DynamicRows};
@@ -24,11 +24,11 @@ pub(crate) struct Remapped {
 }
 
 #[inline(never)]
-pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Option<&mut Image<'_>>, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<PalIndex>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, PalIndex>), Error> {
+pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Option<&mut Image<'_>>, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<PalIndexRemap>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, PalIndexRemap>), Error> {
     let n = Nearest::new(palette)?;
     let colors = palette.as_slice();
     let palette_len = colors.len();
-    if palette_len > u8::MAX as usize + 1 {
+    if palette_len > PalIndexRemap::MAX as usize + 1 {
         return Err(Error::Unsupported);
     }
 
@@ -41,14 +41,14 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
 
     let input_rows = px.rows_iter(&mut tls_tmp.1)?;
     let (background, transparent_index) = background.map(|background| {
-        (Some(background), n.search(&f_pixel::default(), 0).0)
+        (Some(background), n.search(&f_pixel::default(), 0).0 as PalIndexRemap)
     })
     .filter(|&(_, transparent_index)| colors[usize::from(transparent_index)].a < MIN_OPAQUE_A)
     .unwrap_or((None, 0));
     let background = background.map(|bg| bg.px.rows_iter(&mut tls_tmp.1)).transpose()?;
 
     if background.is_some() {
-        tls_tmp.0.update_color(f_pixel::default(), 1., transparent_index);
+        tls_tmp.0.update_color(f_pixel::default(), 1., transparent_index as _);
     }
 
     drop(tls_tmp);
@@ -69,7 +69,8 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
 
         let mut last_match = 0;
         for (col, (inp, out)) in row_pixels.iter().zip(output_pixels_row).enumerate() {
-            let (matched, diff) = n.search(inp, last_match);
+            let (matched, diff) = n.search(inp, last_match as _);
+            let matched = matched as PalIndexRemap;
             last_match = matched;
             if let Some(bg) = bg_pixels.get(col) {
                 let bg_diff = bg.diff(inp);
@@ -81,7 +82,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
             }
             remapping_error += f64::from(diff);
             out.write(matched);
-            kmeans.update_color(*inp, 1., matched);
+            kmeans.update_color(*inp, 1., matched as _);
         }
         remapping_error
     })
@@ -142,7 +143,7 @@ fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel
 ///
 ///  If `output_image_is_remapped` is true, only pixels noticeably changed by error diffusion will be written to output image.
 #[inline(never)]
-pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>, palette: &PalF, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), Error> {
+pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndexRemap>>, palette: &PalF, quant: &QuantizationResult, max_dither_error: f32, output_image_is_remapped: bool) -> Result<(), Error> {
     let progress_stage1 = if quant.use_dither_map != DitherMapMode::None { 20 } else { 0 };
 
     let width = input_image.width();
@@ -158,16 +159,13 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
 
     let n = Nearest::new(palette)?;
     let palette = palette.as_slice();
-    if palette.len() > u8::MAX as usize + 1 {
-        return Err(Error::Unsupported);
-    }
 
     let mut background = input_image.background.as_mut().map(|bg| {
         bg.px.prepare_iter(&mut temp_row, true)?;
         Ok::<_, Error>(&bg.px)
     }).transpose()?;
 
-    let transparent_index = if background.is_some() { n.search(&f_pixel::default(), 0).0 } else { 0 };
+    let transparent_index = if background.is_some() { n.search(&f_pixel::default(), 0).0 as PalIndexRemap } else { 0 };
     if background.is_some() && palette[transparent_index as usize].a > MIN_OPAQUE_A {
         background = None;
     }
@@ -233,7 +231,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
 }
 
 #[inline(never)]
-fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIndex>], width: u32, dither_map: &[u8], base_dithering_level: f32, max_dither_error: f32, n: &Nearest, palette: &[f_pixel], transparent_index: PalIndex, bg_pixels: &[f_pixel], guess_from_remapped_pixels: bool, diffusion: &mut [f_pixel], even_row: bool) {
+fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIndexRemap>], width: u32, dither_map: &[u8], base_dithering_level: f32, max_dither_error: f32, n: &Nearest, palette: &[f_pixel], transparent_index: PalIndexRemap, bg_pixels: &[f_pixel], guess_from_remapped_pixels: bool, diffusion: &mut [f_pixel], even_row: bool) {
     let width = width as usize;
     assert_eq!(row_pixels.len(), width);
     assert_eq!(output_pixels_row.len(), width);
@@ -265,8 +263,9 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIn
         } else {
             last_match
         };
-        let (mut matched, dither_diff) = n.search(&spx, guessed_match);
-        last_match = matched;
+        let (matched, dither_diff) = n.search(&spx, guessed_match as _);
+        let mut matched = matched  as PalIndexRemap;
+        last_match = matched as PalIndexRemap;
         let mut output_px = palette[last_match as usize];
         if let Some(bg_pixel) = bg_pixels.get(col) {
             // if the background makes better match *with* dithering, it's a definitive win

@@ -1,7 +1,7 @@
 use crate::attr::Attributes;
 use crate::blur::{liq_blur, liq_max3, liq_min3};
 use crate::error::*;
-use crate::pal::{f_pixel, PalF, PalIndex, MAX_COLORS, MIN_OPAQUE_A, RGBA};
+use crate::pal::{f_pixel, PalF, PalIndexRemap, MAX_COLORS, MIN_OPAQUE_A, RGBA};
 use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
 use crate::seacow::Pointer;
@@ -123,7 +123,7 @@ impl<'pixels> Image<'pixels> {
         true
     }
 
-    pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, PalIndex>, palette: &PalF, uses_background: bool) -> Result<(), Error> {
+    pub(crate) fn update_dither_map(&mut self, remapped_image: &RowBitmap<'_, PalIndexRemap>, palette: &PalF, uses_background: bool) -> Result<(), Error> {
         if self.edges.is_none() {
             self.contrast_maps()?;
         }

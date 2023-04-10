@@ -6,6 +6,9 @@ use crate::{Error, OrdFloat};
 impl<'pal> Nearest<'pal> {
     #[inline(never)]
     pub fn new(palette: &'pal PalF) -> Result<Self, Error> {
+        if palette.len() > PalIndex::MAX as usize + 1 {
+            return Err(Error::Unsupported);
+        }
         let mut indexes: Vec<_> = (0..palette.len())
             .map(|idx| MapIndex { idx: idx as _ })
             .collect();
@@ -20,7 +23,7 @@ impl<'pal> Nearest<'pal> {
         for (i, color) in palette.as_slice().iter().enumerate() {
             let mut best = Visitor {
                 idx: 0, distance: f32::MAX, distance_squared: f32::MAX,
-                exclude: i as i16,
+                exclude: Some(i as PalIndex),
             };
             vp_search_node(&handle.root, color, &mut best);
             handle.nearest_other_color_dist[i] = best.distance_squared / 4.;
@@ -42,14 +45,14 @@ impl Nearest<'_> {
                 distance: guess_diff.sqrt(),
                 distance_squared: guess_diff,
                 idx: likely_colormap_index,
-                exclude: -1,
+                exclude: None,
             }
         } else {
-            Visitor { distance: f32::INFINITY, distance_squared: f32::INFINITY, idx: 0, exclude: -1, }
+            Visitor { distance: f32::INFINITY, distance_squared: f32::INFINITY, idx: 0, exclude: None, }
         };
 
         vp_search_node(&self.root, px, &mut best_candidate);
-        (best_candidate.idx as PalIndex, best_candidate.distance_squared)
+        (best_candidate.idx, best_candidate.distance_squared)
     }
 }
 
@@ -67,13 +70,13 @@ pub struct Visitor {
     pub distance: f32,
     pub distance_squared: f32,
     pub idx: PalIndex,
-    pub exclude: i16,
+    pub exclude: Option<PalIndex>,
 }
 
 impl Visitor {
     #[inline]
     fn visit(&mut self, distance: f32, distance_squared: f32, idx: PalIndex) {
-        if distance_squared < self.distance_squared && self.exclude != i16::from(idx) {
+        if distance_squared < self.distance_squared && self.exclude != Some(idx) {
             self.distance = distance;
             self.distance_squared = distance_squared;
             self.idx = idx;

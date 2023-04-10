@@ -4,7 +4,7 @@ use crate::hist::HistogramInternal;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
-use crate::pal::{PalIndex, PalF, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
+use crate::pal::{PalIndexRemap, PalF, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
 use crate::remap::{mse_to_standard_mse, DitherMapMode, Remapped};
 use crate::remap::{remap_to_palette, remap_to_palette_floyd};
 use crate::seacow::RowBitmapMut;
@@ -74,14 +74,14 @@ impl QuantizationResult {
     /// This is 100% redundant and unnecessary. This work is done anyway when remap is called.
     /// However, this can be called before calling `image.set_background()`, so it may allow better parallelization while the background is generated on another thread.
     #[doc(hidden)]
-    pub fn optionally_prepare_for_dithering_with_background_set(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<PalIndex>]) -> Result<(), Error> {
+    pub fn optionally_prepare_for_dithering_with_background_set(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<PalIndexRemap>]) -> Result<(), Error> {
         let mut output_pixels = RowBitmapMut::new_contiguous(output_buf, image.width());
         Self::optionally_generate_dither_map(self.use_dither_map, image, true, &mut output_pixels, &mut self.palette)?;
         Ok(())
     }
 
     #[inline(never)]
-    pub(crate) fn write_remapped_image_rows_internal(&mut self, image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndex>>) -> Result<(), Error> {
+    pub(crate) fn write_remapped_image_rows_internal(&mut self, image: &mut Image, mut output_pixels: RowBitmapMut<'_, MaybeUninit<PalIndexRemap>>) -> Result<(), Error> {
         let progress_stage1 = if self.use_dither_map != DitherMapMode::None { 20 } else { 0 };
         if self.remap_progress(progress_stage1 as f32 * 0.25) {
             return Err(Error::Aborted);
@@ -115,7 +115,7 @@ impl QuantizationResult {
         Ok(())
     }
 
-    fn optionally_generate_dither_map(use_dither_map: DitherMapMode, image: &mut Image<'_>, uses_background: bool, output_pixels: &mut RowBitmapMut<'_, MaybeUninit<PalIndex>>, palette: &mut PalF) -> Result<Option<f64>, Error> {
+    fn optionally_generate_dither_map(use_dither_map: DitherMapMode, image: &mut Image<'_>, uses_background: bool, output_pixels: &mut RowBitmapMut<'_, MaybeUninit<PalIndexRemap>>, palette: &mut PalF) -> Result<Option<f64>, Error> {
         let is_image_huge = (image.px.width * image.px.height) > 2000 * 2000;
         let allow_dither_map = use_dither_map == DitherMapMode::Always || (!is_image_huge && use_dither_map != DitherMapMode::None);
         let generate_dither_map = allow_dither_map && image.dither_map.is_none();
@@ -231,7 +231,7 @@ impl QuantizationResult {
     /// Remap image into a palette + indices.
     ///
     /// Returns the palette and a 1-byte-per-pixel uncompressed bitmap
-    pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<RGBA>, Vec<PalIndex>), Error> {
+    pub fn remapped(&mut self, image: &mut Image<'_>) -> Result<(Vec<RGBA>, Vec<PalIndexRemap>), Error> {
         let mut buf = Vec::new();
         let pal = self.remap_into_vec(image, &mut buf)?;
         Ok((pal, buf))
@@ -243,7 +243,7 @@ impl QuantizationResult {
     ///
     /// Returns the palette.
     #[inline]
-    pub fn remap_into_vec(&mut self, image: &mut Image<'_>, buf: &mut Vec<PalIndex>) -> Result<Vec<RGBA>, Error> {
+    pub fn remap_into_vec(&mut self, image: &mut Image<'_>, buf: &mut Vec<PalIndexRemap>) -> Result<Vec<RGBA>, Error> {
         let len = image.width() * image.height();
         // Capacity is essential here, as it creates uninitialized buffer
         unsafe {
@@ -264,7 +264,7 @@ impl QuantizationResult {
     /// You should call [`palette()`][Self::palette] _after_ this call, but not before it,
     /// because remapping refines the palette.
     #[inline]
-    pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<PalIndex>]) -> Result<(), Error> {
+    pub fn remap_into(&mut self, image: &mut Image<'_>, output_buf: &mut [MaybeUninit<PalIndexRemap>]) -> Result<(), Error> {
         let required_size = (image.width()) * (image.height());
         let output_buf = output_buf.get_mut(0..required_size).ok_or(BufferTooSmall)?;
 
