@@ -9,7 +9,7 @@ use crate::seacow::SeaCow;
 use crate::Attributes;
 use crate::Error;
 use crate::Image;
-use crate::Palette;
+use crate::pal::Palette;
 use crate::QuantizationResult;
 use crate::RGBA;
 use std::mem::MaybeUninit;
