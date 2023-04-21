@@ -52,9 +52,6 @@ pub use error::Error as liq_error;
 
 const LIQ_HIGH_MEMORY_LIMIT: usize = 1 << 26;
 
-/// I don't care about NaNs, just sort them!
-type OrdFloat<F> = noisy_float::NoisyFloat<F, noisy_float::checkers::FiniteChecker>;
-
 /// [Start here][Attributes]: creates new handle for library configuration
 ///
 /// See [`Attributes`]
@@ -273,6 +270,42 @@ impl<T> PushInCapacity<T> for Vec<T> {
     }
 }
 
+/// Rust is too conservative about sorting floats.
+/// This library uses only finite values, so they're sortable.
+#[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
+#[repr(transparent)]
+struct OrdFloat<T>(pub(crate) T);
+
+impl Eq for OrdFloat<f32> {
+}
+
+impl Ord for OrdFloat<f32> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering { self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal) }
+}
+
+impl Eq for OrdFloat<f64> {
+}
+
+impl Ord for OrdFloat<f64> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering { self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal) }
+}
+
+impl OrdFloat<f32> {
+    pub fn new(v: f32) -> Self {
+        debug_assert!(v.is_finite());
+        Self(v)
+    }
+}
+
+impl OrdFloat<f64> {
+    pub fn new64(v: f64) -> Self {
+        debug_assert!(v.is_finite());
+        Self(v)
+    }
+}
+
 #[test]
 fn test_fixed_colors() {
     let attr = Attributes::new();
@@ -296,4 +329,3 @@ fn test_fixed_colors() {
         assert!(pal[55..].iter().any(|&p| p == RGBA::new(c,c,c,255)));
     }
 }
-

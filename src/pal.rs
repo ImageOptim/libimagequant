@@ -269,7 +269,7 @@ impl PalF {
         for (i, fixed_color) in fixed_colors.iter().enumerate().take(self.len()) {
             let (best_idx, _) = self.colors.iter().enumerate().skip(i).min_by_key(|(_, pal_color)| {
                 // not using Nearest, because creation of the index may take longer than naive search once
-                OrdFloat::<f32>::unchecked_new(pal_color.diff(fixed_color))
+                OrdFloat::new(pal_color.diff(fixed_color))
             }).expect("logic bug in fixed colors, please report a bug");
             debug_assert!(best_idx >= i);
             self.swap(i, best_idx);

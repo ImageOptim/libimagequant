@@ -28,7 +28,6 @@ doctest = false
 
 [dependencies]
 arrayvec = "0.7.2"
-noisy_float = "0.2.0"
 rgb = { version = "0.8.33", features = ["argb"] }
 rayon = { version = "1.5.3", optional = true }
 thread_local = { version = "1.1.4", optional = true }

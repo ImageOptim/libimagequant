@@ -291,7 +291,7 @@ fn sort_palette(attr: &Attributes, palette: &mut PalF) {
     let mut tmp: ArrayVec<_, {MAX_COLORS}> = palette.iter_mut().map(|(c,p)| (*c, *p)).collect();
     tmp.sort_by_key(|(color, pop)| {
         let is_transparent = color.a <= MAX_TRANSP_A;
-        (is_transparent == last_index_transparent, Reverse(OrdFloat::<f32>::unchecked_new(pop.popularity())))
+        (is_transparent == last_index_transparent, Reverse(OrdFloat::new(pop.popularity())))
     });
     palette.iter_mut().zip(tmp).for_each(|((dcol, dpop), (scol, spop))| {
         *dcol = scol;
@@ -301,7 +301,7 @@ fn sort_palette(attr: &Attributes, palette: &mut PalF) {
     if last_index_transparent {
         let alpha_index = palette.as_slice().iter().enumerate()
             .filter(|(_, c)| c.a <= MAX_TRANSP_A)
-            .min_by_key(|(_, c)| OrdFloat::<f32>::unchecked_new(c.a))
+            .min_by_key(|(_, c)| OrdFloat::new(c.a))
             .map(|(i, _)| i);
         if let Some(alpha_index) = alpha_index {
             let last_index = palette.as_slice().len() - 1;

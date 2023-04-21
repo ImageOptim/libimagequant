@@ -120,13 +120,13 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
     }
 
     let most_popular_item = indexes.iter().enumerate().max_by_key(move |(_, idx)| {
-        OrdFloat::<f32>::unchecked_new(items.pop_as_slice()[usize::from(idx.idx)].popularity())
+        OrdFloat::new(items.pop_as_slice()[usize::from(idx.idx)].popularity())
     }).map(|(n, _)| n).unwrap_or_default();
     indexes.swap(most_popular_item, 0);
     let (ref_, indexes) = indexes.split_first_mut().unwrap();
 
     let vantage_point = palette[usize::from(ref_.idx)];
-    indexes.sort_unstable_by_key(move |i| OrdFloat::<f32>::unchecked_new(vantage_point.diff(&palette[usize::from(i.idx)])));
+    indexes.sort_unstable_by_key(move |i| OrdFloat::new(vantage_point.diff(&palette[usize::from(i.idx)])));
 
     let num_indexes = indexes.len();
 

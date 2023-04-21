@@ -43,7 +43,7 @@ impl<'hist> MBox<'hist> {
         // It's possible that an average color will end up being bad for every entry,
         // so prefer picking actual colors so that at least one histogram entry will be satisfied.
         if (hist.len() < 500 && hist.len() > 2) || Self::is_useless_color(&avg_color, hist, other_boxes) {
-            avg_color = hist.iter().min_by_key(|a| OrdFloat::<f32>::unchecked_new(avg_color.diff(&a.color))).map(|a| a.color).unwrap_or_default();
+            avg_color = hist.iter().min_by_key(|a| OrdFloat::new(avg_color.diff(&a.color))).map(|a| a.color).unwrap_or_default();
         }
         Self::new_c(hist, adjusted_weight_sum, avg_color)
     }
@@ -105,7 +105,7 @@ impl<'hist> MBox<'hist> {
             ChanVariance { chan: 2, variance: vars[2] },
             ChanVariance { chan: 3, variance: vars[3] },
         ];
-        channels.sort_by_key(|a| Reverse(OrdFloat::<f32>::unchecked_new(a.variance)));
+        channels.sort_by_key(|a| Reverse(OrdFloat::new(a.variance)));
 
         for a in self.colors.iter_mut() {
             let chans = a.color.as_slice();
@@ -306,7 +306,7 @@ impl<'hist> MedianCutter<'hist> {
                 }
                 (i, thissum)
             })
-            .max_by_key(|&(_, thissum)| OrdFloat::<f64>::unchecked_new(thissum))
+            .max_by_key(|&(_, thissum)| OrdFloat::new64(thissum))
             .map(|(i, _)| self.boxes.swap_remove(i))
     }
 }
