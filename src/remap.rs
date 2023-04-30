@@ -24,7 +24,7 @@ pub(crate) struct Remapped {
 }
 
 #[inline(never)]
-pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Option<&mut Image<'_>>, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<PalIndexRemap>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, PalIndexRemap>), Error> {
+pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Option<&mut Image<'_>>, importance_map: Option<&[u8]>, output_pixels: &'x mut RowBitmapMut<'b, MaybeUninit<PalIndexRemap>>, palette: &mut PalF) -> Result<(f64, RowBitmap<'x, PalIndexRemap>), Error> {
     let n = Nearest::new(palette)?;
     let colors = palette.as_slice();
     let palette_len = colors.len();
@@ -62,6 +62,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
         let (kmeans, temp_row, temp_row_f, temp_row_f_bg) = &mut *tls_res.borrow_mut();
 
         let output_pixels_row = &mut output_pixels_row[..width];
+        let importance_map = importance_map.and_then(|m| m.get(row * width..)).unwrap_or(&[]);
         let row_pixels = &input_rows.row_f_shared(temp_row, temp_row_f, row)[..width];
         let bg_pixels = if let Some(background) = &background  {
             &background.row_f_shared(temp_row, temp_row_f_bg, row)[..width]
@@ -82,7 +83,8 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
             }
             remapping_error += f64::from(diff);
             out.write(matched);
-            kmeans.update_color(*inp, 1., matched as _);
+            let importance = importance_map.get(col).copied().unwrap_or(1) as f32;
+            kmeans.update_color(*inp, importance, matched as _);
         }
         remapping_error
     })

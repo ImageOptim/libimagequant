@@ -71,7 +71,7 @@ impl<'pixels> Image<'pixels> {
     }
 
     pub(crate) fn free_histogram_inputs(&mut self) {
-        self.importance_map = None;
+        // importance_map must stay for remapping, because remap performs kmeans on potentially-unimportant pixels
         self.px.free_histogram_inputs();
     }
 
@@ -178,7 +178,11 @@ impl<'pixels> Image<'pixels> {
     ///
     /// The map must be `width`×`height` pixels large. Higher numbers = more important.
     pub fn set_importance_map(&mut self, map: impl Into<Box<[u8]>>) -> Result<(), Error> {
-        self.importance_map = Some(map.into());
+        let map = map.into();
+        if map.len() != self.width() * self.height() {
+            return Err(BufferTooSmall);
+        }
+        self.importance_map = Some(map);
         Ok(())
     }
 

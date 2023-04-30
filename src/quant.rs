@@ -94,7 +94,7 @@ impl QuantizationResult {
         });
         if self.dither_level == 0. {
             palette.init_int_palette(&mut remapped.int_palette, self.gamma, self.min_posterization_output);
-            remapped.palette_error = Some(remap_to_palette(&mut image.px, image.background.as_deref_mut(), &mut output_pixels, &mut palette)?.0);
+            remapped.palette_error = Some(remap_to_palette(&mut image.px, image.background.as_deref_mut(), image.importance_map.as_deref(), &mut output_pixels, &mut palette)?.0);
         } else {
             let uses_background = image.background.is_some();
             let dither_map_error = Self::optionally_generate_dither_map(self.use_dither_map, image, uses_background, &mut output_pixels, &mut palette)?;
@@ -124,7 +124,7 @@ impl QuantizationResult {
         }
 
         // If dithering (with dither map) is required, this image is used to find areas that require dithering
-        let (palette_error, row_pointers_remapped) = remap_to_palette(&mut image.px, None, output_pixels, palette)?;
+        let (palette_error, row_pointers_remapped) = remap_to_palette(&mut image.px, None, image.importance_map.as_deref(), output_pixels, palette)?;
         image.update_dither_map(&row_pointers_remapped, &*palette, uses_background)?;
         Ok(Some(palette_error))
     }

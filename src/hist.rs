@@ -257,6 +257,8 @@ impl Histogram {
         let width = image.width as usize;
         let height = image.height as usize;
 
+        debug_assert!(importance_map.map_or(true, |m| m.len() == image.width() * image.height()));
+
         let mut importance_map = importance_map.unwrap_or(&[]).chunks_exact(width).fuse();
         let image_iter = image.rgba_rows_iter()?;
 
