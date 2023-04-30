@@ -1,6 +1,6 @@
 [package]
 name = "imagequant"
-version = "4.1.1"
+version = "4.2.0"
 description = "Convert 24/32-bit images to 8-bit palette with alpha channel.\nFor lossy PNG compression and high-quality GIF images\nDual-licensed like pngquant. See https://pngquant.org for details."
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 license = "GPL-3.0-or-later"
@@ -12,7 +12,7 @@ keywords = ["quantization", "palette", "pngquant", "compression", "gif"]
 include = ["COPYRIGHT", "src/*.rs", "*.h", "README.md", "Cargo.toml"]
 readme = "README.md"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.63"
 
 [features]
 default = ["threads"]
@@ -42,7 +42,6 @@ members = ["imagequant-sys", "imagequant-sys/c_test"]
 
 [package.metadata.release]
 consolidate-commits = true
-consolidate-pushes = true
 tag-message = ""
 tag-prefix = ""
 tag-name = "{{version}}"

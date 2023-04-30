@@ -1,3 +1,15 @@
+version 4.2
+-----------
+ - rewritten and improved handling of fixed palette colors
+ - support for palettes larger than 256 colors
+ - fix for remapping when importance_map has lots pixels with 0 importance
+
+version 4.1
+-----------
+ - improved dithering over preset background
+ - remap_into_vec method
+ - fix for images over 16 megapixels
+
 version 4.0
 -----------
  - rewritten in Rust

@@ -46,7 +46,6 @@ asset = [{from = "libimagequant.h"}]
 
 [package.metadata.release]
 consolidate-commits = true
-consolidate-pushes = true
 tag-message = ""
 tag-prefix = ""
 tag-name = "{{version}}"
