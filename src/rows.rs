@@ -42,8 +42,10 @@ impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
                 let lut = gamma_lut(self.px.gamma);
                 let row_pixels = self.px.row_rgba(temp_row, row);
 
-                let t = self.temp_f_row.as_mut().unwrap();
-                DynamicRows::convert_row_to_f(t, row_pixels, &lut)
+                match self.temp_f_row.as_mut() {
+                    Some(t) => DynamicRows::convert_row_to_f(t, row_pixels, &lut),
+                    None => &mut [], // this can't happen
+                }
             },
         }
     }

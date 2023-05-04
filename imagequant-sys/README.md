@@ -33,8 +33,8 @@ imagequant = "4.0"
    The C API is exposed by a separate package called [`imagequant-sys`](https://github.com/ImageOptim/libimagequant/tree/main/imagequant-sys).
 3. Run `cargo build --release`
 
-   This will build `target/release/libimagequant.a` or `target\release\libimagequant.lib` that you can use for static linking.
-   Please don't worry about the size of the `.a` file. It includes a few unused objects. It only adds 500KB when linked. Use Link-Time-Optimization (LTO) option in your compiler, and/or add `-Wl,--as-needed` to linker flags if necessary.
+   This will build `target/release/libimagequant_sys.a` or `target\release\libimagequant_sys.lib` that you can use for static linking.
+   Please don't worry about the size of the `.a` file. It includes a few unused objects. It only adds 500KB when linked. Use Link-Time-Optimization (LTO) option in your compiler, and/or add `-Wl,--as-needed` to linker flags if necessary. You can make the binary a bit smaller by building with `cargo +nightly build --target $TARGET_ARCH --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort`.
 
 The repository includes an Xcode project file that can be used on iOS and macOS.
 

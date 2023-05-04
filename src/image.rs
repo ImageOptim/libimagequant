@@ -262,7 +262,7 @@ impl<'pixels> Image<'pixels> {
 
         let mut rows_iter = self.px.all_rows_f()?.chunks_exact(width);
 
-        let mut next_row = rows_iter.next().unwrap();
+        let mut next_row = rows_iter.next().ok_or(Error::InvalidPointer)?;
         let mut curr_row = next_row;
         let mut prev_row;
 

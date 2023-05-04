@@ -23,6 +23,10 @@ large_palettes = []
 # this is private and unstable for imagequant-sys only, do not use
 _internal_c_ffi = []
 
+[profile.release]
+debug = false
+panic = "abort"
+
 [lib]
 doctest = false
 
