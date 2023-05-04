@@ -22,11 +22,9 @@ static: $(STATICLIB)
 
 java: $(JNILIB)
 
-target:: Cargo.toml
+$(STATICLIB): Cargo.toml
 	cargo build --release
-
-$(STATICLIB): target
-	cp target/release/$(STATICLIB) $(STATICLIB)
+	cp ../target/release/libimagequant_sys.a $(STATICLIB)
 
 $(JNILIB): $(JAVAHEADERS) $(STATICLIB) org/pngquant/PngQuant.c
 	$(CC) -g $(CFLAGS) $(LDFLAGS) $(JAVAINCLUDE) -shared -o $@ org/pngquant/PngQuant.c $(STATICLIB)
@@ -49,7 +47,7 @@ lodepng.c:
 clean:
 	rm -f $(SHAREDLIBVER) $(SHAREDLIB) $(STATICLIB)
 	rm -f $(JAVAHEADERS) $(JAVACLASSES) $(JNILIB) example
-	rm -rf target
+	rm -rf ../target
 
 distclean: clean
 	rm -f imagequant.pc
@@ -71,5 +69,5 @@ uninstall:
 $(PKGCONFIG): Cargo.toml
 	sed 's|@PREFIX@|$(PREFIX)|;s|@VERSION@|$(VERSION)|' < imagequant.pc.in > $(PKGCONFIG)
 
-.PHONY: all static clean distclean java target
+.PHONY: all static clean distclean java
 .DELETE_ON_ERROR:
