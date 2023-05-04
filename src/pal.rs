@@ -25,7 +25,10 @@ pub const MAX_TRANSP_A: f32 = 255. / 256. * LIQ_WEIGHT_A;
 ///
 /// ARGB layout is important for x86 SIMD.
 /// I've created the newtype wrapper to try a 16-byte alignment, but it didn't improve perf :(
-#[repr(C, align(16))]
+#[cfg_attr(
+    any(target_arch = "x86_64", all(target_feature = "neon", target_arch = "aarch64")),
+    repr(C, align(16))
+)]
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
 #[allow(non_camel_case_types)]
 pub struct f_pixel(pub ARGBF);
