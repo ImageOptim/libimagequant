@@ -36,7 +36,7 @@ $(JAVAHEADERS): %.h: %.class
 	javah -o $@ $(subst /,., $(patsubst %.class,%,$<)) && touch $@
 
 example: example.c lodepng.h lodepng.c $(STATICLIB)
-	$(CC) -g $(CFLAGS) -Wall example.c $(STATICLIB) -lm -o example
+	$(CC) -g $(CFLAGS) -Wall example.c $(STATICLIB) -lm -lpthread -ldl -o example
 
 lodepng.h:
 	curl -o lodepng.h -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h
