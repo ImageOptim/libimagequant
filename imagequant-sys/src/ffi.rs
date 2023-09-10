@@ -53,6 +53,7 @@ pub type liq_image_get_rgba_row_callback = unsafe extern "C" fn(row_out: *mut Ma
 
 bitflags::bitflags! {
     #[repr(C)]
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
     pub struct liq_ownership: c_int {
         /// Moves ownership of the rows array. It will free it using `free()` or custom allocator.
         const LIQ_OWN_ROWS = 4;
