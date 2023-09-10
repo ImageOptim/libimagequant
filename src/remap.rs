@@ -83,7 +83,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
             }
             remapping_error += f64::from(diff);
             out.write(matched);
-            let importance = importance_map.get(col).copied().unwrap_or(1) as f32;
+            let importance = f32::from(importance_map.get(col).copied().unwrap_or(1));
             kmeans.update_color(*inp, importance, matched as _);
         }
         remapping_error

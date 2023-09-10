@@ -261,7 +261,7 @@ impl Attributes {
     pub(crate) fn verbose_print(self: &Attributes, msg: impl AsRef<str>) {
         fn _print(a: &Attributes, msg: &str) {
             if let Some(f) = &a.log_callback {
-                f(a, msg)
+                f(a, msg);
             }
         }
         _print(self, msg.as_ref());
@@ -270,7 +270,7 @@ impl Attributes {
     #[inline]
     pub(crate) fn verbose_printf_flush(self: &Attributes) {
         if let Some(f) = &self.log_flush_callback {
-            f(self)
+            f(self);
         }
     }
 

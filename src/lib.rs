@@ -5,6 +5,14 @@
 //! See `examples/` directory for example code.
 #![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
 #![deny(missing_docs)]
+#![allow(clippy::if_not_else)]
+#![allow(clippy::inline_always)]
+#![allow(clippy::map_unwrap_or)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::redundant_closure_for_method_calls)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::wildcard_imports)]
+#![deny(clippy::semicolon_if_nothing_returned)]
 
 mod attr;
 mod blur;

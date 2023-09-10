@@ -176,7 +176,7 @@ pub(crate) struct PalPop(f32);
 
 impl PalPop {
     #[inline(always)]
-    pub fn is_fixed(&self) -> bool {
+    pub fn is_fixed(self) -> bool {
         self.0 < 0.
     }
 
@@ -195,7 +195,7 @@ impl PalPop {
     }
 
     #[inline(always)]
-    pub fn popularity(&self) -> f32 {
+    pub fn popularity(self) -> f32 {
         self.0.abs()
     }
 }

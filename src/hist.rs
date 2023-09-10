@@ -399,7 +399,7 @@ pub(crate) struct U32Hasher(pub u32);
 impl std::hash::Hasher for U32Hasher {
     // magic constant from fxhash. For a single 32-bit key that's all it needs!
     #[inline(always)]
-    fn finish(&self) -> u64 { (self.0 as u64).wrapping_mul(0x517cc1b727220a95) }
+    fn finish(&self) -> u64 { u64::from(self.0).wrapping_mul(0x517cc1b727220a95) }
     #[inline(always)]
     fn write_u32(&mut self, i: u32) { self.0 = i; }
 
@@ -425,7 +425,7 @@ pub(crate) struct HashColor { pub rgba: RGBA, pub index: PalIndex }
 impl Hash for HashColor {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        u32::from_ne_bytes(self.rgba.as_slice().try_into().unwrap()).hash(state)
+        u32::from_ne_bytes(self.rgba.as_slice().try_into().unwrap()).hash(state);
     }
 }
 
