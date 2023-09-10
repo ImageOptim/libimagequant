@@ -1,6 +1,6 @@
 //! Exports API for C programs and C-FFI-compatible languages. See `libimagequant.h` or <https://pngquant.org/lib/> for C docs.
 //!
-//! This crate is not supposed to be used in Rust directly. For Rust, see the parent [imagequant](//lib.rs/imagequant) crate.
+//! This crate is not supposed to be used in Rust directly. For Rust, see the parent [imagequant](https://lib.rs/imagequant) crate.
 #![allow(non_camel_case_types)]
 #![allow(clippy::missing_safety_doc)]
 

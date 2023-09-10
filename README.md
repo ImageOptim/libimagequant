@@ -73,7 +73,7 @@ If you want to build a dynamic library, but aren't bothered by soname and rpath 
 
 #### Building with `cargo-c`
 
-The [`cargo-c`](//lib.rs/cargo-c) tool knows how to build and link so/dylib properly, and generates an accurate pkg-config file, so it's de-facto required for a correct system-wide install of a dynamic library.
+The [`cargo-c`](https://lib.rs/cargo-c) tool knows how to build and link so/dylib properly, and generates an accurate pkg-config file, so it's de-facto required for a correct system-wide install of a dynamic library.
 
 ```bash
 rustup update
@@ -90,7 +90,7 @@ pngquant v2 can use this library as a dynamic library. However, pngquant v4 does
 
 ### Upgrading for Rust users
 
-If you've used the [`imagequant-sys`](//lib.rs/imagequant-sys) crate, switch to the higher-level [`imagequant`](//lib.rs/imagequant) crate. The `imagequant` v4 is almost entirely backwards-compatible, with small changes that the Rust compiler will point out (e.g. changed use of `c_int` to `u32`). See [docs](https://docs.rs/imagequant). Please fix any deprecation warnings you may get, because the deprecated functions will be removed.
+If you've used the [`imagequant-sys`](https://lib.rs/imagequant-sys) crate, switch to the higher-level [`imagequant`](https://lib.rs/imagequant) crate. The `imagequant` v4 is almost entirely backwards-compatible, with small changes that the Rust compiler will point out (e.g. changed use of `c_int` to `u32`). See [docs](https://docs.rs/imagequant). Please fix any deprecation warnings you may get, because the deprecated functions will be removed.
 
 The `openmp` Cargo feature has been renamed to `threads`.
 

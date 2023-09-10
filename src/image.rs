@@ -29,7 +29,7 @@ pub struct Image<'pixels> {
 impl<'pixels> Image<'pixels> {
     /// Makes an image from RGBA pixels.
     ///
-    /// See the [`rgb`] and [`bytemuck`](//lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
+    /// See the [`rgb`] and [`bytemuck`](https://lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
     ///
     /// The `pixels` argument can be `Vec<RGBA>`, or `Box<[RGBA]>` or `&[RGBA]`.
     ///
@@ -47,7 +47,7 @@ impl<'pixels> Image<'pixels> {
     ///
     /// If you want to supply RGB or ARGB pixels, use [`Image::new_fn`] to supply your own pixel-swapping function.
     ///
-    /// See the [`rgb`] and [`bytemuck`](//lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
+    /// See the [`rgb`] and [`bytemuck`](https://lib.rs/bytemuck) crates for making `[RGBA]` slices from `[u8]` slices.
     ///
     /// Use `0.` for gamma if the image is sRGB (most images are).
     #[inline(always)]
