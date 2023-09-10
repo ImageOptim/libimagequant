@@ -27,6 +27,7 @@ $(STATICLIB): Cargo.toml
 	cp ../target/release/libimagequant_sys.a $(STATICLIB)
 
 $(JNILIB): $(JAVAHEADERS) $(STATICLIB) org/pngquant/PngQuant.c
+	# You may need to set LDFLAGS env var. See: cargo rustc -- --print native-static-libs
 	$(CC) -g $(CFLAGS) $(LDFLAGS) $(JAVAINCLUDE) -shared -o $@ org/pngquant/PngQuant.c $(STATICLIB)
 
 $(JAVACLASSES): %.class: %.java
@@ -36,7 +37,10 @@ $(JAVAHEADERS): %.h: %.class
 	javah -o $@ $(subst /,., $(patsubst %.class,%,$<)) && touch $@
 
 example: example.c lodepng.h lodepng.c $(STATICLIB)
-	$(CC) -g $(CFLAGS) -Wall example.c $(STATICLIB) -lm -o example
+	# remove -lpthread on Windows
+	# add -ldl on Linux
+	# You may need to set LDFLAGS env var. See: cargo rustc -- --print native-static-libs
+	$(CC) -g $(CFLAGS) -Wall example.c $(STATICLIB) -lm -lpthread $(LDFLAGS) -o example
 
 lodepng.h:
 	curl -o lodepng.h -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h
