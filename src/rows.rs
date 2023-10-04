@@ -31,6 +31,7 @@ pub(crate) struct DynamicRowsIter<'parent, 'pixels, 'rows> {
 }
 
 impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
+    #[must_use]
     pub fn row_f<'px>(&'px mut self, temp_row: &mut [MaybeUninit<RGBA>], row: usize) -> &'px [f_pixel] {
         debug_assert_eq!(temp_row.len(), self.px.width as usize);
         match self.px.f_pixels.as_ref() {
@@ -50,6 +51,7 @@ impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
         }
     }
 
+    #[must_use]
     pub fn row_f_shared<'px>(&'px self, temp_row: &mut [MaybeUninit<RGBA>], temp_row_f: &'px mut [MaybeUninit<f_pixel>], row: usize) -> &'px [f_pixel] {
         match self.px.f_pixels.as_ref() {
             Some(pixels) => &pixels[self.px.width as usize * row..],
@@ -62,6 +64,7 @@ impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
         }
     }
 
+    #[must_use]
     pub fn row_rgba<'px>(&'px self, temp_row: &'px mut [MaybeUninit<RGBA>], row: usize) -> &'px [RGBA] {
         self.px.row_rgba(temp_row, row)
     }
@@ -96,6 +99,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
         unsafe { slice_assume_init_mut(row_f_pixels) }
     }
 
+    #[must_use]
     fn should_use_low_memory(&self) -> bool {
         self.width() * self.height() > LIQ_HIGH_MEMORY_LIMIT / std::mem::size_of::<f_pixel>()
     }
@@ -197,11 +201,13 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
     }
 
     #[inline(always)]
+    #[must_use]
     pub fn width(&self) -> usize {
         self.width as usize
     }
 
     #[inline(always)]
+    #[must_use]
     pub fn height(&self) -> usize {
         self.height as usize
     }
@@ -231,5 +237,5 @@ unsafe fn box_assume_init<T>(s: Box<[MaybeUninit<T>]>) -> Box<[T]> {
 
 #[inline(always)]
 unsafe fn slice_assume_init_mut<T>(s: &mut [MaybeUninit<T>]) -> &mut [T] {
-    std::mem::transmute(s)
+    &mut *(s as *mut [MaybeUninit<T>] as *mut [T])
 }

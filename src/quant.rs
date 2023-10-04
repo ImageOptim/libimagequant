@@ -174,6 +174,7 @@ impl QuantizationResult {
     }
 
     /// Approximate mean square error of the palette used for the most recent remapping
+    #[must_use]
     pub fn remapping_error(&self) -> Option<f64> {
         self.remapped.as_ref()
             .and_then(|re| re.palette_error)
@@ -182,6 +183,7 @@ impl QuantizationResult {
     }
 
     /// Palette remapping error mapped back to 0-100 scale, same as the scale in [`Attributes::set_quality()`]
+    #[must_use]
     pub fn remapping_quality(&self) -> Option<u8> {
         self.remapped.as_ref()
             .and_then(|re| re.palette_error)
@@ -193,6 +195,7 @@ impl QuantizationResult {
     ///
     /// It's slighly better if you get palette from the [`remapped()`][Self::remapped] call instead
     #[inline]
+    #[must_use]
     pub fn palette(&mut self) -> &[RGBA] {
         self.int_palette().as_slice()
     }

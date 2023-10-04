@@ -5,9 +5,14 @@
 //! See `examples/` directory for example code.
 #![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
 #![deny(missing_docs)]
+#![allow(clippy::bool_to_int_with_if)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::doc_markdown)]
 #![allow(clippy::if_not_else)]
 #![allow(clippy::inline_always)]
+#![allow(clippy::items_after_statements)]
 #![allow(clippy::map_unwrap_or)]
+#![allow(clippy::missing_errors_doc)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::redundant_closure_for_method_calls)]
 #![allow(clippy::unreadable_literal)]
@@ -95,11 +100,11 @@ fn histogram() {
     let attr = Attributes::new();
     let mut hist = Histogram::new(&attr);
 
-    let bitmap1 = vec![RGBA {r:0, g:0, b:0, a:0}; 1];
+    let bitmap1 = [RGBA {r:0, g:0, b:0, a:0}; 1];
     let mut image1 = attr.new_image(&bitmap1[..], 1, 1, 0.0).unwrap();
     hist.add_image(&attr, &mut image1).unwrap();
 
-    let bitmap2 = vec![RGBA {r:255, g:255, b:255, a:255}; 1];
+    let bitmap2 = [RGBA {r:255, g:255, b:255, a:255}; 1];
     let mut image2 = attr.new_image(&bitmap2[..], 1, 1, 0.0).unwrap();
     hist.add_image(&attr, &mut image2).unwrap();
 

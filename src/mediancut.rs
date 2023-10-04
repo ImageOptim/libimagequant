@@ -74,7 +74,7 @@ impl<'hist> MBox<'hist> {
     fn box_stats(hist: &[HistItem], avg_color: &f_pixel) -> (ARGBF, f32) {
         let mut variance = ARGBF::default();
         let mut max_error = 0.;
-        for a in hist.iter() {
+        for a in hist {
             variance += (avg_color.0 - a.color.0).map(|c| c * c) * a.adjusted_weight;
             let diff = avg_color.diff(&a.color);
             if diff > max_error {

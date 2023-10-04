@@ -245,19 +245,14 @@ impl<'pixels> Image<'pixels> {
             return Ok(()); // shrug
         }
 
-        let noise = match self.importance_map.as_deref_mut() {
-            Some(n) => n,
-            None => {
-                let vec = try_zero_vec(width * height)?;
-                self.importance_map.get_or_insert_with(move || vec.into_boxed_slice())
-            },
+        let noise = if let Some(n) = self.importance_map.as_deref_mut() { n } else {
+            let vec = try_zero_vec(width * height)?;
+            self.importance_map.get_or_insert_with(move || vec.into_boxed_slice())
         };
-        let edges = match self.edges.as_mut() {
-            Some(e) => e,
-            None => {
-                let vec = try_zero_vec(width * height)?;
-                self.edges.get_or_insert_with(move || vec.into_boxed_slice())
-            },
+
+        let edges = if let Some(e) = self.edges.as_mut() { e } else {
+            let vec = try_zero_vec(width * height)?;
+            self.edges.get_or_insert_with(move || vec.into_boxed_slice())
         };
 
         let mut rows_iter = self.px.all_rows_f()?.chunks_exact(width);
@@ -278,10 +273,10 @@ impl<'pixels> Image<'pixels> {
                 curr = next;
                 next = curr_row[(i + 1).min(width - 1)].0;
                 // contrast is difference between pixels neighbouring horizontally and vertically
-                let horiz = (prev + next - curr * 2.).map(|c| c.abs()); // noise is amplified
+                let horiz = (prev + next - curr * 2.).map(f32::abs); // noise is amplified
                 let prevl = prev_row[i].0;
                 let nextl = next_row[i].0;
-                let vert = (prevl + nextl - curr * 2.).map(|c| c.abs());
+                let vert = (prevl + nextl - curr * 2.).map(f32::abs);
                 let horiz = horiz.a.max(horiz.r).max(horiz.g.max(horiz.b));
                 let vert = vert.a.max(vert.r).max(vert.g.max(vert.b));
                 let edge = horiz.max(vert);

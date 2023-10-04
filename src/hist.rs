@@ -253,7 +253,7 @@ impl Histogram {
         }));
     }
 
-    pub(crate) fn add_pixel_rows(&mut self, image: &mut DynamicRows<'_, '_>, importance_map: Option<&[u8]>, posterize_bits: u8) -> Result<(), Error> {
+    pub(crate) fn add_pixel_rows(&mut self, image: &DynamicRows<'_, '_>, importance_map: Option<&[u8]>, posterize_bits: u8) -> Result<(), Error> {
         let width = image.width as usize;
         let height = image.height as usize;
 

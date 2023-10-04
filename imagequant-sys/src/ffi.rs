@@ -3,6 +3,10 @@
 //! This crate is not supposed to be used in Rust directly. For Rust, see the parent [imagequant](https://lib.rs/imagequant) crate.
 #![allow(non_camel_case_types)]
 #![allow(clippy::missing_safety_doc)]
+#![allow(clippy::wildcard_imports)]
+#![allow(clippy::items_after_statements)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_possible_wrap)]
 
 use imagequant::capi::*;
 use imagequant::Error::LIQ_OK;
@@ -79,7 +83,7 @@ pub(crate) static LIQ_FREED_MAGIC: MagicTag = MagicTag(b"liq_freed_magic\0".as_p
 
 #[no_mangle]
 #[inline(never)]
-unsafe fn liq_received_invalid_pointer(ptr: *const u8) -> bool {
+unsafe extern "C" fn liq_received_invalid_pointer(ptr: *const u8) -> bool {
     if ptr.is_null() {
         return true;
     }
@@ -91,6 +95,7 @@ macro_rules! bad_object {
     ($obj:expr, $tag:expr) => {{
         let obj = &*$obj;
         #[allow(unused_unsafe)]
+        #[allow(clippy::ptr_as_ptr)]
         let bork = if cfg!(miri) { false } else { unsafe { liq_received_invalid_pointer((obj as *const _ as *const u8)) } };
         (bork || (($obj).magic_header != $tag))
     }};
@@ -200,7 +205,7 @@ pub unsafe extern "C" fn liq_set_log_callback(attr: &mut liq_attr, callback: liq
     if bad_object!(attr, LIQ_ATTR_MAGIC) { return; }
     attr.inner.set_log_callback(move |attr, msg| {
         if let Ok(tmp) = CString::new(msg) {
-            callback(attr_to_liq_attr_ptr(attr), tmp.as_ptr(), user_info)
+            callback(attr_to_liq_attr_ptr(attr), tmp.as_ptr(), user_info);
         }
     });
 }
@@ -507,7 +512,7 @@ pub extern "C" fn liq_get_remapping_quality(result: &liq_result) -> c_int {
 
 #[no_mangle]
 #[inline(never)]
-pub fn liq_image_quantize(img: &mut liq_image, attr: &mut liq_attr, write_only_output: &mut MaybeUninit<Option<Box<liq_result>>>) -> liq_error {
+pub extern "C" fn liq_image_quantize(img: &mut liq_image, attr: &mut liq_attr, write_only_output: &mut MaybeUninit<Option<Box<liq_result>>>) -> liq_error {
     if bad_object!(attr, LIQ_ATTR_MAGIC) ||
        bad_object!(img, LIQ_IMAGE_MAGIC) { return Error::InvalidPointer; }
     let attr = &mut attr.inner;
@@ -734,7 +739,7 @@ fn c_callback_test_c() {
             let user_data = user_data.0.cast::<i32>();
             *user_data += 1;
         }
-        let mut img = liq_image_create_custom(&a, get_row, AnySyncSendPtr(std::ptr::addr_of_mut!(called) as *mut c_void), 123, 5, 0.).unwrap();
+        let mut img = liq_image_create_custom(&a, get_row, AnySyncSendPtr(std::ptr::addr_of_mut!(called).cast::<c_void>()), 123, 5, 0.).unwrap();
         liq_quantize_image(&mut a, &mut img).unwrap()
     };
     assert!(called > 5 && called < 50);

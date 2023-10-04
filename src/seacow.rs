@@ -26,6 +26,7 @@ unsafe impl<T: Send + Sync> Sync for PointerMut<T> {}
 
 impl<'a, T> SeaCow<'a, T> {
     #[inline]
+    #[must_use]
     pub fn borrowed(data: &'a [T]) -> Self {
         Self {
             inner: SeaCowInner::Borrowed(data),
@@ -33,6 +34,7 @@ impl<'a, T> SeaCow<'a, T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn boxed(data: Box<[T]>) -> Self {
         Self {
             inner: SeaCowInner::Boxed(data),
@@ -42,6 +44,7 @@ impl<'a, T> SeaCow<'a, T> {
     /// The pointer must be `malloc`-allocated
     #[inline]
     #[cfg(feature = "_internal_c_ffi")]
+    #[must_use]
     pub unsafe fn c_owned(ptr: *mut T, len: usize, free_fn: unsafe extern fn(*mut c_void)) -> Self {
         debug_assert!(!ptr.is_null());
         debug_assert!(len > 0);
@@ -79,6 +82,7 @@ impl<'a, T> Drop for SeaCowInner<'a, T> {
 }
 
 impl<'a, T> SeaCow<'a, T> {
+    #[must_use]
     pub fn as_slice(&self) -> &[T] {
         match &self.inner {
             #[cfg(feature = "_internal_c_ffi")]
@@ -127,6 +131,7 @@ enum MutCow<'a, T: ?Sized> {
 }
 
 impl<'a, T: ?Sized> MutCow<'a, T> {
+    #[must_use]
     pub fn borrow_mut(&mut self) -> &mut T {
         match self {
             Self::Owned(a) => a,
@@ -137,6 +142,7 @@ impl<'a, T: ?Sized> MutCow<'a, T> {
 
 impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
     #[inline]
+    #[must_use]
     pub fn new_contiguous(data: &mut [T], width: usize) -> Self {
         Self {
             rows: MutCow::Owned(data.chunks_exact_mut(width).map(|r| PointerMut(r.as_mut_ptr())).collect()),
@@ -147,9 +153,10 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
     /// Inner pointers must be valid for `'a` too, and at least `width` large each
     #[inline]
     #[cfg(feature = "_internal_c_ffi")]
+    #[must_use]
     pub unsafe fn new(rows: &'a mut [*mut T], width: usize) -> Self {
         Self {
-            rows: MutCow::Borrowed(std::mem::transmute::<&'a mut [*mut T], &'a mut [PointerMut<T>]>(rows)),
+            rows: MutCow::Borrowed(&mut *(rows as *mut [*mut T] as *mut [PointerMut<T>])),
             width,
         }
     }
@@ -168,6 +175,7 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
         })
     }
 
+    #[must_use]
     pub(crate) fn len(&mut self) -> usize {
         self.rows.borrow_mut().len()
     }

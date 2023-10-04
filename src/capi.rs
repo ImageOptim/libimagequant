@@ -16,12 +16,14 @@ use std::mem::MaybeUninit;
 
 pub const LIQ_VERSION: u32 = 40000;
 
+#[must_use]
 pub fn liq_get_palette_impl(r: &mut QuantizationResult) -> &Palette {
     r.int_palette()
 }
 
+#[must_use]
 pub unsafe fn liq_image_create_rgba_rows_impl<'rows>(attr: &Attributes, rows: &'rows [*const RGBA], width: u32, height: u32, gamma: f64) -> Option<crate::image::Image<'rows>> {
-    let rows = SeaCow::borrowed(std::mem::transmute::<&'rows [*const RGBA], &'rows [Pointer<RGBA>]>(rows));
+    let rows = SeaCow::borrowed(&*(rows as *const [*const rgb::RGBA<u8>] as *const [Pointer<rgb::RGBA<u8>>]));
     let rows_slice = rows.as_slice();
     if rows_slice.iter().any(|r| r.0.is_null()) {
         return None;
@@ -29,6 +31,7 @@ pub unsafe fn liq_image_create_rgba_rows_impl<'rows>(attr: &Attributes, rows: &'
     crate::image::Image::new_internal(attr, crate::rows::PixelsSource::Pixels { rows, pixels: None }, width, height, gamma).ok()
 }
 
+#[must_use]
 pub unsafe fn liq_image_create_rgba_bitmap_impl<'rows>(attr: &Attributes, rows: Box<[*const RGBA]>, width: u32, height: u32, gamma: f64) -> Option<crate::image::Image<'rows>> {
     let rows = SeaCow::boxed(std::mem::transmute::<Box<[*const RGBA]>, Box<[Pointer<RGBA>]>>(rows));
     let rows_slice = rows.as_slice();
@@ -38,6 +41,7 @@ pub unsafe fn liq_image_create_rgba_bitmap_impl<'rows>(attr: &Attributes, rows: 
     crate::image::Image::new_internal(attr, crate::rows::PixelsSource::Pixels { rows, pixels: None }, width, height, gamma).ok()
 }
 
+#[must_use]
 pub unsafe fn liq_image_create_custom_impl<'rows>(attr: &Attributes, row_callback: Box<RowCallback<'rows>>, width: u32, height: u32, gamma: f64) -> Option<Image<'rows>> {
     Image::new_internal(attr, crate::rows::PixelsSource::Callback(row_callback), width, height, gamma).ok()
 }

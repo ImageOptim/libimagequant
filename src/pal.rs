@@ -180,6 +180,7 @@ impl PalPop {
         self.0 < 0.
     }
 
+    #[must_use]
     pub fn to_fixed(self) -> Self {
         if self.0 < 0. {
             return self;
@@ -195,6 +196,7 @@ impl PalPop {
     }
 
     #[inline(always)]
+    #[must_use]
     pub fn popularity(self) -> f32 {
         self.0.abs()
     }

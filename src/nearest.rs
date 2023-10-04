@@ -115,7 +115,7 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
         return Node {
             vantage_point: palette[usize::from(indexes[0].idx)],
             idx: indexes[0].idx,
-            inner: NodeInner::Leaf { len: 0, idxs: [Default::default(); LEAF_MAX_SIZE], colors: Box::new([Default::default(); LEAF_MAX_SIZE]) },
+            inner: NodeInner::Leaf { len: 0, idxs: [0; LEAF_MAX_SIZE], colors: Box::new([f_pixel::default(); LEAF_MAX_SIZE]) },
         };
     }
 
