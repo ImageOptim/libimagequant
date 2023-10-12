@@ -614,6 +614,9 @@ pub unsafe extern "C" fn liq_histogram_add_colors(input_hist: &mut liq_histogram
        bad_object!(input_hist, LIQ_HISTOGRAM_MAGIC) { return Error::InvalidPointer; }
     let input_hist = &mut input_hist.inner;
 
+    if num_entries < 0 {
+        return Error::ValueOutOfRange;
+    }
     if num_entries == 0 {
         return LIQ_OK;
     }
@@ -638,9 +641,10 @@ pub extern "C" fn liq_histogram_add_image(input_hist: &mut liq_histogram, attr: 
     input_hist.add_image(attr, input_image).err().unwrap_or(LIQ_OK)
 }
 
+/// This is just to exist in backtraces of crashes that aren't mine
 #[no_mangle]
 #[inline(never)]
-pub unsafe fn liq_executing_user_callback(callback: liq_image_get_rgba_row_callback, temp_row: &mut [MaybeUninit<liq_color>], row: usize, user_info: AnySyncSendPtr) {
+pub unsafe extern "Rust" fn liq_executing_user_callback(callback: liq_image_get_rgba_row_callback, temp_row: &mut [MaybeUninit<liq_color>], row: usize, user_info: AnySyncSendPtr) {
     callback(temp_row.as_mut_ptr(), row as _, temp_row.len() as _, user_info);
 }
 
