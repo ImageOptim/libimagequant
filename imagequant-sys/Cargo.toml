@@ -29,7 +29,7 @@ libc = "0.2.112"
 
 [package.metadata.capi.library]
 name = "imagequant"
-version = "0.0.0"
+version = "0.0.4"
 
 [package.metadata.capi.pkg_config]
 name = "imagequant"
