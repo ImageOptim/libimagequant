@@ -89,7 +89,7 @@ impl QuantizationResult {
 
         let mut palette = self.palette.clone();
         let mut remapped = Box::new(Remapped {
-            int_palette: Palette { count: 0, entries: [Default::default(); MAX_COLORS] },
+            int_palette: Palette { count: 0, entries: [RGBA::default(); MAX_COLORS] },
             palette_error: None,
         });
         if self.dither_level == 0. {
@@ -201,17 +201,14 @@ impl QuantizationResult {
     }
 
     pub(crate) fn int_palette(&mut self) -> &Palette {
-        match self.remapped.as_ref() {
-            Some(remap) => {
-                debug_assert!(remap.int_palette.count > 0);
-                &remap.int_palette
+        if let Some(remap) = self.remapped.as_ref() {
+            debug_assert!(remap.int_palette.count > 0);
+            &remap.int_palette
+        } else {
+            if self.int_palette.count == 0 {
+                self.palette.init_int_palette(&mut self.int_palette, self.gamma, self.min_posterization_output);
             }
-            None => {
-                if self.int_palette.count == 0 {
-                    self.palette.init_int_palette(&mut self.int_palette, self.gamma, self.min_posterization_output);
-                }
-                &self.int_palette
-            },
+            &self.int_palette
         }
     }
 

@@ -131,7 +131,7 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
     let num_indexes = indexes.len();
 
     let inner = if num_indexes <= LEAF_MAX_SIZE {
-        let mut colors = [Default::default(); LEAF_MAX_SIZE];
+        let mut colors = [f_pixel::default(); LEAF_MAX_SIZE];
         let mut idxs = [Default::default(); LEAF_MAX_SIZE];
 
         indexes.iter().zip(colors.iter_mut().zip(idxs.iter_mut())).for_each(|(i, (color, idx))| {

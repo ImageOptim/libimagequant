@@ -423,7 +423,7 @@ fn pal_test() {
 
     let mut int_pal = Palette {
         count: 0,
-        entries: [Default::default(); MAX_COLORS],
+        entries: [RGBA::default(); MAX_COLORS],
     };
     p.init_int_palette(&mut int_pal, 0.45455, 0);
 

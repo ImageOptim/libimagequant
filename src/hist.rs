@@ -131,7 +131,7 @@ impl Histogram {
         let estimated_colors = (surface_area / (posterize_bits as usize + if surface_area > 512 * 512 { 7 } else { 5 })).min(250_000);
         self.reserve(estimated_colors);
 
-        self.add_pixel_rows(&mut image.px, image.importance_map.as_deref(), posterize_bits)?;
+        self.add_pixel_rows(&image.px, image.importance_map.as_deref(), posterize_bits)?;
         image.free_histogram_inputs();
 
         Ok(())
