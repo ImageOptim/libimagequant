@@ -1,6 +1,6 @@
 [package]
 name = "imagequant-sys"
-version = "4.0.2"
+version = "4.0.3"
 description = "Convert 24/32-bit images to 8-bit palette with alpha channel.\nC API/FFI libimagequant that powers pngquant lossy PNG compressor.\n\nDual-licensed like pngquant. See https://pngquant.org for details."
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 license = "GPL-3.0-or-later"

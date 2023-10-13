@@ -1,6 +1,6 @@
 [package]
 name = "imagequant"
-version = "4.2.1"
+version = "4.2.2"
 description = "Convert 24/32-bit images to 8-bit palette with alpha channel.\nFor lossy PNG compression and high-quality GIF images\nDual-licensed like pngquant. See https://pngquant.org for details."
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 license = "GPL-3.0-or-later"
@@ -16,7 +16,7 @@ rust-version = "1.63"
 
 [features]
 default = ["threads"]
-threads = ["dep:rayon", "dep:num_cpus", "dep:thread_local"]
+threads = ["dep:rayon", "dep:thread_local"]
 # supports up to 2048 colors for palettes, but NOT FOR REMAPPING
 large_palettes = []
 
@@ -36,7 +36,6 @@ rgb = { version = "0.8.33", features = ["argb"] }
 rayon = { version = "1.5.3", optional = true }
 thread_local = { version = "1.1.4", optional = true }
 once_cell = "1.13.1"
-num_cpus = { version = "1.13.1", optional = true }
 
 [dev-dependencies]
 lodepng = "3.7.0"

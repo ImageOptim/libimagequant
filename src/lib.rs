@@ -38,7 +38,7 @@ mod rayoff;
 
 #[cfg(feature = "threads")]
 mod rayoff {
-    pub(crate) use num_cpus::get as num_cpus;
+    pub(crate) fn num_cpus() -> usize { std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) }
     pub(crate) use rayon::prelude::{ParallelBridge, ParallelIterator, ParallelSliceMut};
     pub(crate) use rayon::scope;
     pub(crate) use thread_local::ThreadLocal;
