@@ -1,4 +1,3 @@
-config.mk
 imagequant.pc
 *.lo
 *.o
@@ -13,15 +12,7 @@ imagequant.pc
 org/pngquant/*.class
 org/pngquant/*.h
 target/
-msvc-dist/org/
-msvc-dist/*.md
-msvc-dist/Makefile*
-msvc-dist/*.cs
-msvc-dist/*.xml
-msvc-dist/CHANGELOG
-msvc-dist/COPYRIGHT
-msvc-dist/configure
-msvc-dist/.gitignore
 quantized_example.png
 example
 lodepng.?
+Cargo.lock
