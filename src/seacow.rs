@@ -24,20 +24,22 @@ unsafe impl<T: Send + Sync> Sync for Pointer<T> {}
 unsafe impl<T: Send + Sync> Send for PointerMut<T> {}
 unsafe impl<T: Send + Sync> Sync for PointerMut<T> {}
 
+impl<T> SeaCow<'static, T> {
+    #[inline]
+    #[must_use]
+    pub fn boxed(data: Box<[T]>) -> Self {
+        Self {
+            inner: SeaCowInner::Boxed(data),
+        }
+    }
+}
+
 impl<'a, T> SeaCow<'a, T> {
     #[inline]
     #[must_use]
     pub fn borrowed(data: &'a [T]) -> Self {
         Self {
             inner: SeaCowInner::Borrowed(data),
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn boxed(data: Box<[T]>) -> Self {
-        Self {
-            inner: SeaCowInner::Boxed(data),
         }
     }
 
