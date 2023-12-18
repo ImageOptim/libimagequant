@@ -27,7 +27,7 @@ imagequant = "4.0"
 
 ### Building for C
 
-1. Get Rust 1.60 or later via [rustup](https://rustup.rs) and run `rustup update`.
+1. Get Rust 1.70 or later via [rustup](https://rustup.rs) and run `rustup update`.
 2. `cd imagequant-sys`
 
    The C API is exposed by a separate package called [`imagequant-sys`](https://github.com/ImageOptim/libimagequant/tree/main/imagequant-sys).

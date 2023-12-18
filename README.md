@@ -38,7 +38,7 @@ Libimagequant is dual-licensed:
 
 ## Upgrading instructions
 
-libimagequant v2 used to be a C library. libimagequant v4 is written entirely in Rust, but still exports the same C interface for C programs. You will need to install Rust 1.60+ to build it, and adjust your build commands. If you do not want to upgrade, you can keep using [the C version of the library](https://github.com/imageoptim/libimagequant/tree/2.x) in the `2.x` branch of the [repo](https://github.com/ImageOptim/libimagequant).
+libimagequant v2 used to be a C library. libimagequant v4 is written entirely in Rust, but still exports the same C interface for C programs. You will need to install Rust 1.70+ to build it, and adjust your build commands. If you do not want to upgrade, you can keep using [the C version of the library](https://github.com/imageoptim/libimagequant/tree/2.x) in the `2.x` branch of the [repo](https://github.com/ImageOptim/libimagequant).
 
 ### C static library users
 
@@ -82,7 +82,7 @@ cargo install cargo-c
 cargo cinstall --prefix=/usr/local --destdir=.
 ```
 
-This makes Rust 1.60 and `cargo-c` package a build-time dependency. No runtime deps (apart from Cargo-internal ones). OpenMP has been dropped entirely.
+This makes Rust 1.70 and `cargo-c` package a build-time dependency. No runtime deps (apart from Cargo-internal ones). OpenMP has been dropped entirely.
 
 #### Interaction with pngquant
 
