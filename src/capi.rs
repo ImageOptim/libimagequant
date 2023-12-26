@@ -15,7 +15,7 @@ use crate::QuantizationResult;
 use crate::RGBA;
 use std::mem::MaybeUninit;
 
-pub const LIQ_VERSION: u32 = 40000;
+pub const LIQ_VERSION: u32 = 40202;
 
 #[must_use]
 pub fn liq_get_palette_impl(r: &mut QuantizationResult) -> &Palette {

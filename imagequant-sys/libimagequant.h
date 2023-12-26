@@ -13,8 +13,8 @@
 #define LIQ_EXPORT extern
 #endif
 
-#define LIQ_VERSION 40000
-#define LIQ_VERSION_STRING "4.0.0"
+#define LIQ_VERSION 40003
+#define LIQ_VERSION_STRING "4.0.3"
 
 #ifndef LIQ_PRIVATE
 #if defined(__GNUC__) || defined (__llvm__)
