@@ -40,7 +40,7 @@ mod rayoff;
 mod rayoff {
     pub(crate) fn num_cpus() -> usize { std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) }
     pub(crate) use rayon::prelude::{ParallelBridge, ParallelIterator, ParallelSliceMut};
-    pub(crate) use rayon::scope;
+    pub(crate) use rayon::in_place_scope as scope;
     pub(crate) use thread_local::ThreadLocal;
 }
 
