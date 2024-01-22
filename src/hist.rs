@@ -132,7 +132,6 @@ impl Histogram {
         self.reserve(estimated_colors);
 
         self.add_pixel_rows(&image.px, image.importance_map.as_deref(), posterize_bits)?;
-        image.free_histogram_inputs();
 
         Ok(())
     }

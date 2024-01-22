@@ -87,6 +87,8 @@ impl QuantizationResult {
             return Err(Error::Aborted);
         }
 
+        image.free_histogram_inputs();
+
         let mut palette = self.palette.clone();
         let mut remapped = Box::new(Remapped {
             int_palette: Palette { count: 0, entries: [RGBA::default(); MAX_COLORS] },
