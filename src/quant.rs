@@ -286,6 +286,13 @@ impl QuantizationResult {
         }
         out
     }
+
+    /// Expected length of the palette
+    ///
+    /// Reads the length without finalizing the colors
+    pub fn palette_len(&mut self) -> usize {
+        self.palette.len()
+    }
 }
 
 fn sort_palette(attr: &Attributes, palette: &mut PalF) {
