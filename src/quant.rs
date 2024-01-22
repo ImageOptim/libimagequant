@@ -281,8 +281,9 @@ impl QuantizationResult {
     pub fn palette_vec(&mut self) -> Vec<RGBA> {
         let pal = self.palette();
         let mut out: Vec<RGBA> = Vec::new();
-        out.try_reserve_exact(pal.len()).expect("OOM");
-        out.extend_from_slice(pal);
+        if out.try_reserve_exact(pal.len()).is_ok() {
+            out.extend_from_slice(pal);
+        }
         out
     }
 }
