@@ -17,6 +17,26 @@ pub(crate) enum PixelsSource<'pixels, 'rows> {
     Callback(Box<RowCallback<'rows>>),
 }
 
+impl<'pixels, 'rows> PixelsSource<'pixels, 'rows> {
+    pub(crate) fn for_pixels(pixels: SeaCow<'pixels, RGBA>, width: u32, height: u32, stride: u32) -> Result<Self, Error> {
+        if stride < width || height == 0 || width == 0 {
+            return Err(Error::ValueOutOfRange);
+        }
+        let stride = stride as usize;
+        let width = width as usize;
+        let height = height as usize;
+
+        let slice = pixels.as_slice();
+        let min_area = stride.checked_mul(height).and_then(|a| a.checked_add(width)).ok_or(Error::ValueOutOfRange)? - stride;
+        if slice.len() < min_area {
+            return Err(Error::BufferTooSmall);
+        }
+
+        let rows = SeaCow::boxed(slice.chunks(stride).map(|row| Pointer(row.as_ptr())).take(height).collect());
+        Ok(Self::Pixels { rows, pixels: Some(pixels) })
+    }
+}
+
 pub(crate) struct DynamicRows<'pixels, 'rows> {
     pub(crate) width: u32,
     pub(crate) height: u32,
