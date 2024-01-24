@@ -18,6 +18,7 @@ pub enum DitherMapMode {
     Always = 2,
 }
 
+#[derive(Clone)]
 pub(crate) struct Remapped {
     pub(crate) int_palette: Palette,
     pub(crate) palette_error: Option<f64>,

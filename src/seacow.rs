@@ -2,6 +2,7 @@
 use std::os::raw::c_void;
 use std::mem::MaybeUninit;
 
+#[derive(Clone)]
 pub struct SeaCow<'a, T> {
     inner: SeaCowInner<'a, T>,
 }
@@ -62,6 +63,22 @@ impl<'a, T> SeaCow<'a, T> {
         if let SeaCowInner::Borrowed(slice) = self.inner {
             self.inner = SeaCowInner::Owned { ptr: slice.as_ptr() as *mut _, len: slice.len(), free_fn };
         }
+    }
+}
+
+impl<T: Clone> Clone for SeaCowInner<'_, T> {
+    #[inline(never)]
+    fn clone(&self) -> Self {
+        let slice = match self {
+            Self::Borrowed(data) => return Self::Borrowed(data),
+            #[cfg(feature = "_internal_c_ffi")]
+            Self::Owned { ptr, len, free_fn: _ } => unsafe { std::slice::from_raw_parts(*ptr, *len) },
+            Self::Boxed(data) => &**data,
+        };
+        let mut v = Vec::new();
+        v.try_reserve_exact(slice.len()).unwrap();
+        v.extend_from_slice(slice);
+        Self::Boxed(v.into_boxed_slice())
     }
 }
 

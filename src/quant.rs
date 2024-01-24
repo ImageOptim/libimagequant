@@ -295,6 +295,24 @@ impl QuantizationResult {
     }
 }
 
+impl Clone for QuantizationResult {
+    /// It will be without a progress callback
+    fn clone(&self) -> Self {
+        Self {
+            remapped: self.remapped.clone(),
+            palette: self.palette.clone(),
+            progress_callback: None,
+            int_palette: self.int_palette.clone(),
+            dither_level: self.dither_level,
+            gamma: self.gamma,
+            palette_error: self.palette_error,
+            min_posterization_output: self.min_posterization_output,
+            use_dither_map: self.use_dither_map,
+            single_threaded_dithering: self.single_threaded_dithering,
+        }
+    }
+}
+
 fn sort_palette(attr: &Attributes, palette: &mut PalF) {
     let last_index_transparent = attr.last_index_transparent;
 

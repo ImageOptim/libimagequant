@@ -16,6 +16,7 @@ use std::mem::MaybeUninit;
 /// Create one using [`Attributes::new_image()`].
 ///
 /// All images are internally in the RGBA format.
+#[derive(Clone)]
 pub struct Image<'pixels> {
     pub(crate) px: DynamicRows<'pixels, 'pixels>,
     pub(crate) importance_map: Option<Box<[u8]>>,

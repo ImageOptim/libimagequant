@@ -45,6 +45,38 @@ pub(crate) struct DynamicRows<'pixels, 'rows> {
     pub(crate) gamma: f64,
 }
 
+impl Clone for DynamicRows<'_, '_> {
+    fn clone(&self) -> Self {
+        Self {
+            width: self.width,
+            height: self.height,
+            f_pixels: self.f_pixels.clone(),
+            pixels: match &self.pixels {
+                PixelsSource::Pixels { rows, pixels } => {
+                    PixelsSource::Pixels {
+                        rows: rows.clone(),
+                        pixels: pixels.clone(),
+                    }
+                },
+                PixelsSource::Callback(_) => {
+                    let area = self.width as usize * self.height as usize;
+                    let mut out = Vec::with_capacity(area);
+                    let out_rows = out.spare_capacity_mut()[..area].chunks_exact_mut(self.width as usize);
+                    for (i, row) in out_rows.enumerate() {
+                        self.row_rgba(row, i);
+                    }
+                    unsafe {
+                        out.set_len(area);
+                    }
+                    let pixels = SeaCow::boxed(out.into_boxed_slice());
+                    PixelsSource::for_pixels(pixels, self.width, self.height, self.width).unwrap()
+                }
+            },
+            gamma: self.gamma,
+        }
+    }
+}
+
 pub(crate) struct DynamicRowsIter<'parent, 'pixels, 'rows> {
     px: &'parent DynamicRows<'pixels, 'rows>,
     temp_f_row: Option<Box<[MaybeUninit<f_pixel>]>>,
