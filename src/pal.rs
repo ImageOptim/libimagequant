@@ -255,7 +255,7 @@ impl PalF {
     }
 
     // this is max colors allowed by the user, not just max in the current (candidate/low-quality) palette
-    pub(crate) fn with_fixed_colors(mut self, max_colors: PalLen, fixed_colors: &[f_pixel]) -> PalF {
+    pub(crate) fn with_fixed_colors(mut self, max_colors: PalLen, fixed_colors: &[f_pixel]) -> Self {
         if fixed_colors.is_empty() {
             return self;
         }

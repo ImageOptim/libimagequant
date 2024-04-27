@@ -218,14 +218,14 @@ impl Attributes {
     ///
     /// To share data with the callback, use `Arc` or `Atomic*` types and `move ||` closures.
     #[inline]
-    pub fn set_log_callback<F: Fn(&Attributes, &str) + Send + Sync + 'static>(&mut self, callback: F) {
+    pub fn set_log_callback<F: Fn(&Self, &str) + Send + Sync + 'static>(&mut self, callback: F) {
         self.verbose_printf_flush();
         self.log_callback = Some(Arc::new(callback));
     }
 
     /// Callback for flushing output (if you buffer messages, that's the time to flush those buffers)
     #[inline]
-    pub fn set_log_flush_callback<F: Fn(&Attributes) + Send + Sync + 'static>(&mut self, callback: F) {
+    pub fn set_log_flush_callback<F: Fn(&Self) + Send + Sync + 'static>(&mut self, callback: F) {
         self.verbose_printf_flush();
         self.log_flush_callback = Some(Arc::new(callback));
     }
@@ -250,7 +250,7 @@ impl Attributes {
     // true == abort
     #[inline]
     #[must_use]
-    pub(crate) fn progress(self: &Attributes, percent: f32) -> bool {
+    pub(crate) fn progress(&self, percent: f32) -> bool {
         if let Some(f) = &self.progress_callback {
             f(percent) == ControlFlow::Break
         } else {
@@ -259,7 +259,7 @@ impl Attributes {
     }
 
     #[inline(always)]
-    pub(crate) fn verbose_print(self: &Attributes, msg: impl AsRef<str>) {
+    pub(crate) fn verbose_print(&self, msg: impl AsRef<str>) {
         fn _print(a: &Attributes, msg: &str) {
             if let Some(f) = &a.log_callback {
                 f(a, msg);
@@ -269,7 +269,7 @@ impl Attributes {
     }
 
     #[inline]
-    pub(crate) fn verbose_printf_flush(self: &Attributes) {
+    pub(crate) fn verbose_printf_flush(&self) {
         if let Some(f) = &self.log_flush_callback {
             f(self);
         }
@@ -343,8 +343,8 @@ impl Drop for Attributes {
 
 impl Default for Attributes {
     #[inline(always)]
-    fn default() -> Attributes {
-        Attributes::new()
+    fn default() -> Self {
+        Self::new()
     }
 }
 

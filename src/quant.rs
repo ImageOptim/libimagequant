@@ -36,7 +36,7 @@ impl QuantizationResult {
         if freeze_result_colors {
             palette.iter_mut().for_each(|(_, p)| *p = p.to_fixed());
         }
-        if attr.progress(f32::from(attr.progress_stage1) + f32::from(attr.progress_stage2) + f32::from(attr.progress_stage3) * 0.95) {
+        if attr.progress(f32::from(attr.progress_stage3).mul_add(0.95, f32::from(attr.progress_stage1) + f32::from(attr.progress_stage2))) {
             return Err(Aborted);
         }
         if let (Some(palette_error), Some(max_mse)) = (palette_error, max_mse) {
@@ -377,8 +377,8 @@ pub(crate) fn find_best_palette(attr: &Attributes, target_mse: f64, target_mse_i
         let mut new_palette = mediancut(&mut hist, max_colors, target_mse * target_mse_overshoot, max_mse_per_color)?
             .with_fixed_colors(attr.max_colors, &hist.fixed_colors);
 
-        let stage_done = 1. - (f32::from(trials_left.max(0)) / f32::from(total_trials + 1)).powi(2);
-        let overall_done = f32::from(attr.progress_stage1) + stage_done * f32::from(attr.progress_stage2);
+        let stage_done = (f32::from(trials_left.max(0)) / f32::from(total_trials + 1)).mul_add(-(f32::from(trials_left.max(0)) / f32::from(total_trials + 1)), 1.);
+        let overall_done = stage_done.mul_add(f32::from(attr.progress_stage2), f32::from(attr.progress_stage1));
         attr.verbose_print(format!("  selecting colors...{}%", (100. * stage_done) as u8));
 
         if trials_left <= 0 { break Some(new_palette); }
@@ -417,7 +417,7 @@ fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInt
         let mut i = 0;
         while i < iterations {
             let stage_done = f32::from(i) / f32::from(iterations);
-            let overall_done = f32::from(attr.progress_stage1) + f32::from(attr.progress_stage2) + stage_done * f32::from(attr.progress_stage3) * 0.89;
+            let overall_done = (stage_done * f32::from(attr.progress_stage3)).mul_add(0.89, f32::from(attr.progress_stage1) + f32::from(attr.progress_stage2));
             if attr.progress(overall_done) {
                 break;
             }

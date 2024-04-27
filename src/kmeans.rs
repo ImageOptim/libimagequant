@@ -67,7 +67,7 @@ impl Kmeans {
         // chunk size is a trade-off between parallelization and overhead
         hist.items.par_chunks_mut(256).for_each({
             let tls = &tls; move |batch| {
-            let kmeans = tls.get_or(move || CacheLineAlign(RefCell::new(Kmeans::new(len))));
+            let kmeans = tls.get_or(move || CacheLineAlign(RefCell::new(Self::new(len))));
             if let Ok(ref mut kmeans) = *kmeans.0.borrow_mut() {
                 kmeans.iterate_batch(batch, &n, colors, adjust_weight);
             }
@@ -75,7 +75,7 @@ impl Kmeans {
 
         let diff = tls.into_iter()
             .map(|c| c.0.into_inner())
-            .reduce(Kmeans::try_merge)
+            .reduce(Self::try_merge)
             .transpose()?
             .map_or(0., |kmeans| {
                 kmeans.finalize(palette) / total
@@ -94,7 +94,7 @@ impl Kmeans {
                 let remapped = colors[matched as usize];
                 let (_, new_diff) = n.search(&f_pixel(px.0 + px.0 - remapped.0), matched);
                 diff = new_diff;
-                item.adjusted_weight = (item.perceptual_weight + 2. * item.adjusted_weight) * (0.5 + diff);
+                item.adjusted_weight = 2.0f32.mul_add(item.adjusted_weight, item.perceptual_weight) * (0.5 + diff);
             }
             debug_assert!(f64::from(diff) < 1e20);
             self.update_color(px, item.adjusted_weight, matched);
@@ -103,7 +103,7 @@ impl Kmeans {
     }
 
     #[inline]
-    pub fn merge(mut self, new: Kmeans) -> Kmeans {
+    pub fn merge(mut self, new: Self) -> Self {
         self.weighed_diff_sum += new.weighed_diff_sum;
         self.averages.iter_mut().zip(new.averages).for_each(|(p, n)| {
             p.sum += n.sum;
@@ -115,7 +115,7 @@ impl Kmeans {
     #[inline]
     pub fn try_merge<E>(old: Result<Self, E>, new: Result<Self, E>) -> Result<Self, E> {
         match (old, new) {
-            (Ok(old), Ok(new)) => Ok(Kmeans::merge(old, new)),
+            (Ok(old), Ok(new)) => Ok(Self::merge(old, new)),
             (Err(e), _) | (_, Err(e)) => Err(e),
         }
     }

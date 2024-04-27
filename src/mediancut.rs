@@ -279,7 +279,7 @@ impl<'hist> MedianCutter<'hist> {
             // first splits boxes that exceed quality limit (to have colors for things like odd green pixel),
             // later raises the limit to allow large smooth areas/gradients get colors.
             let fraction_done = self.boxes.len() as f64 / f64::from(self.target_colors);
-            let current_max_mse = max_mse + fraction_done * 16. * max_mse;
+            let current_max_mse = (fraction_done * 16.).mul_add(max_mse, max_mse);
             let bi = match self.take_best_splittable_box(current_max_mse) {
                 Some(bi) => bi,
                 None => break,

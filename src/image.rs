@@ -193,7 +193,7 @@ impl<'pixels> Image<'pixels> {
     /// Pixels that match the background color will be made transparent if there's a fully transparent color available in the palette.
     ///
     /// The background image's pixels must outlive this image.
-    pub fn set_background(&mut self, background: Image<'pixels>) -> Result<(), Error> {
+    pub fn set_background(&mut self, background: Self) -> Result<(), Error> {
         if background.background.is_some() {
             return Err(Unsupported);
         }
@@ -282,12 +282,12 @@ impl<'pixels> Image<'pixels> {
                 let horiz = horiz.a.max(horiz.r).max(horiz.g.max(horiz.b));
                 let vert = vert.a.max(vert.r).max(vert.g.max(vert.b));
                 let edge = horiz.max(vert);
-                let mut z = edge - (horiz - vert).abs() * 0.5;
+                let mut z = (horiz - vert).abs().mul_add(-0.5, edge);
                 z = 1. - z.max(horiz.min(vert));
                 z *= z;
                 z *= z;
                 // 85 is about 1/3rd of weight (not 0, because noisy pixels still need to be included, just not as precisely).
-                noise_row[i] = (80. + z * 176.) as u8;
+                noise_row[i] = z.mul_add(176., 80.) as u8;
                 edges_row[i] = ((1. - edge) * 256.) as u8;
             }
         }

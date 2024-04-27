@@ -107,7 +107,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
 fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel, px: f_pixel) -> f_pixel {
     let s = thiserr.0 * dither_level;
     // This prevents gaudy green pixels popping out of the blue (or red or black! ;)
-    let dither_error = s.r * s.r + s.g * s.g + s.b * s.b + s.a * s.a;
+    let dither_error = s.r.mul_add(s.r, s.g * s.g) + s.b.mul_add(s.b, s.a * s.a);
     if dither_error < 2. / 256. / 256. {
         // don't dither areas that don't have noticeable error — makes file smaller
         return px;
@@ -137,9 +137,9 @@ fn get_dithered_pixel(dither_level: f32, max_dither_error: f32, thiserr: f_pixel
     }
     f_pixel(ARGBF {
         a: (px.a + s.a).clamp(0., 1.),
-        r: px.r + s.r * ratio,
-        g: px.g + s.g * ratio,
-        b: px.b + s.b * ratio,
+        r: s.r.mul_add(ratio, px.r),
+        g: s.g.mul_add(ratio, px.g),
+        b: s.b.mul_add(ratio, px.b),
     })
 }
 
@@ -174,7 +174,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
         background = None;
     }
     // response to this value is non-linear and without it any value < 0.8 would give almost no dithering
-    let mut base_dithering_level = (1. - (1. - quant.dither_level) * (1. - quant.dither_level)) * (15. / 16.); // prevent small errors from accumulating
+    let mut base_dithering_level = (1. - quant.dither_level).mul_add(-(1. - quant.dither_level), 1.) * (15. / 16.); // prevent small errors from accumulating
     if !dither_map.is_empty() {
         base_dithering_level *= 1. / 255.; // dither_map is in 0-255 scale
     }
@@ -304,7 +304,7 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIn
         output_pixels_row[col].write(matched);
         let mut err = spx.0 - output_px.0;
         // This prevents weird green pixels popping out of the blue (or red or black! ;)
-        if err.r * err.r + err.g * err.g + err.b * err.b + err.a * err.a > max_dither_error {
+        if err.r.mul_add(err.r, err.g * err.g) + err.b.mul_add(err.b, err.a * err.a) > max_dither_error {
             err *= 0.75;
         }
         if even_row {
