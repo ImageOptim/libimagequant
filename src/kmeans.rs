@@ -1,3 +1,4 @@
+use crate::CacheLineAlign;
 use crate::hist::{HistItem, HistogramInternal};
 use crate::nearest::Nearest;
 use crate::pal::{f_pixel, PalF, PalIndex, PalPop};
@@ -7,6 +8,8 @@ use rgb::alt::ARGB;
 use rgb::ComponentMap;
 use std::cell::RefCell;
 
+/// K-Means iteration: new palette color is computed from weighted average of colors that map best to that palette entry.
+// avoid false sharing
 pub(crate) struct Kmeans {
     averages: Vec<ColorAvg>,
     weighed_diff_sum: f64,
@@ -18,7 +21,6 @@ struct ColorAvg {
     pub total: f64,
 }
 
-/// K-Means iteration: new palette color is computed from weighted average of colors that map best to that palette entry.
 impl Kmeans {
     #[inline]
     pub fn new(pal_len: usize) -> Result<Self, Error> {
@@ -65,14 +67,14 @@ impl Kmeans {
         // chunk size is a trade-off between parallelization and overhead
         hist.items.par_chunks_mut(256).for_each({
             let tls = &tls; move |batch| {
-            let kmeans = tls.get_or(move || RefCell::new(Kmeans::new(len)));
-            if let Ok(ref mut kmeans) = *kmeans.borrow_mut() {
+            let kmeans = tls.get_or(move || CacheLineAlign(RefCell::new(Kmeans::new(len))));
+            if let Ok(ref mut kmeans) = *kmeans.0.borrow_mut() {
                 kmeans.iterate_batch(batch, &n, colors, adjust_weight);
             }
         }});
 
         let diff = tls.into_iter()
-            .map(RefCell::into_inner)
+            .map(|c| c.0.into_inner())
             .reduce(Kmeans::try_merge)
             .transpose()?
             .map_or(0., |kmeans| {

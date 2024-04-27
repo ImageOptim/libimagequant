@@ -61,15 +61,18 @@ impl<'a, T> FakeRayonIntoIter<T> for Box<[T]> {
 pub(crate) struct SpawnMock;
 
 impl SpawnMock {
+    #[inline(always)]
     pub fn spawn<F, R>(&self, f: F) -> R where F: FnOnce(SpawnMock) -> R {
         f(SpawnMock)
     }
 }
 
+#[inline(always)]
 pub(crate) fn scope<F, R>(f: F) -> R where F: FnOnce(SpawnMock) -> R {
     f(SpawnMock)
 }
 
+#[inline(always)]
 pub(crate) fn num_cpus() -> usize {
     1
 }

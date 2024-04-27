@@ -44,6 +44,9 @@ mod rayoff {
     pub(crate) use thread_local::ThreadLocal;
 }
 
+#[cfg_attr(feature = "threads", repr(align(128)))]
+pub(crate) struct CacheLineAlign<T>(pub T);
+
 /// Use imagequant-sys crate instead
 #[cfg(feature = "_internal_c_ffi")]
 pub mod capi;
