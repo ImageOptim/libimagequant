@@ -24,8 +24,8 @@ name = "imagequant_sys"
 
 [dependencies]
 imagequant = { path = "..", version = "4.2.1", default-features = false, features = ["_internal_c_ffi"] }
-bitflags = "2.0"
-libc = "0.2.112"
+bitflags = "2.5"
+libc = "0.2.153"
 
 [package.metadata.capi.library]
 name = "imagequant"
