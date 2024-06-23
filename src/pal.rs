@@ -113,8 +113,8 @@ impl f_pixel {
         }
     }
 
-    #[allow(clippy::wrong_self_convention)]
-    pub fn to_rgb(&self, gamma: f64) -> RGBA {
+    #[inline]
+    pub(crate) fn to_rgb(self, gamma: f64) -> RGBA {
         if self.a < MIN_OPAQUE_A {
             return RGBA::new(0, 0, 0, 0);
         }
