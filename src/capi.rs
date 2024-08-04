@@ -24,7 +24,7 @@ pub fn liq_get_palette_impl(r: &mut QuantizationResult) -> &Palette {
 
 #[must_use]
 pub unsafe fn liq_image_create_rgba_rows_impl<'rows>(attr: &Attributes, rows: &'rows [*const RGBA], width: u32, height: u32, gamma: f64) -> Option<crate::image::Image<'rows>> {
-    let rows = SeaCow::borrowed(&*(rows as *const [*const rgb::RGBA<u8>] as *const [Pointer<rgb::RGBA<u8>>]));
+    let rows = SeaCow::borrowed(&*(rows as *const [*const rgb::Rgba<u8>] as *const [Pointer<rgb::Rgba<u8>>]));
     let rows_slice = rows.as_slice();
     if rows_slice.iter().any(|r| r.0.is_null()) {
         return None;

@@ -8,7 +8,7 @@ use crate::seacow::RowBitmap;
 use crate::seacow::SeaCow;
 use crate::PushInCapacity;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
-use rgb::ComponentMap;
+use rgb::prelude::*;
 use std::mem::MaybeUninit;
 
 /// Describes image dimensions and pixels for the library

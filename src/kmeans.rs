@@ -4,8 +4,8 @@ use crate::nearest::Nearest;
 use crate::pal::{f_pixel, PalF, PalIndex, PalPop};
 use crate::rayoff::*;
 use crate::Error;
-use rgb::alt::ARGB;
-use rgb::ComponentMap;
+use rgb::Argb;
+use rgb::prelude::*;
 use std::cell::RefCell;
 
 /// K-Means iteration: new palette color is computed from weighted average of colors that map best to that palette entry.
@@ -17,7 +17,7 @@ pub(crate) struct Kmeans {
 
 #[derive(Copy, Clone, Default)]
 struct ColorAvg {
-    pub sum: ARGB<f64>,
+    pub sum: Argb<f64>,
     pub total: f64,
 }
 

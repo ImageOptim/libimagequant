@@ -1,13 +1,13 @@
 use crate::OrdFloat;
 use arrayvec::ArrayVec;
-use rgb::ComponentMap;
+use rgb::prelude::*;
 use std::ops::{Deref, DerefMut};
 
 /// 8-bit RGBA in sRGB. This is the only color format *publicly* used by the library.
-pub type RGBA = rgb::RGBA<u8>;
+pub type RGBA = rgb::Rgba<u8>;
 
 #[allow(clippy::upper_case_acronyms)]
-pub type ARGBF = rgb::alt::ARGB<f32>;
+pub type ARGBF = rgb::Argb<f32>;
 
 pub const INTERNAL_GAMMA: f64 = 0.57;
 pub const LIQ_WEIGHT_A: f32 = 0.625;

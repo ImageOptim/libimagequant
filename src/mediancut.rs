@@ -4,8 +4,7 @@ use crate::pal::{PalLen, ARGBF};
 use crate::quant::quality_to_mse;
 use crate::PushInCapacity;
 use crate::{Error, OrdFloat};
-use rgb::ComponentMap;
-use rgb::ComponentSlice;
+use rgb::prelude::*;
 use std::cmp::Reverse;
 
 struct MedianCutter<'hist> {
@@ -98,7 +97,7 @@ impl<'hist> MBox<'hist> {
         }
 
         // Sort dimensions by their variance, and then sort colors first by dimension with the highest variance
-        let vars = self.variance.as_slice();
+        let vars: [f32; 4] = rgb::bytemuck::cast(self.variance);
         let mut channels = [
             ChanVariance { chan: 0, variance: vars[0] },
             ChanVariance { chan: 1, variance: vars[1] },
@@ -108,7 +107,7 @@ impl<'hist> MBox<'hist> {
         channels.sort_by_key(|a| Reverse(OrdFloat::new(a.variance)));
 
         for a in self.colors.iter_mut() {
-            let chans = a.color.as_slice();
+            let chans: [f32; 4] = rgb::bytemuck::cast(a.color.0);
             // Only the first channel really matters. But other channels are included, because when trying median cut
             // many times with different histogram weights, I don't want sort randomness to influence the outcome.
             a.tmp.mc_sort_value = (((chans[channels[0].chan] * 65535.) as u32) << 16)

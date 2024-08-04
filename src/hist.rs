@@ -8,7 +8,6 @@ use crate::quant::QuantizationResult;
 use crate::rows::temp_buf;
 use crate::rows::DynamicRows;
 use crate::Attributes;
-use rgb::ComponentSlice;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::Hash;
@@ -424,7 +423,8 @@ pub(crate) struct HashColor { pub rgba: RGBA, pub index: PalIndex }
 impl Hash for HashColor {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        u32::from_ne_bytes(self.rgba.as_slice().try_into().unwrap()).hash(state);
+        let s: &[u8] = self.rgba.as_ref();
+        u32::from_ne_bytes(s.try_into().unwrap()).hash(state);
     }
 }
 
