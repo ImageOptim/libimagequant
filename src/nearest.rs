@@ -1,6 +1,4 @@
-use crate::pal::PalIndex;
-use crate::pal::MAX_COLORS;
-use crate::pal::{f_pixel, PalF};
+use crate::pal::{f_pixel, PalF, PalIndex, MAX_COLORS};
 use crate::{Error, OrdFloat};
 
 impl<'pal> Nearest<'pal> {

@@ -1,7 +1,6 @@
 use crate::error::Error;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
-use crate::seacow::Pointer;
-use crate::seacow::SeaCow;
+use crate::seacow::{Pointer, SeaCow};
 use crate::LIQ_HIGH_MEMORY_LIMIT;
 use std::mem::MaybeUninit;
 
@@ -52,11 +51,9 @@ impl Clone for DynamicRows<'_, '_> {
             height: self.height,
             f_pixels: self.f_pixels.clone(),
             pixels: match &self.pixels {
-                PixelsSource::Pixels { rows, pixels } => {
-                    PixelsSource::Pixels {
-                        rows: rows.clone(),
-                        pixels: pixels.clone(),
-                    }
+                PixelsSource::Pixels { rows, pixels } => PixelsSource::Pixels {
+                    rows: rows.clone(),
+                    pixels: pixels.clone(),
                 },
                 PixelsSource::Callback(_) => {
                     let area = self.width as usize * self.height as usize;
@@ -118,7 +115,7 @@ impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
     }
 }
 
-impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
+impl<'pixels, 'rows> DynamicRows<'pixels, 'rows> {
     #[inline]
     pub(crate) fn new(width: u32, height: u32, pixels: PixelsSource<'pixels, 'rows>, gamma: f64) -> Self {
         debug_assert!(gamma > 0.);
@@ -134,7 +131,7 @@ impl<'pixels,'rows> DynamicRows<'pixels,'rows> {
                 cb(temp_row, row);
                 // cb needs to be marked as unsafe, since it's responsible for initialization :(
                 unsafe { slice_assume_init_mut(temp_row) }
-            }
+            },
         }
     }
 

@@ -1,12 +1,8 @@
 use crate::error::*;
 use crate::image::Image;
-use crate::pal::PalIndex;
-use crate::pal::ARGBF;
-use crate::pal::MAX_COLORS;
-use crate::pal::{f_pixel, gamma_lut, RGBA};
+use crate::pal::{f_pixel, gamma_lut, PalIndex, ARGBF, MAX_COLORS, RGBA};
 use crate::quant::QuantizationResult;
-use crate::rows::temp_buf;
-use crate::rows::DynamicRows;
+use crate::rows::{temp_buf, DynamicRows};
 use crate::Attributes;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -387,6 +383,7 @@ pub(crate) struct Cluster {
 // Simple deterministic hasher for the color hashmap
 impl std::hash::BuildHasher for U32Hasher {
     type Hasher = Self;
+
     #[inline(always)]
     fn build_hasher(&self) -> Self {
         Self(0)

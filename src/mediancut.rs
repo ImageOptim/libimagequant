@@ -1,6 +1,5 @@
 use crate::hist::{HistItem, HistogramInternal};
-use crate::pal::{f_pixel, PalF, PalPop};
-use crate::pal::{PalLen, ARGBF};
+use crate::pal::{f_pixel, PalF, PalLen, PalPop, ARGBF};
 use crate::quant::quality_to_mse;
 use crate::PushInCapacity;
 use crate::{Error, OrdFloat};

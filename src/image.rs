@@ -4,10 +4,9 @@ use crate::error::*;
 use crate::pal::{f_pixel, PalF, PalIndexRemap, MAX_COLORS, MIN_OPAQUE_A, RGBA};
 use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
-use crate::seacow::RowBitmap;
-use crate::seacow::SeaCow;
 use crate::PushInCapacity;
 use crate::LIQ_HIGH_MEMORY_LIMIT;
+use crate::seacow::{RowBitmap, SeaCow};
 use rgb::prelude::*;
 use std::mem::MaybeUninit;
 
@@ -336,7 +335,7 @@ impl<'pixels> Image<'pixels> {
             Ok(p) => p,
             Err(e) => {
                 attr.verbose_print(format!("Buffer length is {} bytes, which is not enough for {}×{}×4 RGBA bytes", pixels_len*4, stride, height));
-                return Err(e)
+                return Err(e);
             },
         };
         Image::new_internal(attr, pixels_rows, width, height, gamma)

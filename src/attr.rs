@@ -1,9 +1,7 @@
 use crate::error::Error;
 use crate::hist::Histogram;
 use crate::image::Image;
-use crate::pal::PalLen;
-use crate::pal::MAX_COLORS;
-use crate::pal::RGBA;
+use crate::pal::{PalLen, MAX_COLORS, RGBA};
 use crate::quant::{mse_to_quality, quality_to_mse, QuantizationResult};
 use crate::remap::DitherMapMode;
 use std::sync::Arc;

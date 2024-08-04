@@ -12,10 +12,8 @@ use imagequant::capi::*;
 use imagequant::Error::LIQ_OK;
 use imagequant::*;
 use std::ffi::CString;
-use std::mem::ManuallyDrop;
-use std::mem::MaybeUninit;
-use std::os::raw::c_char;
-use std::os::raw::{c_int, c_uint, c_void};
+use std::mem::{ManuallyDrop, MaybeUninit};
+use std::os::raw::{c_char, c_int, c_uint, c_void};
 use std::ptr;
 
 pub use imagequant::Error as liq_error;

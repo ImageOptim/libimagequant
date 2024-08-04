@@ -316,7 +316,7 @@ impl Clone for QuantizationResult {
 fn sort_palette(attr: &Attributes, palette: &mut PalF) {
     let last_index_transparent = attr.last_index_transparent;
 
-    let mut tmp: ArrayVec<_, {MAX_COLORS}> = palette.iter_mut().map(|(c,p)| (*c, *p)).collect();
+    let mut tmp: ArrayVec<_, { MAX_COLORS }> = palette.iter_mut().map(|(c, p)| (*c, *p)).collect();
     tmp.sort_by_key(|(color, pop)| {
         let is_transparent = color.a <= MAX_TRANSP_A;
         (is_transparent == last_index_transparent, Reverse(OrdFloat::new(pop.popularity())))

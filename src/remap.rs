@@ -1,4 +1,3 @@
-use crate::CacheLineAlign;
 use crate::error::Error;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
@@ -8,6 +7,7 @@ use crate::quant::QuantizationResult;
 use crate::rayoff::*;
 use crate::rows::{temp_buf, DynamicRows};
 use crate::seacow::{RowBitmap, RowBitmapMut};
+use crate::CacheLineAlign;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
 
@@ -268,7 +268,7 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIn
             last_match
         };
         let (matched, dither_diff) = n.search(&spx, guessed_match as _);
-        let mut matched = matched  as PalIndexRemap;
+        let mut matched = matched as PalIndexRemap;
         last_match = matched as PalIndexRemap;
         let mut output_px = palette[last_match as usize];
         if let Some(bg_pixel) = bg_pixels.get(col) {

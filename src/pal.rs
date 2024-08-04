@@ -78,7 +78,7 @@ impl f_pixel {
             vst1q_f32(max_gb.as_mut_ptr(), vpaddq_f32(max, max));
 
             // add rgb, not a
-            
+
             max_r[1] + max_gb[1]
         }
     }

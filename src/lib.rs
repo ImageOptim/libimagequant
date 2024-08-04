@@ -51,11 +51,9 @@ pub(crate) struct CacheLineAlign<T>(pub T);
 #[cfg(feature = "_internal_c_ffi")]
 pub mod capi;
 
-pub use attr::Attributes;
-pub use attr::ControlFlow;
+pub use attr::{Attributes, ControlFlow};
 pub use error::Error;
-pub use hist::Histogram;
-pub use hist::HistogramEntry;
+pub use hist::{Histogram, HistogramEntry};
 pub use image::Image;
 #[doc(hidden)]
 pub use pal::Palette;
@@ -88,8 +86,7 @@ fn copy_img() {
 fn takes_rgba() {
     let liq = Attributes::new();
 
-    let img = vec![RGBA {r:0, g:0, b:0, a:0}; 8];
-
+    let img = vec![RGBA { r: 0, g: 0, b: 0, a: 0 }; 8];
 
     liq.new_image_borrowed(&img, 1, 1, 0.0).unwrap();
     liq.new_image_borrowed(&img, 4, 2, 0.0).unwrap();
@@ -103,11 +100,11 @@ fn histogram() {
     let attr = Attributes::new();
     let mut hist = Histogram::new(&attr);
 
-    let bitmap1 = [RGBA {r:0, g:0, b:0, a:0}; 1];
+    let bitmap1 = [RGBA { r: 0, g: 0, b: 0, a: 0 }; 1];
     let mut image1 = attr.new_image(&bitmap1[..], 1, 1, 0.0).unwrap();
     hist.add_image(&attr, &mut image1).unwrap();
 
-    let bitmap2 = [RGBA {r:255, g:255, b:255, a:255}; 1];
+    let bitmap2 = [RGBA { r: 255, g: 255, b: 255, a: 255 }; 1];
     let mut image2 = attr.new_image(&bitmap2[..], 1, 1, 0.0).unwrap();
     hist.add_image(&attr, &mut image2).unwrap();
 

@@ -21,9 +21,8 @@ impl<T> ThreadLocal<T> {
 }
 
 impl<T> IntoIterator for ThreadLocal<T> {
-    type Item = T;
-
     type IntoIter = std::option::IntoIter<T>;
+    type Item = T;
 
     #[inline(always)]
     fn into_iter(mut self) -> Self::IntoIter {
