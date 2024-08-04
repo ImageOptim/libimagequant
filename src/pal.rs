@@ -228,8 +228,8 @@ impl PalF {
         debug_assert!(PalIndex::MAX as usize + 1 >= MAX_COLORS);
         debug_assert!(PalLen::MAX as usize >= MAX_COLORS);
         Self {
-            colors: Default::default(),
-            pops: Default::default(),
+            colors: ArrayVec::default(),
+            pops: ArrayVec::default(),
         }
     }
 

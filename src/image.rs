@@ -128,10 +128,7 @@ impl<'pixels> Image<'pixels> {
         if self.edges.is_none() {
             self.contrast_maps()?;
         }
-        let mut edges = match self.edges.take() {
-            Some(e) => e,
-            None => return Ok(()),
-        };
+        let Some(mut edges) = self.edges.take() else { return Ok(()) };
         let colors = palette.as_slice();
 
         let width = self.width();

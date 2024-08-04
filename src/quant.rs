@@ -64,7 +64,7 @@ impl QuantizationResult {
             progress_callback: None,
             int_palette: Palette {
                 count: 0,
-                entries: [Default::default(); MAX_COLORS],
+                entries: [RGBA::default(); MAX_COLORS],
             },
             dither_level: 1.,
             single_threaded_dithering: attr.single_threaded_dithering,
@@ -441,7 +441,7 @@ fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInt
 #[cold]
 fn palette_from_histogram(hist: &HistogramInternal, max_colors: PalLen) -> (PalF, Option<f64>) {
     let mut hist_pal = PalF::new();
-    for item in hist.items.iter() {
+    for item in &hist.items {
         hist_pal.push(item.color, PalPop::new(item.perceptual_weight));
     }
 

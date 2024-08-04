@@ -231,7 +231,7 @@ impl<'pixels, 'rows> DynamicRows<'pixels, 'rows> {
                 PixelsSource::Pixels { pixels, rows } => {
                     // the row with the lowest address is assumed to be at the start of the bitmap
                     let ptr = rows.as_slice().iter().map(|p| p.0).min().ok_or(Error::Unsupported)?;
-                    *pixels = Some(SeaCow::c_owned(ptr as *mut _, len, free_fn));
+                    *pixels = Some(SeaCow::c_owned(ptr.cast_mut(), len, free_fn));
                 },
                 PixelsSource::Callback(_) => return Err(Error::ValueOutOfRange),
             }

@@ -57,10 +57,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
 
     let remapping_error = output_pixels.rows_mut().enumerate().par_bridge().map(|(row, output_pixels_row)| {
         let mut remapping_error = 0.;
-        let tls_res = match tls.get_or_try(per_thread_buffers) {
-            Ok(res) => res,
-            Err(_) => return f64::NAN,
-        };
+        let Ok(tls_res) = tls.get_or_try(per_thread_buffers) else { return f64::NAN };
         let (kmeans, temp_row, temp_row_f, temp_row_f_bg) = &mut *tls_res.0.borrow_mut();
 
         let output_pixels_row = &mut output_pixels_row[..width];

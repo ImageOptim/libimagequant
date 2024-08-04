@@ -40,14 +40,14 @@ impl<'hist> MBox<'hist> {
         let mut avg_color = weighed_average_color(hist);
         // It's possible that an average color will end up being bad for every entry,
         // so prefer picking actual colors so that at least one histogram entry will be satisfied.
-        if (hist.len() < 500 && hist.len() > 2) || Self::is_useless_color(&avg_color, hist, other_boxes) {
+        if (hist.len() < 500 && hist.len() > 2) || Self::is_useless_color(avg_color, hist, other_boxes) {
             avg_color = hist.iter().min_by_key(|a| OrdFloat::new(avg_color.diff(&a.color))).map(|a| a.color).unwrap_or_default();
         }
         Self::new_c(hist, adjusted_weight_sum, avg_color)
     }
 
     fn new_c(hist: &'hist mut [HistItem], adjusted_weight_sum: f64, avg_color: f_pixel) -> Self {
-        let (variance, max_error) = Self::box_stats(hist, &avg_color);
+        let (variance, max_error) = Self::box_stats(hist, avg_color);
         Self {
             variance,
             max_error,
@@ -59,7 +59,7 @@ impl<'hist> MBox<'hist> {
     }
 
     /// It's possible that the average color is useless
-    fn is_useless_color(new_avg_color: &f_pixel, colors: &[HistItem], other_boxes: &[MBox<'_>]) -> bool {
+    fn is_useless_color(new_avg_color: f_pixel, colors: &[HistItem], other_boxes: &[MBox<'_>]) -> bool {
         colors.iter().all(move |c| {
             let own_box_diff = new_avg_color.diff(&c.color);
             let other_box_is_better = other_boxes.iter()
@@ -69,7 +69,7 @@ impl<'hist> MBox<'hist> {
         })
     }
 
-    fn box_stats(hist: &[HistItem], avg_color: &f_pixel) -> (ARGBF, f32) {
+    fn box_stats(hist: &[HistItem], avg_color: f_pixel) -> (ARGBF, f32) {
         let mut variance = ARGBF::default();
         let mut max_error = 0.;
         for a in hist {
@@ -278,9 +278,8 @@ impl<'hist> MedianCutter<'hist> {
             // later raises the limit to allow large smooth areas/gradients get colors.
             let fraction_done = self.boxes.len() as f64 / f64::from(self.target_colors);
             let current_max_mse = (fraction_done * 16.).mul_add(max_mse, max_mse);
-            let bi = match self.take_best_splittable_box(current_max_mse) {
-                Some(bi) => bi,
-                None => break,
+            let Some(bi) = self.take_best_splittable_box(current_max_mse) else {
+                break
             };
 
             self.boxes.extend(bi.split(&self.boxes));

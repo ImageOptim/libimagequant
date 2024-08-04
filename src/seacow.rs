@@ -57,7 +57,7 @@ impl<'a, T> SeaCow<'a, T> {
     #[cfg(feature = "_internal_c_ffi")]
     pub(crate) fn make_owned(&mut self, free_fn: unsafe extern fn(*mut c_void)) {
         if let SeaCowInner::Borrowed(slice) = self.inner {
-            self.inner = SeaCowInner::Owned { ptr: slice.as_ptr() as *mut _, len: slice.len(), free_fn };
+            self.inner = SeaCowInner::Owned { ptr: slice.as_ptr().cast_mut(), len: slice.len(), free_fn };
         }
     }
 }
