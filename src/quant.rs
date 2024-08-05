@@ -441,7 +441,7 @@ fn refine_palette(palette: &mut PalF, attr: &Attributes, hist: &mut HistogramInt
 #[cold]
 fn palette_from_histogram(hist: &HistogramInternal, max_colors: PalLen) -> (PalF, Option<f64>) {
     let mut hist_pal = PalF::new();
-    for item in &hist.items {
+    for item in hist.items.iter() {
         hist_pal.push(item.color, PalPop::new(item.perceptual_weight));
     }
 

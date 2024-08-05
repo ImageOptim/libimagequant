@@ -133,7 +133,7 @@ fn replace_unused_colors(palette: &mut PalF, hist: &HistogramInternal) -> Result
             let colors = palette.as_slice();
             // the search is just for diff, ignoring adjusted_weight,
             // because the palette already optimizes for the max weight, so it'd likely find another redundant entry.
-            for item in &hist.items {
+            for item in hist.items.iter() {
                 // the early reject avoids running full palette search for every entry
                 let may_be_worst = colors.get(item.likely_palette_index() as usize)
                     .map_or(true, |pal| pal.diff(&item.color) > worst_diff);
