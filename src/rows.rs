@@ -122,7 +122,7 @@ impl<'pixels, 'rows> DynamicRows<'pixels, 'rows> {
         Self { width, height, f_pixels: None, pixels, gamma }
     }
 
-    fn row_rgba<'px>(&'px self, temp_row: &'px mut [MaybeUninit<RGBA>], row: usize) -> &[RGBA] {
+    fn row_rgba<'px>(&'px self, temp_row: &'px mut [MaybeUninit<RGBA>], row: usize) -> &'px [RGBA] {
         match &self.pixels {
             PixelsSource::Pixels { rows, .. } => unsafe {
                 std::slice::from_raw_parts(rows.as_slice()[row].0, self.width())
