@@ -243,8 +243,7 @@ fn sizes() {
 
 #[doc(hidden)]
 pub fn _unstable_internal_kmeans_bench() -> impl FnMut() {
-    use crate::pal::PalF;
-    use crate::pal::PalPop;
+    use crate::pal::{PalF, PalPop};
 
     let attr = new();
     let mut h = hist::Histogram::new(&attr);
@@ -294,7 +293,9 @@ impl Eq for OrdFloat<f32> {
 
 impl Ord for OrdFloat<f32> {
     #[inline]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering { self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal) }
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal)
+    }
 }
 
 impl Eq for OrdFloat<f64> {
@@ -302,7 +303,9 @@ impl Eq for OrdFloat<f64> {
 
 impl Ord for OrdFloat<f64> {
     #[inline]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering { self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal) }
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal)
+    }
 }
 
 impl OrdFloat<f32> {
@@ -329,16 +332,16 @@ fn test_fixed_colors() {
     }).collect::<Vec<_>>();
     h.add_colors(&tmp, 0.).unwrap();
     for f in 200..255 {
-        h.add_fixed_color(RGBA::new(f,f,f,255), 0.).unwrap();
+        h.add_fixed_color(RGBA::new(f, f, f, 255), 0.).unwrap();
     }
     let mut r = h.quantize(&attr).unwrap();
     let pal = r.palette();
 
     for (i, c) in (200..255).enumerate() {
-        assert_eq!(pal[i], RGBA::new(c,c,c,255));
+        assert_eq!(pal[i], RGBA::new(c, c, c, 255));
     }
 
     for c in 0..128 {
-        assert!(pal[55..].iter().any(|&p| p == RGBA::new(c,c,c,255)));
+        assert!(pal[55..].iter().any(|&p| p == RGBA::new(c, c, c, 255)));
     }
 }

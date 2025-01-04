@@ -189,6 +189,7 @@ pub unsafe extern "C" fn liq_result_set_progress_callback(result: &mut liq_resul
     result.inner.set_progress_callback(move |f| if callback(f, user_info) == 0 { ControlFlow::Break} else { ControlFlow::Continue});
 }
 
+#[allow(clippy::cast_ptr_alignment)]
 unsafe fn attr_to_liq_attr_ptr(ptr: &Attributes) -> &liq_attr {
     let liq_attr = std::ptr::NonNull::<liq_attr>::dangling();
     let outer_addr = std::ptr::addr_of!(*liq_attr.as_ptr()) as isize;

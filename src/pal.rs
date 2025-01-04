@@ -52,12 +52,12 @@ impl f_pixel {
 
     #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
     #[inline(always)]
-    pub fn diff(&self, other: &f_pixel) -> f32 {
+    pub fn diff(&self, other: &Self) -> f32 {
         unsafe {
             use std::arch::aarch64::*;
 
-            let px = vld1q_f32((self as *const f_pixel).cast::<f32>());
-            let py = vld1q_f32((other as *const f_pixel).cast::<f32>());
+            let px = vld1q_f32((self as *const Self).cast::<f32>());
+            let py = vld1q_f32((other as *const Self).cast::<f32>());
 
             // y.a - x.a
             let mut alphas = vsubq_f32(py, px);
@@ -324,7 +324,7 @@ impl PalF {
 }
 
 #[inline]
-fn posterize_channel(color: u8, bits: u8) -> u8 {
+const fn posterize_channel(color: u8, bits: u8) -> u8 {
     if bits == 0 {
         color
     } else {

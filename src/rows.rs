@@ -16,7 +16,7 @@ pub(crate) enum PixelsSource<'pixels, 'rows> {
     Callback(Box<RowCallback<'rows>>),
 }
 
-impl<'pixels, 'rows> PixelsSource<'pixels, 'rows> {
+impl<'pixels> PixelsSource<'pixels, '_> {
     pub(crate) fn for_pixels(pixels: SeaCow<'pixels, RGBA>, width: u32, height: u32, stride: u32) -> Result<Self, Error> {
         if stride < width || height == 0 || width == 0 {
             return Err(Error::ValueOutOfRange);
@@ -67,7 +67,7 @@ impl Clone for DynamicRows<'_, '_> {
                     }
                     let pixels = SeaCow::boxed(out.into_boxed_slice());
                     PixelsSource::for_pixels(pixels, self.width, self.height, self.width).unwrap()
-                }
+                },
             },
             gamma: self.gamma,
         }
@@ -79,7 +79,7 @@ pub(crate) struct DynamicRowsIter<'parent, 'pixels, 'rows> {
     temp_f_row: Option<Box<[MaybeUninit<f_pixel>]>>,
 }
 
-impl<'a, 'pixels, 'rows> DynamicRowsIter<'a, 'pixels, 'rows> {
+impl DynamicRowsIter<'_, '_, '_> {
     #[must_use]
     pub fn row_f<'px>(&'px mut self, temp_row: &mut [MaybeUninit<RGBA>], row: usize) -> &'px [f_pixel] {
         debug_assert_eq!(temp_row.len(), self.px.width as usize);
@@ -241,19 +241,22 @@ impl<'pixels, 'rows> DynamicRows<'pixels, 'rows> {
 
     pub fn free_histogram_inputs(&mut self) {
         if self.f_pixels.is_some() {
-            self.pixels = PixelsSource::Pixels { rows: SeaCow::borrowed(&[]), pixels: None };
+            self.pixels = PixelsSource::Pixels {
+                rows: SeaCow::borrowed(&[]),
+                pixels: None,
+            };
         }
     }
 
     #[inline(always)]
     #[must_use]
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.width as usize
     }
 
     #[inline(always)]
     #[must_use]
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.height as usize
     }
 }

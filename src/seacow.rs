@@ -36,7 +36,7 @@ impl<T> SeaCow<'static, T> {
 impl<'a, T> SeaCow<'a, T> {
     #[inline]
     #[must_use]
-    pub fn borrowed(data: &'a [T]) -> Self {
+    pub const fn borrowed(data: &'a [T]) -> Self {
         Self { inner: SeaCowInner::Borrowed(data) }
     }
 
@@ -86,7 +86,7 @@ enum SeaCowInner<'a, T> {
 }
 
 #[cfg(feature = "_internal_c_ffi")]
-impl<'a, T> Drop for SeaCowInner<'a, T> {
+impl<T> Drop for SeaCowInner<'_, T> {
     fn drop(&mut self) {
         if let Self::Owned { ptr, free_fn, .. } = self {
             unsafe {
@@ -96,7 +96,7 @@ impl<'a, T> Drop for SeaCowInner<'a, T> {
     }
 }
 
-impl<'a, T> SeaCow<'a, T> {
+impl<T> SeaCow<'_, T> {
     #[must_use]
     pub fn as_slice(&self) -> &[T] {
         match &self.inner {
@@ -120,9 +120,10 @@ pub(crate) struct RowBitmapMut<'a, T> {
 }
 unsafe impl<T: Send + Sync> Send for RowBitmapMut<'_, T> {}
 
-impl<'a, T> RowBitmapMut<'a, MaybeUninit<T>> {
+impl<T> RowBitmapMut<'_, MaybeUninit<T>> {
     #[inline]
     pub(crate) unsafe fn assume_init<'maybeowned>(&'maybeowned mut self) -> RowBitmap<'maybeowned, T> {
+        #[allow(clippy::transmute_ptr_to_ptr)]
         RowBitmap {
             width: self.width,
             rows: std::mem::transmute::<&'maybeowned [PointerMut<MaybeUninit<T>>], &'maybeowned [Pointer<T>]>(self.rows.borrow_mut()),
@@ -130,7 +131,7 @@ impl<'a, T> RowBitmapMut<'a, MaybeUninit<T>> {
     }
 }
 
-impl<'a, T> RowBitmap<'a, T> {
+impl<T> RowBitmap<'_, T> {
     pub fn rows(&self) -> impl Iterator<Item = &[T]> {
         let width = self.width;
         self.rows.iter().map(move |row| {
@@ -145,7 +146,7 @@ enum MutCow<'a, T: ?Sized> {
     Borrowed(&'a mut T),
 }
 
-impl<'a, T: ?Sized> MutCow<'a, T> {
+impl<T: ?Sized> MutCow<'_, T> {
     #[must_use]
     pub fn borrow_mut(&mut self) -> &mut T {
         match self {

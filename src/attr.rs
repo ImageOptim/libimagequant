@@ -258,12 +258,12 @@ impl Attributes {
 
     #[inline(always)]
     pub(crate) fn verbose_print(&self, msg: impl AsRef<str>) {
-        fn _print(a: &Attributes, msg: &str) {
+        fn print_(a: &Attributes, msg: &str) {
             if let Some(f) = &a.log_callback {
                 f(a, msg);
             }
         }
-        _print(self, msg.as_ref());
+        print_(self, msg.as_ref());
     }
 
     #[inline]

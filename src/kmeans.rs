@@ -66,20 +66,20 @@ impl Kmeans {
 
         // chunk size is a trade-off between parallelization and overhead
         hist.items.par_chunks_mut(256).for_each({
-            let tls = &tls; move |batch| {
-            let kmeans = tls.get_or(move || CacheLineAlign(RefCell::new(Self::new(len))));
-            if let Ok(ref mut kmeans) = *kmeans.0.borrow_mut() {
-                kmeans.iterate_batch(batch, &n, colors, adjust_weight);
+            let tls = &tls;
+            move |batch| {
+                let kmeans = tls.get_or(move || CacheLineAlign(RefCell::new(Self::new(len))));
+                if let Ok(ref mut kmeans) = *kmeans.0.borrow_mut() {
+                    kmeans.iterate_batch(batch, &n, colors, adjust_weight);
+                }
             }
-        }});
+        });
 
         let diff = tls.into_iter()
             .map(|c| c.0.into_inner())
             .reduce(Self::try_merge)
             .transpose()?
-            .map_or(0., |kmeans| {
-                kmeans.finalize(palette) / total
-            });
+            .map_or(0., |kmeans| kmeans.finalize(palette) / total);
 
         replace_unused_colors(palette, hist)?;
         Ok(diff)

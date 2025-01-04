@@ -227,7 +227,7 @@ impl Histogram {
     }
 
     #[inline(always)]
-    fn posterize_mask(&self) -> u32 {
+    const fn posterize_mask(&self) -> u32 {
         let channel_mask = 255 << self.posterize_bits;
         u32::from_ne_bytes([channel_mask, channel_mask, channel_mask, channel_mask])
     }
@@ -414,7 +414,10 @@ impl std::hash::Hasher for U32Hasher {
 
 /// ignores the index
 #[derive(PartialEq, Debug)]
-pub(crate) struct HashColor { pub rgba: RGBA, pub index: PalIndex }
+pub(crate) struct HashColor {
+    pub rgba: RGBA,
+    pub index: PalIndex,
+}
 
 #[allow(clippy::derived_hash_with_manual_eq)]
 impl Hash for HashColor {

@@ -223,11 +223,7 @@ impl QuantizationResult {
 
     // true == abort
     pub(crate) fn remap_progress(&self, percent: f32) -> bool {
-        if let Some(cb) = &self.progress_callback {
-            cb(percent) == ControlFlow::Break
-        } else {
-            false
-        }
+        self.progress_callback.as_ref().map_or(false, |cb| cb(percent) == ControlFlow::Break)
     }
 
     /// Remap image into a palette + indices.

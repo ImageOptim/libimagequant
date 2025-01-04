@@ -217,14 +217,14 @@ impl<'pixels> Image<'pixels> {
     /// Width of the image in pixels
     #[must_use]
     #[inline(always)]
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.px.width as _
     }
 
     /// Height of the image in pixels
     #[must_use]
     #[inline(always)]
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.px.height as _
     }
 
@@ -331,7 +331,7 @@ impl<'pixels> Image<'pixels> {
         let pixels_rows = match PixelsSource::for_pixels(pixels, width, height, stride) {
             Ok(p) => p,
             Err(e) => {
-                attr.verbose_print(format!("Buffer length is {} bytes, which is not enough for {}×{}×4 RGBA bytes", pixels_len*4, stride, height));
+                attr.verbose_print(format!("Buffer length is {} bytes, which is not enough for {}×{}×4 RGBA bytes", pixels_len * 4, stride, height));
                 return Err(e);
             },
         };
