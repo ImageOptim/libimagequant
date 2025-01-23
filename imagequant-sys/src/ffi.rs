@@ -22,14 +22,14 @@ pub use imagequant::Error as liq_error;
 pub struct liq_attr {
     magic_header: MagicTag,
     inner: Attributes,
-    c_api_free: unsafe extern fn(*mut c_void),
+    c_api_free: unsafe extern "C" fn(*mut c_void),
 }
 
 #[repr(C)]
 pub struct liq_image<'pixels> {
     magic_header: MagicTag,
     inner: ManuallyDrop<Image<'pixels>>,
-    c_api_free: unsafe extern fn(*mut c_void),
+    c_api_free: unsafe extern "C" fn(*mut c_void),
 }
 
 #[repr(C)]
@@ -424,7 +424,7 @@ pub extern "C" fn liq_histogram_destroy(_hist: Option<Box<liq_histogram>>) {}
 #[no_mangle]
 #[inline(never)]
 #[deprecated(note = "custom allocators are no longer supported")]
-pub extern "C" fn liq_attr_create_with_allocator(_unused: *mut c_void, free: unsafe extern fn(*mut c_void)) -> Option<Box<liq_attr>> {
+pub extern "C" fn liq_attr_create_with_allocator(_unused: *mut c_void, free: unsafe extern "C" fn(*mut c_void)) -> Option<Box<liq_attr>> {
     let attr = Box::new(liq_attr {
         magic_header: LIQ_ATTR_MAGIC,
         inner: Attributes::new(),

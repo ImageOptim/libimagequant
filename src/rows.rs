@@ -216,7 +216,7 @@ impl<'pixels, 'rows> DynamicRows<'pixels, 'rows> {
 
     /// Not recommended
     #[cfg(feature = "_internal_c_ffi")]
-    pub(crate) unsafe fn set_memory_ownership(&mut self, own_rows: bool, own_pixels: bool, free_fn: unsafe extern fn(*mut std::os::raw::c_void)) -> Result<(), Error> {
+    pub(crate) unsafe fn set_memory_ownership(&mut self, own_rows: bool, own_pixels: bool, free_fn: unsafe extern "C" fn(*mut std::os::raw::c_void)) -> Result<(), Error> {
         if own_rows {
             match &mut self.pixels {
                 PixelsSource::Pixels { rows, .. } => rows.make_owned(free_fn),

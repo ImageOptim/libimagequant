@@ -44,7 +44,7 @@ impl<'a, T> SeaCow<'a, T> {
     #[inline]
     #[cfg(feature = "_internal_c_ffi")]
     #[must_use]
-    pub unsafe fn c_owned(ptr: *mut T, len: usize, free_fn: unsafe extern fn(*mut c_void)) -> Self {
+    pub unsafe fn c_owned(ptr: *mut T, len: usize, free_fn: unsafe extern "C" fn(*mut c_void)) -> Self {
         debug_assert!(!ptr.is_null());
         debug_assert!(len > 0);
 
@@ -55,7 +55,7 @@ impl<'a, T> SeaCow<'a, T> {
 
     #[inline]
     #[cfg(feature = "_internal_c_ffi")]
-    pub(crate) fn make_owned(&mut self, free_fn: unsafe extern fn(*mut c_void)) {
+    pub(crate) fn make_owned(&mut self, free_fn: unsafe extern "C" fn(*mut c_void)) {
         if let SeaCowInner::Borrowed(slice) = self.inner {
             self.inner = SeaCowInner::Owned { ptr: slice.as_ptr().cast_mut(), len: slice.len(), free_fn };
         }
@@ -80,7 +80,7 @@ impl<T: Clone> Clone for SeaCowInner<'_, T> {
 
 enum SeaCowInner<'a, T> {
     #[cfg(feature = "_internal_c_ffi")]
-    Owned { ptr: *mut T, len: usize, free_fn: unsafe extern fn(*mut c_void) },
+    Owned { ptr: *mut T, len: usize, free_fn: unsafe extern "C" fn(*mut c_void) },
     Borrowed(&'a [T]),
     Boxed(Box<[T]>),
 }
