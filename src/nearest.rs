@@ -124,7 +124,7 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
     let (ref_, indexes) = indexes.split_first_mut().unwrap();
 
     let vantage_point = palette[usize::from(ref_.idx)];
-    indexes.sort_unstable_by_key(move |i| OrdFloat::new(vantage_point.diff(&palette[usize::from(i.idx)])));
+    indexes.sort_by_cached_key(move |i| OrdFloat::new(vantage_point.diff(&palette[usize::from(i.idx)])));
 
     let num_indexes = indexes.len();
 
