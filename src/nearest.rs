@@ -109,22 +109,27 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
     debug_assert!(!indexes.is_empty());
     let palette = items.as_slice();
 
-    if indexes.len() == 1 {
+    if indexes.len() <= 1 {
+        let idx = indexes.first().map(|i| i.idx).unwrap_or_default();
         return Node {
-            vantage_point: palette[usize::from(indexes[0].idx)],
-            idx: indexes[0].idx,
+            vantage_point: palette.get(usize::from(idx)).copied().unwrap_or_default(),
+            idx,
             inner: NodeInner::Leaf { len: 0, idxs: [0; LEAF_MAX_SIZE], colors: Box::new([f_pixel::default(); LEAF_MAX_SIZE]) },
         };
     }
 
     let most_popular_item = indexes.iter().enumerate().max_by_key(move |(_, idx)| {
-        OrdFloat::new(items.pop_as_slice()[usize::from(idx.idx)].popularity())
+        OrdFloat::new(items.pop_as_slice().get(usize::from(idx.idx))
+            .map(|p| p.popularity()).unwrap_or_default())
     }).map(|(n, _)| n).unwrap_or_default();
     indexes.swap(most_popular_item, 0);
     let (ref_, indexes) = indexes.split_first_mut().unwrap();
 
-    let vantage_point = palette[usize::from(ref_.idx)];
-    indexes.sort_by_cached_key(move |i| OrdFloat::new(vantage_point.diff(&palette[usize::from(i.idx)])));
+    let vantage_point = palette.get(usize::from(ref_.idx)).copied().unwrap_or_default();
+    indexes.sort_by_cached_key(move |i| {
+        OrdFloat::new(palette.get(usize::from(i.idx))
+            .map(|px| vantage_point.diff(px)).unwrap_or_default())
+    });
 
     let num_indexes = indexes.len();
 
@@ -133,8 +138,10 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
         let mut idxs = [Default::default(); LEAF_MAX_SIZE];
 
         indexes.iter().zip(colors.iter_mut().zip(idxs.iter_mut())).for_each(|(i, (color, idx))| {
-            *idx = i.idx;
-            *color = palette[usize::from(i.idx)];
+            if let Some(c) = palette.get(usize::from(i.idx)) {
+                *idx = i.idx;
+                *color = *c;
+            }
         });
         NodeInner::Leaf {
             len: num_indexes as _,
@@ -146,7 +153,8 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
         let (near, far) = indexes.split_at_mut(half_index);
         debug_assert!(!near.is_empty());
         debug_assert!(!far.is_empty());
-        let radius_squared = vantage_point.diff(&palette[usize::from(far[0].idx)]);
+        let radius_squared = palette.get(usize::from(far[0].idx))
+            .map(|px| vantage_point.diff(px)).unwrap_or_default();
         let radius = radius_squared.sqrt();
         NodeInner::Nodes {
             radius, radius_squared,
@@ -157,7 +165,7 @@ fn vp_create_node(indexes: &mut [MapIndex], items: &PalF) -> Node {
 
     Node {
         inner,
-        vantage_point: palette[usize::from(ref_.idx)],
+        vantage_point,
         idx: ref_.idx,
     }
 }

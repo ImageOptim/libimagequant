@@ -23,6 +23,7 @@ fn remap_ord(b: &mut Bencher) {
     let mut liq = Attributes::new();
     liq.set_speed(10).unwrap();
     let mut img = liq.new_image(img.buffer, img.width, img.height, 0.).unwrap();
+    liq.set_max_colors(256).unwrap();
     let mut res = liq.quantize(&mut img).unwrap();
     res.set_dithering_level(0.).unwrap();
     b.iter(move || {
