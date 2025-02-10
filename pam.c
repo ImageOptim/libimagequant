@@ -250,10 +250,10 @@ LIQ_PRIVATE histogram *pam_acolorhashtoacolorhist(const struct acolorhash_table 
     float gamma_lut[256];
     to_f_set_gamma(gamma_lut, gamma);
     for(int i=0; i < hist->size; i++) {
-        int j = hist->boxes[temp[i].cluster].end++;
-        hist->achv[j].acolor = rgba_to_f(gamma_lut, temp[i].color);
-        hist->achv[j].perceptual_weight = temp[i].weight;
-        hist->achv[j].adjusted_weight = temp[i].weight;
+        int k = hist->boxes[temp[i].cluster].end++;
+        hist->achv[k].acolor = rgba_to_f(gamma_lut, temp[i].color);
+        hist->achv[k].perceptual_weight = temp[i].weight;
+        hist->achv[k].adjusted_weight = temp[i].weight;
     }
     free(temp);
 

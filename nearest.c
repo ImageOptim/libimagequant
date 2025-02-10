@@ -168,10 +168,10 @@ static void vp_search_node(const vp_node *node, const f_pixel *const needle, vp_
 
         if (node->restcount) {
             for(int i=0; i < node->restcount; i++) {
-                const float distance_squared = colordifference(node->rest[i].color, *needle);
-                if (distance_squared < best_candidate->distance_squared && best_candidate->exclude != node->rest[i].idx) {
-                    best_candidate->distance = sqrtf(distance_squared);
-                    best_candidate->distance_squared = distance_squared;
+                const float rest_distance_squared = colordifference(node->rest[i].color, *needle);
+                if (rest_distance_squared < best_candidate->distance_squared && best_candidate->exclude != node->rest[i].idx) {
+                    best_candidate->distance = sqrtf(rest_distance_squared);
+                    best_candidate->distance_squared = rest_distance_squared;
                     best_candidate->idx = node->rest[i].idx;
                 }
             }
