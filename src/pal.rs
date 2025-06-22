@@ -1,6 +1,7 @@
 use crate::OrdFloat;
 use arrayvec::ArrayVec;
 use rgb::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 
 /// 8-bit RGBA in sRGB. This is the only color format *publicly* used by the library.
@@ -29,7 +30,7 @@ pub const MAX_TRANSP_A: f32 = 255. / 256. * LIQ_WEIGHT_A;
     any(target_arch = "x86_64", all(target_feature = "neon", target_arch = "aarch64")),
     repr(C, align(16))
 )]
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct f_pixel(pub ARGBF);
 
@@ -171,7 +172,7 @@ impl From<ARGBF> for f_pixel {
 }
 
 /// To keep the data dense, `is_fixed` is stuffed into the sign bit
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct PalPop(f32);
 
 impl PalPop {
@@ -216,7 +217,7 @@ pub type PalLen = u16;
 pub(crate) const MAX_COLORS: usize = if PalIndex::MAX == 255 { 256 } else { 2048 };
 
 /// A palette of premultiplied ARGB 4xf32 colors in internal gamma
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct PalF {
     colors: ArrayVec<f_pixel, MAX_COLORS>,
     pops: ArrayVec<PalPop, MAX_COLORS>,
@@ -345,11 +346,12 @@ pub fn gamma_lut(gamma: f64) -> [f32; 256] {
 /// Not used in the Rust API.
 /// RGBA colors obtained from [`QuantizationResult`](crate::QuantizationResult)
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Palette {
     /// Number of used colors in the `entries`
     pub count: std::os::raw::c_uint,
     /// The colors, up to `count`
+    #[serde(with = "serde_arrays")]
     pub entries: [RGBA; MAX_COLORS],
 }
 

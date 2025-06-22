@@ -8,18 +8,19 @@ use crate::rayoff::*;
 use crate::rows::{temp_buf, DynamicRows};
 use crate::seacow::{RowBitmap, RowBitmapMut};
 use crate::CacheLineAlign;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
 
 #[repr(u8)]
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub enum DitherMapMode {
     None = 0,
     Enabled = 1,
     Always = 2,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Remapped {
     pub(crate) int_palette: Palette,
     pub(crate) palette_error: Option<f64>,

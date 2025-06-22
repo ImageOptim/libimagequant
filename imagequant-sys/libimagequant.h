@@ -127,6 +127,9 @@ LIQ_EXPORT liq_error liq_set_output_gamma(liq_result* res, double gamma) LIQ_NON
 LIQ_EXPORT LIQ_USERESULT double liq_get_output_gamma(const liq_result *result) LIQ_NONNULL;
 
 LIQ_EXPORT LIQ_USERESULT const liq_palette *liq_get_palette(liq_result *result) LIQ_NONNULL;
+LIQ_EXPORT liq_error liq_result_json_serialize(const liq_result *result, char** json) LIQ_NONNULL;
+LIQ_EXPORT liq_error liq_result_json_deserialize(const char* json, liq_result **result_output) LIQ_NONNULL;
+LIQ_EXPORT void liq_result_json_destroy(char* json) LIQ_NONNULL;
 
 LIQ_EXPORT liq_error liq_write_remapped_image(liq_result *result, liq_image *input_image, void *buffer, size_t buffer_size) LIQ_NONNULL;
 LIQ_EXPORT liq_error liq_write_remapped_image_rows(liq_result *result, liq_image *input_image, unsigned char **row_pointers) LIQ_NONNULL;

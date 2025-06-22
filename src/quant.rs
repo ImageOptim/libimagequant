@@ -10,14 +10,17 @@ use crate::remap::{remap_to_palette, remap_to_palette_floyd};
 use crate::seacow::RowBitmapMut;
 use crate::OrdFloat;
 use arrayvec::ArrayVec;
+use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
 use std::fmt;
 use std::mem::MaybeUninit;
 
 /// Remapping step, computed from [`Attributes::quantize()`]
+#[derive(Serialize, Deserialize)]
 pub struct QuantizationResult {
     remapped: Option<Box<Remapped>>,
     pub(crate) palette: PalF,
+    #[serde(skip)]
     progress_callback: Option<Box<dyn Fn(f32) -> ControlFlow + Send + Sync>>,
     pub(crate) int_palette: Palette,
     pub(crate) dither_level: f32,

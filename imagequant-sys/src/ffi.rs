@@ -11,7 +11,7 @@
 use imagequant::capi::*;
 use imagequant::Error::LIQ_OK;
 use imagequant::*;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::mem::{ManuallyDrop, MaybeUninit};
 use std::os::raw::{c_char, c_int, c_uint, c_void};
 use std::ptr;
@@ -157,6 +157,63 @@ pub extern "C" fn liq_set_last_index_transparent(attr: &mut liq_attr, is_last: c
 pub extern "C" fn liq_get_palette(result: &mut liq_result) -> Option<&liq_palette> {
     if bad_object!(result, LIQ_RESULT_MAGIC) { return None; }
     Some(liq_get_palette_impl(&mut result.inner))
+}
+
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn liq_result_json_serialize(
+    result: &liq_result,
+    json: *mut *mut c_char,
+) -> liq_error {
+    if bad_object!(result, LIQ_RESULT_MAGIC) {
+        return Error::InvalidPointer;
+    }
+    let str = match serde_json::to_string(&result.inner) {
+        Err(_) => return Error::InternalError,
+        Ok(s) => s,
+    };
+    match CString::new(str) {
+        Err(_) => Error::InternalError,
+        Ok(s) => {
+            *json = s.into_raw();
+            LIQ_OK
+        }
+    }
+}
+
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn liq_result_json_deserialize(
+    json: *const c_char,
+    write_only_output: &mut MaybeUninit<Option<Box<liq_result>>>,
+) -> liq_error {
+    let str = match CStr::from_ptr(json).to_str() {
+        Err(_) => return Error::InternalError,
+        Ok(s) => s,
+    };
+    let result = serde_json::from_str(str).map(|inner| liq_result {
+        magic_header: LIQ_RESULT_MAGIC,
+        inner,
+    });
+    match result {
+        Err(_) => {
+            write_only_output.write(None);
+            Error::InternalError
+        }
+        Ok(res) => {
+            write_only_output.write(Some(Box::new(res)));
+            LIQ_OK
+        }
+    }
+}
+
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn liq_result_json_destroy(s: *mut c_char) {
+    if s.is_null() {
+        return;
+    }
+    drop(CString::from_raw(s))
 }
 
 /// A `void*` pointer to any data, as long as it's thread-safe

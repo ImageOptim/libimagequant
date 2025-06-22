@@ -335,7 +335,16 @@ fn test_fixed_colors() {
         h.add_fixed_color(RGBA::new(f, f, f, 255), 0.).unwrap();
     }
     let mut r = h.quantize(&attr).unwrap();
+    let mut jsonr: QuantizationResult =
+        serde_json::from_str(serde_json::to_string(&r).unwrap().as_str()).unwrap();
+    assert_eq!(r.dither_level, jsonr.dither_level);
+
     let pal = r.palette();
+    let palr = jsonr.palette();
+    assert_eq!(pal.len(), palr.len());
+    for c in 0..pal.len() {
+        assert_eq!(pal[c], palr[c]);
+    }
 
     for (i, c) in (200..255).enumerate() {
         assert_eq!(pal[i], RGBA::new(c, c, c, 255));

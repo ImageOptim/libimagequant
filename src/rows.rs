@@ -158,7 +158,7 @@ impl<'pixels, 'rows> DynamicRows<'pixels, 'rows> {
     }
 
     pub fn prepare_iter(&mut self, temp_row: &mut [MaybeUninit<RGBA>], allow_steamed: bool) -> Result<(), Error> {
-        debug_assert_eq!(temp_row.len(), self.width as _);
+        debug_assert_eq!(temp_row.len(), self.width as usize);
 
         if self.f_pixels.is_some() || (allow_steamed && self.should_use_low_memory()) {
             return Ok(());
