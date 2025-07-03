@@ -124,7 +124,7 @@ impl Kmeans {
 /// This replaces these entries with histogram colors that are currently least-fitting the palette.
 fn replace_unused_colors(palette: &mut PalF, hist: &HistogramInternal) -> Result<(), Error> {
     for pal_idx in 0..palette.len() {
-        let pop = palette.pop_as_slice()[pal_idx];
+        let Some(pop) = palette.pop_as_slice().get(pal_idx) else { break };
         if pop.popularity() == 0. && !pop.is_fixed() {
             let n = Nearest::new(palette)?;
             let mut worst = None;

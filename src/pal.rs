@@ -240,8 +240,14 @@ impl PalF {
     }
 
     pub fn set(&mut self, idx: usize, color: f_pixel, popularity: PalPop) {
-        self.colors[idx] = color;
-        self.pops[idx] = popularity;
+        debug_assert!(idx < self.colors.len() && idx < self.pops.len());
+
+        if let Some(pops_idx) = self.pops.get_mut(idx) {
+            *pops_idx = popularity;
+        }
+        if let Some(colors_idx) = self.colors.get_mut(idx) {
+            *colors_idx = color;
+        }
     }
 
     #[inline(always)]
