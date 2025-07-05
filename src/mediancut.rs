@@ -103,7 +103,7 @@ impl<'hist> MBox<'hist> {
             ChanVariance { chan: 2, variance: vars[2] },
             ChanVariance { chan: 3, variance: vars[3] },
         ];
-        channels.sort_by_key(|a| Reverse(OrdFloat::new(a.variance)));
+        channels.sort_unstable_by_key(|a| Reverse(OrdFloat::new(a.variance)));
 
         for a in self.colors.iter_mut() {
             let chans: [f32; 4] = rgb::bytemuck::cast(a.color.0);
