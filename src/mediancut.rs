@@ -109,8 +109,8 @@ impl<'hist> MBox<'hist> {
             let chans: [f32; 4] = rgb::bytemuck::cast(a.color.0);
             // Only the first channel really matters. But other channels are included, because when trying median cut
             // many times with different histogram weights, I don't want sort randomness to influence the outcome.
-            a.tmp.mc_sort_value = (((chans[channels[0].chan] * 65535.) as u32) << 16)
-                | ((chans[channels[2].chan] + chans[channels[1].chan] / 2. + chans[channels[3].chan] / 4.) * 65535.) as u32; // box will be split to make color_weight of each side even
+            a.tmp.mc_sort_value = (u32::from((chans[channels[0].chan] * 65535.) as u16) << 16)
+                | u32::from(((chans[channels[2].chan] + chans[channels[1].chan] / 2. + chans[channels[3].chan] / 4.) * 65535.) as u16); // box will be split to make color_weight of each side even
         }
     }
 
