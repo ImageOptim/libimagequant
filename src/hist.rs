@@ -240,7 +240,7 @@ impl Histogram {
         self.posterize_bits = posterize_bits;
         let new_posterize_mask = self.posterize_mask();
 
-        let new_size = (self.hashmap.len()/3).max(self.hashmap.capacity()/5);
+        let new_size = (self.hashmap.len() / 3).max(self.hashmap.capacity() / 5);
         let old_hashmap = std::mem::replace(&mut self.hashmap, HashMap::with_capacity_and_hasher(new_size, U32Hasher(0)));
         self.hashmap.extend(old_hashmap.into_iter().map(move |(k, v)| {
             (k & new_posterize_mask, v)

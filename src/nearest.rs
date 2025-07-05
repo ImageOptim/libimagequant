@@ -20,7 +20,9 @@ impl<'pal> Nearest<'pal> {
         };
         for (i, color) in palette.as_slice().iter().enumerate() {
             let mut best = Visitor {
-                idx: 0, distance: f32::MAX, distance_squared: f32::MAX,
+                idx: 0,
+                distance: f32::MAX,
+                distance_squared: f32::MAX,
                 exclude: Some(i as PalIndex),
             };
             vp_search_node(&handle.root, color, &mut best);
@@ -46,7 +48,12 @@ impl Nearest<'_> {
                 exclude: None,
             }
         } else {
-            Visitor { distance: f32::INFINITY, distance_squared: f32::INFINITY, idx: 0, exclude: None, }
+            Visitor {
+                distance: f32::INFINITY,
+                distance_squared: f32::INFINITY,
+                idx: 0,
+                exclude: None,
+            }
         };
 
         vp_search_node(&self.root, px, &mut best_candidate);

@@ -4,9 +4,8 @@ use crate::error::*;
 use crate::pal::{f_pixel, PalF, PalIndexRemap, MAX_COLORS, MIN_OPAQUE_A, RGBA};
 use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
-use crate::PushInCapacity;
-use crate::LIQ_HIGH_MEMORY_LIMIT;
 use crate::seacow::{RowBitmap, SeaCow};
+use crate::{PushInCapacity, LIQ_HIGH_MEMORY_LIMIT};
 use rgb::prelude::*;
 use std::mem::MaybeUninit;
 
@@ -148,11 +147,11 @@ impl<'pixels> Image<'pixels> {
                     while i < col {
                         if let Some(prev_row) = prev_row {
                             let pixelabove = prev_row[i];
-                            if pixelabove == lastpixel { neighbor_count += 15; };
+                            if pixelabove == lastpixel { neighbor_count += 15; }
                         }
                         if let Some((next_row, _)) = rows.peek() {
                             let pixelbelow = next_row[i];
-                            if pixelbelow == lastpixel { neighbor_count += 15; };
+                            if pixelbelow == lastpixel { neighbor_count += 15; }
                         }
                         i += 1;
                     }

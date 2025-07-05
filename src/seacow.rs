@@ -1,6 +1,6 @@
+use std::mem::MaybeUninit;
 #[cfg(feature = "_internal_c_ffi")]
 use std::os::raw::c_void;
-use std::mem::MaybeUninit;
 
 #[derive(Clone)]
 pub struct SeaCow<'a, T> {

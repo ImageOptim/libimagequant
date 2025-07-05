@@ -1,11 +1,10 @@
-use crate::CacheLineAlign;
 use crate::hist::{HistItem, HistogramInternal};
 use crate::nearest::Nearest;
 use crate::pal::{f_pixel, PalF, PalIndex, PalPop};
 use crate::rayoff::*;
-use crate::Error;
-use rgb::Argb;
+use crate::{CacheLineAlign, Error};
 use rgb::prelude::*;
+use rgb::Argb;
 use std::cell::RefCell;
 
 /// K-Means iteration: new palette color is computed from weighted average of colors that map best to that palette entry.

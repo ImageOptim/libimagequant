@@ -612,17 +612,17 @@ pub unsafe extern "C" fn liq_histogram_add_colors(input_hist: &mut liq_histogram
     if bad_object!(attr, LIQ_ATTR_MAGIC) ||
        bad_object!(input_hist, LIQ_HISTOGRAM_MAGIC) { return Error::InvalidPointer; }
     let input_hist = &mut input_hist.inner;
-
-    if num_entries < 0 {
-        return Error::ValueOutOfRange;
-    }
     if num_entries == 0 {
         return LIQ_OK;
     }
 
+    let Ok(num_entries) = num_entries.try_into() else {
+        return Error::ValueOutOfRange;
+    };
+
     if liq_received_invalid_pointer(entries.cast()) { return Error::InvalidPointer; }
 
-    let entries = std::slice::from_raw_parts(entries, num_entries as usize);
+    let entries = std::slice::from_raw_parts(entries, num_entries);
 
     input_hist.add_colors(entries, gamma).err().unwrap_or(LIQ_OK)
 }

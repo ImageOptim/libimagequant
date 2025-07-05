@@ -3,14 +3,10 @@
 #![allow(missing_docs)]
 #![allow(clippy::missing_safety_doc)]
 
-use crate::rows::RowCallback;
-use crate::Attributes;
-use crate::Error;
-use crate::Image;
 use crate::pal::Palette;
-use crate::QuantizationResult;
-use crate::RGBA;
+use crate::rows::RowCallback;
 use crate::seacow::{Pointer, RowBitmapMut, SeaCow};
+use crate::{Attributes, Error, Image, QuantizationResult, RGBA};
 use std::mem::MaybeUninit;
 
 pub const LIQ_VERSION: u32 = 40202;

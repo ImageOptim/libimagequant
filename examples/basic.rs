@@ -26,5 +26,9 @@ fn main() {
     // You can reuse the result to generate several images with the same palette
     let (palette, pixels) = res.remapped(&mut img).unwrap();
 
-    println!("Done! Got palette {palette:?} and {} pixels with {}% quality", pixels.len(), res.quantization_quality().unwrap());
+    println!(
+        "Done! Got palette {palette:?} and {} pixels with {}% quality",
+        pixels.len(),
+        res.quantization_quality().unwrap()
+    );
 }

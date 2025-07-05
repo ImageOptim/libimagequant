@@ -4,9 +4,8 @@ use crate::hist::HistogramInternal;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
-use crate::pal::{PalIndexRemap, PalF, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
-use crate::remap::{mse_to_standard_mse, DitherMapMode, Remapped};
-use crate::remap::{remap_to_palette, remap_to_palette_floyd};
+use crate::pal::{PalF, PalIndexRemap, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
+use crate::remap::{mse_to_standard_mse, remap_to_palette, remap_to_palette_floyd, DitherMapMode, Remapped};
 use crate::seacow::RowBitmapMut;
 use crate::OrdFloat;
 use arrayvec::ArrayVec;
@@ -455,7 +454,7 @@ pub(crate) fn quality_to_mse(quality: u8) -> f64 {
 
 pub(crate) fn mse_to_quality(mse: f64) -> u8 {
     for i in (1..101).rev() {
-        if mse <= quality_to_mse(i) + 0.000001 { return i; };
+        if mse <= quality_to_mse(i) + 0.000001 { return i; }
     }
     0
 }

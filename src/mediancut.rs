@@ -116,7 +116,7 @@ impl<'hist> MBox<'hist> {
 
     fn median_color(&mut self) -> f_pixel {
         let len = self.colors.len();
-        let (_, mid_item, _) = self.colors.select_nth_unstable_by_key(len/2, |a| a.mc_sort_value());
+        let (_, mid_item, _) = self.colors.select_nth_unstable_by_key(len / 2, |a| a.mc_sort_value());
         mid_item.color
     }
 
@@ -172,7 +172,9 @@ fn qsort_partition(base: &mut [HistItem]) -> usize {
             l += 1;
         } else {
             r -= 1;
-            while l < r && base[r].mc_sort_value() <= pivot_value { r -= 1; }
+            while l < r && base[r].mc_sort_value() <= pivot_value {
+                r -= 1;
+            }
             base.swap(l, r);
         }
     }
@@ -186,7 +188,9 @@ fn qsort_partition(base: &mut [HistItem]) -> usize {
 #[inline(never)]
 fn hist_item_sort_half(mut base: &mut [HistItem], mut weight_half_sum: f64) -> usize {
     let mut base_index = 0;
-    if base.is_empty() { return 0; }
+    if base.is_empty() {
+        return 0;
+    }
     loop {
         let partition = qsort_partition(base);
         let (left, right) = base.split_at_mut(partition + 1); // +1, because pivot stays on the left side
@@ -248,7 +252,7 @@ impl<'hist> MedianCutter<'hist> {
             }
         } else {
             boxes.push_in_cap(MBox::new(hist_items));
-        };
+        }
 
         Ok(Self {
             boxes,
