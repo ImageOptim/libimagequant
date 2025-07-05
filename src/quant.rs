@@ -1,6 +1,6 @@
 use crate::attr::{Attributes, ControlFlow};
 use crate::error::*;
-use crate::hist::HistogramInternal;
+use crate::hist::{HistogramInternal, Histogram};
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
@@ -287,6 +287,26 @@ impl QuantizationResult {
     /// Reads the length without finalizing the colors
     pub fn palette_len(&mut self) -> usize {
         self.palette.len()
+    }
+
+    /// Shortcut for making [`Histogram`] with `add_fixed_color`
+    ///
+    /// Set `gamma` to `0.` for sRGB colors.
+    pub fn from_palette(attr: &Attributes, palette: &[RGBA], gamma: f64) -> Result<Self, Error> {
+        if palette.len() > MAX_COLORS {
+            return Err(Unsupported);
+        }
+
+        let mut hist = Histogram::new(attr);
+        for &c in palette {
+            hist.add_fixed_color(c, gamma)?;
+        }
+        hist.quantize(attr)
+    }
+
+    /// Getter for the value set in [`set_dithering_level`]
+    pub fn dithering_level(&self) -> f32 {
+        self.dither_level
     }
 }
 
