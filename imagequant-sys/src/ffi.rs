@@ -541,6 +541,35 @@ pub extern "C" fn liq_histogram_quantize(hist: &mut liq_histogram, attr: &liq_at
     store_boxed_result(res, write_only_output)
 }
 
+#[no_mangle]
+#[inline(never)]
+pub unsafe extern "C" fn liq_result_from_palette(
+    attr: &liq_attr,
+    palette: *const RGBA,
+    palette_size: c_uint,
+    gamma: f64,
+    write_only_output: &mut MaybeUninit<Option<Box<liq_result>>>,
+) -> liq_error {
+    if bad_object!(attr, LIQ_ATTR_MAGIC) {
+        return Error::InvalidPointer;
+    }
+    let Ok(palette_size) = palette_size.try_into() else {
+        return Error::ValueOutOfRange;
+    };
+    if liq_received_invalid_pointer(palette.cast()) {
+        return Error::InvalidPointer;
+    }
+
+    let attr = &attr.inner;
+    let palette = std::slice::from_raw_parts(palette, palette_size);
+
+    let res = QuantizationResult::from_palette(attr, palette, gamma).map(|inner| liq_result {
+        magic_header: LIQ_RESULT_MAGIC,
+        inner,
+    });
+    store_boxed_result(res, write_only_output)
+}
+
 #[inline]
 fn store_boxed_result<T>(res: Result<T, liq_error>, out: &mut MaybeUninit<Option<Box<T>>>) -> liq_error {
     match res {
@@ -710,6 +739,7 @@ fn link_every_symbol() {
         + liq_quantize_image as *const c_void as usize
         + liq_histogram_quantize as *const c_void as usize
         + liq_image_quantize as *const c_void as usize
+        + liq_result_from_palette as *const c_void as usize
         + liq_set_dithering_level as *const c_void as usize
         + liq_set_output_gamma as *const c_void as usize
         + liq_get_output_gamma as *const c_void as usize

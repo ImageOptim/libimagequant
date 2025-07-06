@@ -121,6 +121,7 @@ LIQ_EXPORT void liq_image_destroy(liq_image *img) LIQ_NONNULL;
 
 LIQ_EXPORT LIQ_USERESULT liq_error liq_histogram_quantize(liq_histogram *const input_hist, liq_attr *const options, liq_result **result_output) LIQ_NONNULL;
 LIQ_EXPORT LIQ_USERESULT liq_error liq_image_quantize(liq_image *const input_image, liq_attr *const options, liq_result **result_output) LIQ_NONNULL;
+LIQ_EXPORT LIQ_USERESULT liq_error liq_result_from_palette(const liq_attr *options, const liq_color *palette, unsigned int palette_size, double gamma, liq_result **result_output) LIQ_NONNULL;
 
 LIQ_EXPORT liq_error liq_set_dithering_level(liq_result *res, float dither_level) LIQ_NONNULL;
 LIQ_EXPORT liq_error liq_set_output_gamma(liq_result* res, double gamma) LIQ_NONNULL;
