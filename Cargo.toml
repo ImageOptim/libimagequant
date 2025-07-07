@@ -1,6 +1,6 @@
 [package]
 name = "imagequant"
-version = "4.3.4"
+version = "4.4.0"
 description = "Convert 24/32-bit images to 8-bit palette with alpha channel.\nFor lossy PNG compression and high-quality GIF images\nDual-licensed like pngquant. See https://pngquant.org for details."
 authors = ["Kornel Lesiński <kornel@pngquant.org>"]
 license = "GPL-3.0-or-later"
