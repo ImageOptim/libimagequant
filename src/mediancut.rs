@@ -27,15 +27,15 @@ struct MBox<'hist> {
 
 impl<'hist> MBox<'hist> {
     pub fn new(hist: &'hist mut [HistItem]) -> Self {
-        let weight_sum = hist.iter().map(|a| {
-            debug_assert!(a.adjusted_weight.is_finite());
-            debug_assert!(a.adjusted_weight > 0.);
-            f64::from(a.adjusted_weight)
+        let weight_sum = hist.iter().map(|item| {
+            debug_assert!(item.adjusted_weight.is_finite());
+            debug_assert!(item.adjusted_weight > 0.);
+            f64::from(item.adjusted_weight)
         }).sum();
-        Self::new_c(hist, weight_sum, weighed_average_color(hist))
+        Self::new_inner(hist, weight_sum, weighed_average_color(hist))
     }
 
-    fn new_s(hist: &'hist mut [HistItem], adjusted_weight_sum: f64, other_boxes: &[MBox<'_>]) -> Self {
+    fn from_split(hist: &'hist mut [HistItem], adjusted_weight_sum: f64, other_boxes: &[MBox<'_>]) -> Self {
         debug_assert!(!hist.is_empty());
         let mut avg_color = weighed_average_color(hist);
         // It's possible that an average color will end up being bad for every entry,
@@ -43,10 +43,10 @@ impl<'hist> MBox<'hist> {
         if (hist.len() < 500 && hist.len() > 2) || Self::is_useless_color(avg_color, hist, other_boxes) {
             avg_color = hist.iter().min_by_key(|a| OrdFloat::new(avg_color.diff(&a.color))).map(|a| a.color).unwrap_or_default();
         }
-        Self::new_c(hist, adjusted_weight_sum, avg_color)
+        Self::new_inner(hist, adjusted_weight_sum, avg_color)
     }
 
-    fn new_c(hist: &'hist mut [HistItem], adjusted_weight_sum: f64, avg_color: f_pixel) -> Self {
+    fn new_inner(hist: &'hist mut [HistItem], adjusted_weight_sum: f64, avg_color: f_pixel) -> Self {
         let (variance, max_error) = Self::box_stats(hist, avg_color);
         Self {
             variance,
@@ -72,9 +72,9 @@ impl<'hist> MBox<'hist> {
     fn box_stats(hist: &[HistItem], avg_color: f_pixel) -> (ARGBF, f32) {
         let mut variance = ARGBF::default();
         let mut max_error = 0.;
-        for a in hist {
-            variance += (avg_color.0 - a.color.0).map(|c| c * c) * a.adjusted_weight;
-            let diff = avg_color.diff(&a.color);
+        for item in hist {
+            variance += (avg_color.0 - item.color.0).map(|c| c * c) * item.adjusted_weight;
+            let diff = avg_color.diff(&item.color);
             if diff > max_error {
                 max_error = diff;
             }
@@ -103,13 +103,13 @@ impl<'hist> MBox<'hist> {
             ChanVariance { chan: 2, variance: vars[2] },
             ChanVariance { chan: 3, variance: vars[3] },
         ];
-        channels.sort_unstable_by_key(|a| Reverse(OrdFloat::new(a.variance)));
+        channels.sort_unstable_by_key(|ch| Reverse(OrdFloat::new(ch.variance)));
 
-        for a in self.colors.iter_mut() {
-            let chans: [f32; 4] = rgb::bytemuck::cast(a.color.0);
+        for item in self.colors.iter_mut() {
+            let chans: [f32; 4] = rgb::bytemuck::cast(item.color.0);
             // Only the first channel really matters. But other channels are included, because when trying median cut
             // many times with different histogram weights, I don't want sort randomness to influence the outcome.
-            a.tmp.mc_sort_value = (u32::from((chans[channels[0].chan] * 65535.) as u16) << 16)
+            item.tmp.mc_sort_value = (u32::from((chans[channels[0].chan] * 65535.) as u16) << 16)
                 | u32::from(((chans[channels[2].chan] + chans[channels[1].chan] / 2. + chans[channels[3].chan] / 4.) * 65535.) as u16); // box will be split to make color_weight of each side even
         }
     }
@@ -142,8 +142,8 @@ impl<'hist> MBox<'hist> {
         let left_sum = left.iter().map(|a| f64::from(a.adjusted_weight)).sum();
         let right_sum = self.adjusted_weight_sum - left_sum;
 
-        [MBox::new_s(left, left_sum, other_boxes),
-         MBox::new_s(right, right_sum, other_boxes)]
+        [MBox::from_split(left, left_sum, other_boxes),
+         MBox::from_split(right, right_sum, other_boxes)]
     }
 }
 
@@ -264,12 +264,12 @@ impl<'hist> MedianCutter<'hist> {
     fn into_palette(mut self) -> PalF {
         let mut palette = PalF::new();
 
-        for (i, b) in self.boxes.iter_mut().enumerate() {
-            b.colors.iter_mut().for_each(move |a| a.tmp.likely_palette_index = i as _);
+        for (i, mbox) in self.boxes.iter_mut().enumerate() {
+            mbox.colors.iter_mut().for_each(move |a| a.tmp.likely_palette_index = i as _);
 
             // store total color popularity (perceptual_weight is approximation of it)
-            let pop = b.colors.iter().map(|a| f64::from(a.perceptual_weight)).sum::<f64>();
-            palette.push(b.avg_color, PalPop::new(pop as f32));
+            let pop = mbox.colors.iter().map(|a| f64::from(a.perceptual_weight)).sum::<f64>();
+            palette.push(mbox.avg_color, PalPop::new(pop as f32));
         }
         palette
     }
@@ -298,12 +298,12 @@ impl<'hist> MedianCutter<'hist> {
 
     fn take_best_splittable_box(&mut self, max_mse: f64) -> Option<MBox<'hist>> {
         self.boxes.iter().enumerate()
-            .filter(|(_, b)| b.colors.len() > 1)
-            .map(move |(i, b)| {
-                let cv = b.variance.r.max(b.variance.g).max(b.variance.b);
-                let mut thissum = b.adjusted_weight_sum * f64::from(cv.max(b.variance.a));
-                if f64::from(b.max_error) > max_mse {
-                    thissum = thissum * f64::from(b.max_error) / max_mse;
+            .filter(|(_, mbox)| mbox.colors.len() > 1)
+            .map(move |(i, mbox)| {
+                let cv = mbox.variance.r.max(mbox.variance.g).max(mbox.variance.b);
+                let mut thissum = mbox.adjusted_weight_sum * f64::from(cv.max(mbox.variance.a));
+                if f64::from(mbox.max_error) > max_mse {
+                    thissum = thissum * f64::from(mbox.max_error) / max_mse;
                 }
                 (i, thissum)
             })
