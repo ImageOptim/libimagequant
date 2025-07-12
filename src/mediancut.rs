@@ -300,8 +300,7 @@ impl<'hist> MedianCutter<'hist> {
         self.boxes.iter().enumerate()
             .filter(|(_, mbox)| mbox.colors.len() > 1)
             .map(move |(i, mbox)| {
-                let cv = mbox.variance.r.max(mbox.variance.g).max(mbox.variance.b);
-                let mut thissum = mbox.adjusted_weight_sum * f64::from(cv.max(mbox.variance.a));
+                let mut thissum = mbox.adjusted_weight_sum * mbox.variance.iter().map(|f| f as f64).sum::<f64>();
                 if f64::from(mbox.max_error) > max_mse {
                     thissum = thissum * f64::from(mbox.max_error) / max_mse;
                 }
