@@ -123,7 +123,7 @@ impl<'hist> MBox<'hist> {
     pub fn prepare_color_weight_total(&mut self) -> f64 {
         let median = self.median_color();
         self.colors.iter_mut().map(move |a| {
-            let w = median.diff(&a.color).sqrt() * (1. + a.adjusted_weight).sqrt();
+            let w = (median.diff(&a.color).sqrt() * (2. + a.adjusted_weight)).sqrt();
             debug_assert!(w.is_finite());
             a.mc_color_weight = w;
             f64::from(w)
