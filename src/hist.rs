@@ -320,7 +320,7 @@ impl Histogram {
 
         // Limit perceptual weight to 1/10th of the image surface area to prevent
         // a single color from dominating all others.
-        let max_perceptual_weight = 0.1 * (temp.iter().map(|t| f64::from(t.weight)).sum::<f64>() / 256.) as f32;
+        let max_perceptual_weight = ((0.1 / 255.) * temp.iter().map(|t| f64::from(t.weight)).sum::<f64>()) as f32;
 
         let lut = gamma_lut(gamma);
         let mut total_perceptual_weight = 0.;
@@ -331,9 +331,9 @@ impl Histogram {
 
             // weight == 0 means it's a fixed color
             let weight = if temp_item.weight > 0. {
-                (temp_item.weight * (1. / 256.)).min(max_perceptual_weight)
+                (temp_item.weight * (1. / 255.)).min(max_perceptual_weight)
             } else {
-                max_perceptual_weight * 10.
+                max_perceptual_weight * 16.
             };
             total_perceptual_weight += f64::from(weight);
 
