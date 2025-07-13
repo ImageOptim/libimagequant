@@ -1,7 +1,7 @@
 use crate::attr::Attributes;
 use crate::blur::{liq_blur, liq_max3, liq_min3};
 use crate::error::*;
-use crate::pal::{f_pixel, PalF, PalIndexRemap, MAX_COLORS, MIN_OPAQUE_A, RGBA};
+use crate::pal::{f_pixel, PalF, PalIndexRemap, MAX_COLORS, RGBA};
 use crate::remap::DitherMapMode;
 use crate::rows::{DynamicRows, PixelsSource};
 use crate::seacow::{RowBitmap, SeaCow};
@@ -137,7 +137,7 @@ impl<'pixels> Image<'pixels> {
             let mut lastpixel = this_row[0];
             let mut lastcol = 0;
             for (col, px) in this_row.iter().copied().enumerate().skip(1) {
-                if uses_background && (colors[px as usize]).a < MIN_OPAQUE_A {
+                if uses_background && colors[px as usize].is_fully_transparent() {
                     // Transparency may or may not create an edge. When there's an explicit background set, assume no edge.
                     continue;
                 }

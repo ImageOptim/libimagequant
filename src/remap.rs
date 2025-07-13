@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::nearest::Nearest;
-use crate::pal::{f_pixel, PalF, PalIndexRemap, Palette, ARGBF, LIQ_WEIGHT_MSE, MIN_OPAQUE_A};
+use crate::pal::{f_pixel, PalF, PalIndexRemap, Palette, ARGBF};
 use crate::quant::QuantizationResult;
 use crate::rayoff::*;
 use crate::rows::{temp_buf, DynamicRows};
@@ -45,7 +45,7 @@ pub(crate) fn remap_to_palette<'x, 'b: 'x>(px: &mut DynamicRows, background: Opt
     let (background, transparent_index) = background.map(|background| {
         (Some(background), n.search(&f_pixel::default(), 0).0 as PalIndexRemap)
     })
-    .filter(|&(_, transparent_index)| colors[usize::from(transparent_index)].a < MIN_OPAQUE_A)
+    .filter(|&(_, transparent_index)| colors[usize::from(transparent_index)].is_fully_transparent())
     .unwrap_or((None, 0));
     let background = background.map(|bg| bg.px.rows_iter(&mut tls_tmp.1)).transpose()?;
 
@@ -167,7 +167,7 @@ pub(crate) fn remap_to_palette_floyd(input_image: &mut Image, mut output_pixels:
     }).transpose()?;
 
     let transparent_index = if background.is_some() { n.search(&f_pixel::default(), 0).0 as PalIndexRemap } else { 0 };
-    if background.is_some() && palette[transparent_index as usize].a > MIN_OPAQUE_A {
+    if background.is_some() && !palette[transparent_index as usize].is_fully_transparent() {
         background = None;
     }
     // response to this value is non-linear and without it any value < 0.8 would give almost no dithering
@@ -316,10 +316,6 @@ fn dither_row(row_pixels: &[f_pixel], output_pixels_row: &mut [MaybeUninit<PalIn
             nexterr[2].0 += err * (3. / 16.);
         }
     }
-}
-
-pub(crate) fn mse_to_standard_mse(mse: f64) -> f64 {
-    (mse * 65536. / 6.) / LIQ_WEIGHT_MSE // parallelized dither map might speed up floyd remapping
 }
 
 #[test]

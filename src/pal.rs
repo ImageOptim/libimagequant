@@ -9,17 +9,14 @@ pub type RGBA = rgb::Rgba<u8>;
 #[allow(clippy::upper_case_acronyms)]
 pub type ARGBF = rgb::Argb<f32>;
 
-pub const INTERNAL_GAMMA: f64 = 0.57;
-pub const LIQ_WEIGHT_A: f32 = 0.625;
-pub const LIQ_WEIGHT_R: f32 = 0.5;
-pub const LIQ_WEIGHT_G: f32 = 1.;
-pub const LIQ_WEIGHT_B: f32 = 0.45;
+const INTERNAL_GAMMA: f64 = 0.57;
+const LIQ_WEIGHT_A: f32 = 0.625;
+const LIQ_WEIGHT_R: f32 = 0.5;
+const LIQ_WEIGHT_G: f32 = 1.;
+const LIQ_WEIGHT_B: f32 = 0.45;
 
 /// This is a fudge factor - reminder that colors are not in 0..1 range any more
-pub const LIQ_WEIGHT_MSE: f64 = 0.45;
-
-pub const MIN_OPAQUE_A: f32 = 1. / 256. * LIQ_WEIGHT_A;
-pub const MAX_TRANSP_A: f32 = 255. / 256. * LIQ_WEIGHT_A;
+const LIQ_WEIGHT_MSE: f64 = 0.45;
 
 /// 4xf32 color using internal gamma.
 ///
@@ -115,7 +112,7 @@ impl f_pixel {
 
     #[inline]
     pub(crate) fn to_rgb(self, gamma: f64) -> RGBA {
-        if self.a < MIN_OPAQUE_A {
+        if self.is_fully_transparent() {
             return RGBA::new(0, 0, 0, 0);
         }
 
@@ -144,6 +141,16 @@ impl f_pixel {
             g: gamma_lut[px.g as usize] * LIQ_WEIGHT_G * a,
             b: gamma_lut[px.b as usize] * LIQ_WEIGHT_B * a,
         })
+    }
+
+    #[inline]
+    pub(crate) fn is_fully_transparent(self) -> bool {
+        self.a < 1. / 256. * LIQ_WEIGHT_A
+    }
+
+    #[inline]
+    pub(crate) fn is_fully_opaque(self) -> bool {
+        self.a >= 255. / 256. * LIQ_WEIGHT_A
     }
 }
 
@@ -346,6 +353,17 @@ pub fn gamma_lut(gamma: f64) -> [f32; 256] {
         *t = ((i as f32) / 255.).powf((INTERNAL_GAMMA / gamma) as f32);
     }
     tmp
+}
+
+/// MSE that assumes 0..1 channels scaled to MSE that we have in practice
+#[inline]
+pub(crate) fn unit_mse_to_internal_mse(internal_mse: f64) -> f64 {
+    LIQ_WEIGHT_MSE * internal_mse
+}
+
+/// Internal MSE scaled to equivalent in 0..255 pixels
+pub(crate) fn internal_mse_to_standard_mse(mse: f64) -> f64 {
+    (mse * 65536. / 6.) / LIQ_WEIGHT_MSE
 }
 
 /// Not used in the Rust API.

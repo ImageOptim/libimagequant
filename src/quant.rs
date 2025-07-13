@@ -4,8 +4,9 @@ use crate::hist::{HistogramInternal, Histogram};
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
-use crate::pal::{PalF, PalIndexRemap, PalLen, PalPop, Palette, LIQ_WEIGHT_MSE, MAX_COLORS, MAX_TRANSP_A, RGBA};
-use crate::remap::{mse_to_standard_mse, remap_to_palette, remap_to_palette_floyd, DitherMapMode, Remapped};
+use crate::pal::{PalF, PalIndexRemap, PalLen, PalPop, Palette, MAX_COLORS, RGBA};
+use crate::pal::{internal_mse_to_standard_mse, unit_mse_to_internal_mse};
+use crate::remap::{remap_to_palette, remap_to_palette_floyd, DitherMapMode, Remapped};
 use crate::seacow::RowBitmapMut;
 use crate::OrdFloat;
 use arrayvec::ArrayVec;
@@ -42,9 +43,9 @@ impl QuantizationResult {
             if palette_error > max_mse {
                 attr.verbose_print(format!(
                     "  image degradation MSE={:0.3} (Q={}) exceeded limit of {:0.3} ({})",
-                    mse_to_standard_mse(palette_error),
+                    internal_mse_to_standard_mse(palette_error),
                     mse_to_quality(palette_error),
-                    mse_to_standard_mse(max_mse),
+                    internal_mse_to_standard_mse(max_mse),
                     mse_to_quality(max_mse)
                 ));
                 return Err(QualityTooLow);
@@ -171,7 +172,7 @@ impl QuantizationResult {
     /// Approximate mean square error of the palette
     #[must_use]
     pub fn quantization_error(&self) -> Option<f64> {
-        self.palette_error.map(mse_to_standard_mse)
+        self.palette_error.map(internal_mse_to_standard_mse)
     }
 
     /// Approximate mean square error of the palette used for the most recent remapping
@@ -180,7 +181,7 @@ impl QuantizationResult {
         self.remapped.as_ref()
             .and_then(|re| re.palette_error)
             .or(self.palette_error)
-            .map(mse_to_standard_mse)
+            .map(internal_mse_to_standard_mse)
     }
 
     /// Palette remapping error mapped back to 0-100 scale, same as the scale in [`Attributes::set_quality()`]
@@ -333,8 +334,8 @@ fn sort_palette(attr: &Attributes, palette: &mut PalF) {
 
     let mut tmp: ArrayVec<_, { MAX_COLORS }> = palette.iter_mut().map(|(c, p)| (*c, *p)).collect();
     tmp.sort_by_key(|(color, pop)| {
-        let is_transparent = color.a <= MAX_TRANSP_A;
-        (is_transparent == last_index_transparent, Reverse(OrdFloat::new(pop.popularity())))
+        let trns = !color.is_fully_opaque();
+        (trns == last_index_transparent, Reverse(OrdFloat::new(pop.popularity())))
     });
     palette.iter_mut().zip(tmp).for_each(|((dcol, dpop), (scol, spop))| {
         *dcol = scol;
@@ -343,7 +344,7 @@ fn sort_palette(attr: &Attributes, palette: &mut PalF) {
 
     if last_index_transparent {
         let alpha_index = palette.as_slice().iter().enumerate()
-            .filter(|(_, c)| c.a <= MAX_TRANSP_A)
+            .filter(|(_, c)| !c.is_fully_opaque())
             .min_by_key(|(_, c)| OrdFloat::new(c.a))
             .map(|(i, _)| i);
         if let Some(alpha_index) = alpha_index {
@@ -351,10 +352,9 @@ fn sort_palette(attr: &Attributes, palette: &mut PalF) {
             palette.swap(last_index, alpha_index);
         }
     } else {
-        let num_transparent = palette.as_slice().iter().enumerate()
-            .filter(|(_, c)| c.a <= MAX_TRANSP_A)
-            .map(|(i, _)| i + 1) // num entries, not index
-            .max();
+        let num_transparent = palette.as_slice().iter().enumerate().rev()
+            .find(|(_, c)| !c.is_fully_opaque())
+            .map(|(i, _)| i + 1); // num entries, not index
         if let Some(num_transparent) = num_transparent {
             attr.verbose_print(format!("  eliminated opaque tRNS-chunk entries...{} entr{} transparent", num_transparent, if num_transparent == 1 { "y" } else { "ies" }));
         }
@@ -469,7 +469,7 @@ pub(crate) fn quality_to_mse(quality: u8) -> f64 {
     }
     if quality >= 100 { return 0.; }
     let extra_low_quality_fudge = (0.016 / (0.001 + f64::from(quality)) - 0.001).max(0.);
-    LIQ_WEIGHT_MSE * (extra_low_quality_fudge + 2.5 / (210. + f64::from(quality)).powf(1.2) * (100.1 - f64::from(quality)) / 100.)
+    unit_mse_to_internal_mse(extra_low_quality_fudge + 2.5 / (210. + f64::from(quality)).powf(1.2) * (100.1 - f64::from(quality)) / 100.)
 }
 
 pub(crate) fn mse_to_quality(mse: f64) -> u8 {
