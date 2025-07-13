@@ -1,3 +1,13 @@
+version 4.4
+-----------
+ - palette quality improvements
+ - Histogram::from_palette convenience method
+
+version 4.3
+-----------
+ - code quality and performance improvements
+ - copyable Image object
+
 version 4.2
 -----------
  - rewritten and improved handling of fixed palette colors
