@@ -116,10 +116,9 @@ impl f_pixel {
             return RGBA::new(0, 0, 0, 0);
         }
 
-        let r = (LIQ_WEIGHT_A / LIQ_WEIGHT_R) * self.r / self.a;
-        let g = (LIQ_WEIGHT_A / LIQ_WEIGHT_G) * self.g / self.a;
-        let b = (LIQ_WEIGHT_A / LIQ_WEIGHT_B) * self.b / self.a;
-        let a = (256. / LIQ_WEIGHT_A) * self.a;
+        let r = (LIQ_WEIGHT_A as f64 / LIQ_WEIGHT_R as f64) as f32 * self.r / self.a;
+        let g = (LIQ_WEIGHT_A as f64 / LIQ_WEIGHT_G as f64) as f32 * self.g / self.a;
+        let b = (LIQ_WEIGHT_A as f64 / LIQ_WEIGHT_B as f64) as f32 * self.b / self.a;
 
         let gamma = (gamma / INTERNAL_GAMMA) as f32;
         debug_assert!(gamma.is_finite());
@@ -129,7 +128,7 @@ impl f_pixel {
             r: (r.powf(gamma) * 256.) as u8,
             g: (g.powf(gamma) * 256.) as u8,
             b: (b.powf(gamma) * 256.) as u8,
-            a: a as u8,
+            a: (self.a * (256. / LIQ_WEIGHT_A as f64) as f32) as u8,
         }
     }
 
@@ -145,12 +144,12 @@ impl f_pixel {
 
     #[inline]
     pub(crate) fn is_fully_transparent(self) -> bool {
-        self.a < 1. / 256. * LIQ_WEIGHT_A
+        self.a < (1. / 255. * LIQ_WEIGHT_A as f64) as f32
     }
 
     #[inline]
     pub(crate) fn is_fully_opaque(self) -> bool {
-        self.a >= 255. / 256. * LIQ_WEIGHT_A
+        self.a >= (255. / 256. * LIQ_WEIGHT_A as f64) as f32
     }
 }
 
@@ -429,6 +428,28 @@ fn diff_test() {
     let d = f_pixel(ARGBF {a: 0., g: 1., b: 0.3, r: 0.5});
     assert!(a.diff(&b) < b.diff(&c));
     assert!(c.diff(&b) < c.diff(&d));
+}
+
+#[test]
+fn alpha_test() {
+    let gamma = gamma_lut(0.45455);
+    for (start, end) in [
+        (RGBA::new(0,0,0,0), RGBA::new(0,0,0,2)),
+        (RGBA::new(0,0,0,253), RGBA::new(0,0,0,255))
+    ] {
+        let start = f_pixel::from_rgba(&gamma, start).a as f64;
+        let end = f_pixel::from_rgba(&gamma, end).a as f64;
+        let range = end - start;
+        for i in 0..1000 {
+            let a = (start + ((i as f64) / 1000. * range)) as f32;
+            for a in [a, a.next_up(), a.next_down(), a+1e-6, a-1e-6] {
+                let px = f_pixel(ARGBF {a, g: 0., b: 0., r: 0.});
+                let rgb = px.to_rgb(0.45455);
+                assert_eq!(rgb.a == 0, px.is_fully_transparent(), "not trns!? {px:?}, {rgb:?} {} {}", a / LIQ_WEIGHT_A, a / LIQ_WEIGHT_A * 255.);
+                assert_eq!(rgb.a == 255, px.is_fully_opaque(), "not opaque?! {px:?}, {rgb:?} {} {} {}", a / LIQ_WEIGHT_A, a / LIQ_WEIGHT_A * 255., a / LIQ_WEIGHT_A * 256.);
+            }
+        }
+    }
 }
 
 #[test]
