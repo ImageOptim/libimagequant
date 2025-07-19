@@ -8,8 +8,8 @@ use crate::rayoff::*;
 use crate::rows::{temp_buf, DynamicRows};
 use crate::seacow::{RowBitmap, RowBitmapMut};
 use crate::CacheLineAlign;
-use std::cell::RefCell;
-use std::mem::MaybeUninit;
+use core::cell::RefCell;
+use core::mem::MaybeUninit;
 
 #[repr(u8)]
 #[derive(Eq, PartialEq, Clone, Copy)]

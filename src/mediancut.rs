@@ -1,10 +1,9 @@
 use crate::hist::{HistItem, HistogramInternal};
 use crate::pal::{f_pixel, PalF, PalLen, PalPop, ARGBF};
 use crate::quant::quality_to_mse;
-use crate::PushInCapacity;
-use crate::{Error, OrdFloat};
+use crate::{Error, OrdFloat, PushInCapacity};
+use core::cmp::Reverse;
 use rgb::prelude::*;
-use std::cmp::Reverse;
 
 struct MedianCutter<'hist> {
     boxes: Vec<MBox<'hist>>,

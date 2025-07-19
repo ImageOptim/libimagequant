@@ -1,7 +1,8 @@
 use crate::OrdFloat;
 use arrayvec::ArrayVec;
+use core::iter;
+use core::ops::{Deref, DerefMut};
 use rgb::prelude::*;
-use std::ops::{Deref, DerefMut};
 
 /// 8-bit RGBA in sRGB. This is the only color format *publicly* used by the library.
 pub type RGBA = rgb::Rgba<u8>;
@@ -51,7 +52,7 @@ impl f_pixel {
     #[inline(always)]
     pub fn diff(&self, other: &Self) -> f32 {
         unsafe {
-            use std::arch::aarch64::*;
+            use core::arch::aarch64::*;
 
             let px = vld1q_f32((self as *const Self).cast::<f32>());
             let py = vld1q_f32((other as *const Self).cast::<f32>());
@@ -84,7 +85,7 @@ impl f_pixel {
     #[inline(always)]
     pub fn diff(&self, other: &f_pixel) -> f32 {
         unsafe {
-            use std::arch::x86_64::*;
+            use core::arch::x86_64::*;
 
             let px = _mm_loadu_ps(self as *const f_pixel as *const f32);
             let py = _mm_loadu_ps(other as *const f_pixel as *const f32);
@@ -116,9 +117,9 @@ impl f_pixel {
             return RGBA::new(0, 0, 0, 0);
         }
 
-        let r = (LIQ_WEIGHT_A as f64 / LIQ_WEIGHT_R as f64) as f32 * self.r / self.a;
-        let g = (LIQ_WEIGHT_A as f64 / LIQ_WEIGHT_G as f64) as f32 * self.g / self.a;
-        let b = (LIQ_WEIGHT_A as f64 / LIQ_WEIGHT_B as f64) as f32 * self.b / self.a;
+        let r = (f64::from(LIQ_WEIGHT_A) / f64::from(LIQ_WEIGHT_R)) as f32 * self.r / self.a;
+        let g = (f64::from(LIQ_WEIGHT_A) / f64::from(LIQ_WEIGHT_G)) as f32 * self.g / self.a;
+        let b = (f64::from(LIQ_WEIGHT_A) / f64::from(LIQ_WEIGHT_B)) as f32 * self.b / self.a;
 
         let gamma = (gamma / INTERNAL_GAMMA) as f32;
         debug_assert!(gamma.is_finite());
@@ -128,7 +129,7 @@ impl f_pixel {
             r: (r.powf(gamma) * 256.) as u8,
             g: (g.powf(gamma) * 256.) as u8,
             b: (b.powf(gamma) * 256.) as u8,
-            a: (self.a * (256. / LIQ_WEIGHT_A as f64) as f32) as u8,
+            a: (self.a * (256. / f64::from(LIQ_WEIGHT_A)) as f32) as u8,
         }
     }
 
@@ -144,12 +145,12 @@ impl f_pixel {
 
     #[inline]
     pub(crate) fn is_fully_transparent(self) -> bool {
-        self.a < (1. / 255. * LIQ_WEIGHT_A as f64) as f32
+        self.a < (1. / 255. * f64::from(LIQ_WEIGHT_A)) as f32
     }
 
     #[inline]
     pub(crate) fn is_fully_opaque(self) -> bool {
-        self.a >= (255. / 256. * LIQ_WEIGHT_A as f64) as f32
+        self.a >= (255. / 256. * f64::from(LIQ_WEIGHT_A)) as f32
     }
 }
 
@@ -277,7 +278,7 @@ impl PalF {
         if self.len() < max_fixed_colors {
             let needs_extra = max_fixed_colors - self.len();
             self.colors.extend(fixed_colors.iter().copied().take(needs_extra));
-            self.pops.extend(std::iter::repeat(PalPop::new(0.)).take(needs_extra));
+            self.pops.extend(iter::repeat(PalPop::new(0.)).take(needs_extra));
             debug_assert_eq!(self.len(), max_fixed_colors);
         }
 
@@ -371,12 +372,12 @@ pub(crate) fn internal_mse_to_standard_mse(mse: f64) -> f64 {
 #[derive(Clone)]
 pub struct Palette {
     /// Number of used colors in the `entries`
-    pub count: std::os::raw::c_uint,
+    pub count: core::ffi::c_uint,
     /// The colors, up to `count`
     pub entries: [RGBA; MAX_COLORS],
 }
 
-impl std::ops::Deref for Palette {
+impl Deref for Palette {
     type Target = [RGBA];
 
     #[inline(always)]
@@ -385,7 +386,7 @@ impl std::ops::Deref for Palette {
     }
 }
 
-impl std::ops::DerefMut for Palette {
+impl DerefMut for Palette {
     #[inline(always)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut_slice()

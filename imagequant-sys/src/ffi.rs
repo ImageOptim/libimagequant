@@ -8,13 +8,13 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_possible_wrap)]
 
+use core::ffi::{c_char, c_int, c_uint, c_void};
+use core::mem::{ManuallyDrop, MaybeUninit};
+use core::{mem, ptr, slice};
 use imagequant::capi::*;
 use imagequant::Error::LIQ_OK;
 use imagequant::*;
 use std::ffi::CString;
-use std::mem::{ManuallyDrop, MaybeUninit};
-use std::os::raw::{c_char, c_int, c_uint, c_void};
-use std::ptr;
 
 pub use imagequant::Error as liq_error;
 
@@ -191,9 +191,9 @@ pub unsafe extern "C" fn liq_result_set_progress_callback(result: &mut liq_resul
 
 #[allow(clippy::cast_ptr_alignment)]
 unsafe fn attr_to_liq_attr_ptr(ptr: &Attributes) -> &liq_attr {
-    let liq_attr = std::ptr::NonNull::<liq_attr>::dangling();
-    let outer_addr = std::ptr::addr_of!(*liq_attr.as_ptr()) as isize;
-    let inner_addr = std::ptr::addr_of!((*liq_attr.as_ptr()).inner) as isize;
+    let liq_attr = ptr::NonNull::<liq_attr>::dangling();
+    let outer_addr = ptr::addr_of!(*liq_attr.as_ptr()) as isize;
+    let inner_addr = ptr::addr_of!((*liq_attr.as_ptr()).inner) as isize;
 
     &*(ptr as *const Attributes).cast::<u8>().offset(outer_addr - inner_addr).cast::<liq_attr>()
 }
@@ -304,7 +304,7 @@ pub unsafe extern "C" fn liq_write_remapped_image(result: &mut liq_result, input
 
     let required_size = (input_image.width()) * (input_image.height());
     if buffer_size < required_size { return Error::BufferTooSmall; }
-    let buffer_bytes = std::slice::from_raw_parts_mut(buffer_bytes, required_size);
+    let buffer_bytes = slice::from_raw_parts_mut(buffer_bytes, required_size);
     liq_write_remapped_image_impl(result, input_image, buffer_bytes).err().unwrap_or(LIQ_OK)
 }
 
@@ -317,7 +317,7 @@ pub unsafe extern "C" fn liq_write_remapped_image_rows(result: &mut liq_result, 
     let result = &mut result.inner;
 
     if liq_received_invalid_pointer(row_pointers.cast()) { return Error::InvalidPointer; }
-    let rows = std::slice::from_raw_parts_mut(row_pointers, input_image.height());
+    let rows = slice::from_raw_parts_mut(row_pointers, input_image.height());
 
     liq_write_remapped_image_rows_impl(result, input_image, rows).err().unwrap_or(LIQ_OK)
 }
@@ -378,7 +378,7 @@ pub unsafe extern "C" fn liq_image_set_importance_map(img: &mut liq_image, impor
         return Error::BufferTooSmall;
     }
 
-    let importance_map_slice = std::slice::from_raw_parts(importance_map, required_size);
+    let importance_map_slice = slice::from_raw_parts(importance_map, required_size);
     if ownership == liq_ownership::LIQ_COPY_PIXELS {
         img.set_importance_map(importance_map_slice).err().unwrap_or(LIQ_OK)
     } else if ownership == liq_ownership::LIQ_OWN_PIXELS {
@@ -430,7 +430,7 @@ pub extern "C" fn liq_attr_create_with_allocator(_unused: *mut c_void, free: uns
         inner: Attributes::new(),
         c_api_free: free,
     });
-    debug_assert_eq!(std::ptr::addr_of!(*attr), unsafe { attr_to_liq_attr_ptr(&attr.inner) } as *const liq_attr);
+    debug_assert_eq!(ptr::addr_of!(*attr), unsafe { attr_to_liq_attr_ptr(&attr.inner) } as *const liq_attr);
     Some(attr)
 }
 
@@ -561,7 +561,7 @@ pub unsafe extern "C" fn liq_result_from_palette(
     }
 
     let attr = &attr.inner;
-    let palette = std::slice::from_raw_parts(palette, palette_size);
+    let palette = slice::from_raw_parts(palette, palette_size);
 
     let res = QuantizationResult::from_palette(attr, palette, gamma).map(|inner| liq_result {
         magic_header: LIQ_RESULT_MAGIC,
@@ -585,9 +585,9 @@ pub(crate) fn check_image_size(attr: &liq_attr, width: u32, height: u32) -> bool
         return false;
     }
 
-    if width as usize > c_int::MAX as usize / std::mem::size_of::<liq_color>() / height as usize ||
-       width as usize > c_int::MAX as usize / 16 / std::mem::size_of::<f32>() ||
-       height as usize > c_int::MAX as usize / std::mem::size_of::<usize>()
+    if width as usize > c_int::MAX as usize / mem::size_of::<liq_color>() / height as usize ||
+       width as usize > c_int::MAX as usize / 16 / mem::size_of::<f32>() ||
+       height as usize > c_int::MAX as usize / mem::size_of::<usize>()
     {
         return false;
     }
@@ -612,7 +612,7 @@ pub unsafe extern "C" fn liq_image_create_custom(attr: &liq_attr, row_callback: 
 pub unsafe extern "C" fn liq_image_create_rgba_rows<'rows>(attr: &liq_attr, rows: *const *const RGBA, width: c_uint, height: c_uint, gamma: f64) -> Option<Box<liq_image<'rows>>> {
     if !check_image_size(attr, width, height) { return None; }
     if rows.is_null() { return None; }
-    let rows = std::slice::from_raw_parts(rows, height as _);
+    let rows = slice::from_raw_parts(rows, height as _);
     liq_image_create_rgba_rows_impl(&attr.inner, rows, width as _,  height as _, gamma)
         .map(move |inner| Box::new(liq_image {
             magic_header: LIQ_IMAGE_MAGIC,
@@ -651,7 +651,7 @@ pub unsafe extern "C" fn liq_histogram_add_colors(input_hist: &mut liq_histogram
 
     if liq_received_invalid_pointer(entries.cast()) { return Error::InvalidPointer; }
 
-    let entries = std::slice::from_raw_parts(entries, num_entries);
+    let entries = slice::from_raw_parts(entries, num_entries);
 
     input_hist.add_colors(entries, gamma).err().unwrap_or(LIQ_OK)
 }
@@ -678,7 +678,6 @@ pub unsafe extern "Rust" fn liq_executing_user_callback(callback: liq_image_get_
 
 #[test]
 fn links_and_runs() {
-    use std::ptr;
     unsafe {
         assert!(liq_version() >= 40000);
         let attr = liq_attr_create().unwrap();
@@ -701,7 +700,6 @@ fn links_and_runs() {
 #[test]
 #[allow(deprecated)]
 fn link_every_symbol() {
-    use std::os::raw::c_void;
 
     let x = liq_attr_create as *const c_void as usize
         + liq_attr_create_with_allocator as *const c_void as usize
@@ -757,8 +755,6 @@ fn link_every_symbol() {
 
 #[test]
 fn c_callback_test_c() {
-    use std::mem::MaybeUninit;
-
     let mut called = 0;
     let mut res = unsafe {
         let mut a = liq_attr_create().unwrap();
@@ -772,7 +768,7 @@ fn c_callback_test_c() {
             let user_data = user_data.0.cast::<i32>();
             *user_data += 1;
         }
-        let mut img = liq_image_create_custom(&a, get_row, AnySyncSendPtr(std::ptr::addr_of_mut!(called).cast::<c_void>()), 123, 5, 0.).unwrap();
+        let mut img = liq_image_create_custom(&a, get_row, AnySyncSendPtr(ptr::addr_of_mut!(called).cast::<c_void>()), 123, 5, 0.).unwrap();
         liq_quantize_image(&mut a, &mut img).unwrap()
     };
     assert!(called > 5 && called < 50);
@@ -780,9 +776,7 @@ fn c_callback_test_c() {
     assert_eq!(123, pal.count);
 }
 
-
-
 #[test]
 fn ownership_bitflags() {
-    assert_eq!(4+16, (liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_COPY_PIXELS).bits());
+    assert_eq!(4 + 16, (liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_COPY_PIXELS).bits());
 }

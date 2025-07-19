@@ -39,8 +39,8 @@ mod rayoff;
 #[cfg(feature = "threads")]
 mod rayoff {
     pub(crate) fn num_cpus() -> usize { std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) }
-    pub(crate) use rayon::prelude::{ParallelBridge, ParallelIterator, ParallelSliceMut};
     pub(crate) use rayon::in_place_scope as scope;
+    pub(crate) use rayon::prelude::{ParallelBridge, ParallelIterator, ParallelSliceMut};
     pub(crate) use thread_local::ThreadLocal;
 }
 
@@ -50,6 +50,8 @@ pub(crate) struct CacheLineAlign<T>(pub T);
 /// Use imagequant-sys crate instead
 #[cfg(feature = "_internal_c_ffi")]
 pub mod capi;
+
+use core::cmp::Ordering;
 
 pub use attr::{Attributes, ControlFlow};
 pub use error::Error;
@@ -201,7 +203,7 @@ fn thread() {
 
 #[test]
 fn r_callback_test() {
-    use std::mem::MaybeUninit;
+    use core::mem::MaybeUninit;
     use std::sync::atomic::AtomicU16;
     use std::sync::atomic::Ordering::SeqCst;
     use std::sync::Arc;
@@ -231,14 +233,14 @@ fn r_callback_test() {
 
 #[test]
 fn sizes() {
-    use pal::PalF;
-    use pal::Palette;
-    assert!(std::mem::size_of::<PalF>() < crate::pal::MAX_COLORS*(8*4)+32, "{}", std::mem::size_of::<PalF>());
-    assert!(std::mem::size_of::<QuantizationResult>() < std::mem::size_of::<PalF>() + std::mem::size_of::<Palette>() + 100, "{}", std::mem::size_of::<QuantizationResult>());
-    assert!(std::mem::size_of::<Attributes>() < 200);
-    assert!(std::mem::size_of::<Image>() < 300);
-    assert!(std::mem::size_of::<Histogram>() < 200);
-    assert!(std::mem::size_of::<crate::hist::HistItem>() <= 32);
+    use core::mem::size_of;
+    use pal::{PalF, Palette};
+    assert!(size_of::<PalF>() < crate::pal::MAX_COLORS * (8 * 4) + 32, "{}", size_of::<PalF>());
+    assert!(size_of::<QuantizationResult>() < size_of::<PalF>() + size_of::<Palette>() + 100, "{}", size_of::<QuantizationResult>());
+    assert!(size_of::<Attributes>() < 200);
+    assert!(size_of::<Image>() < 300);
+    assert!(size_of::<Histogram>() < 200);
+    assert!(size_of::<crate::hist::HistItem>() <= 32);
 }
 
 #[doc(hidden)]
@@ -259,7 +261,7 @@ pub fn _unstable_internal_kmeans_bench() -> impl FnMut() {
     let lut = pal::gamma_lut(0.45455);
     let mut p = PalF::new();
     for i in 0..=255 {
-        p.push(pal::f_pixel::from_rgba(&lut, RGBA::new(i|7, i, i, 255)), PalPop::new(1.));
+        p.push(pal::f_pixel::from_rgba(&lut, RGBA::new(i | 7, i, i, 255)), PalPop::new(1.));
     }
 
     move || {
@@ -293,8 +295,8 @@ impl Eq for OrdFloat<f32> {
 
 impl Ord for OrdFloat<f32> {
     #[inline]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal)
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.partial_cmp(&other.0).unwrap_or(Ordering::Equal)
     }
 }
 
@@ -303,8 +305,8 @@ impl Eq for OrdFloat<f64> {
 
 impl Ord for OrdFloat<f64> {
     #[inline]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal)
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.partial_cmp(&other.0).unwrap_or(Ordering::Equal)
     }
 }
 

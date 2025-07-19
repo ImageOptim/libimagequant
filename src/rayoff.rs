@@ -1,5 +1,5 @@
+use core::slice::ChunksMut;
 use once_cell::unsync::OnceCell;
-use std::slice::ChunksMut;
 
 pub(crate) struct ThreadLocal<T>(OnceCell<T>);
 
@@ -21,7 +21,7 @@ impl<T> ThreadLocal<T> {
 }
 
 impl<T> IntoIterator for ThreadLocal<T> {
-    type IntoIter = std::option::IntoIter<T>;
+    type IntoIter = core::option::IntoIter<T>;
     type Item = T;
 
     #[inline(always)]

@@ -2,7 +2,8 @@ use crate::error::Error;
 use crate::pal::{f_pixel, gamma_lut, RGBA};
 use crate::seacow::{Pointer, SeaCow};
 use crate::LIQ_HIGH_MEMORY_LIMIT;
-use std::mem::MaybeUninit;
+use core::mem::{size_of, MaybeUninit};
+use core::slice;
 
 pub(crate) type RowCallback<'a> = dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync + 'a;
 
@@ -125,7 +126,7 @@ impl<'pixels, 'rows> DynamicRows<'pixels, 'rows> {
     fn row_rgba<'px>(&'px self, temp_row: &'px mut [MaybeUninit<RGBA>], row: usize) -> &'px [RGBA] {
         match &self.pixels {
             PixelsSource::Pixels { rows, .. } => unsafe {
-                std::slice::from_raw_parts(rows.as_slice()[row].0, self.width())
+                slice::from_raw_parts(rows.as_slice()[row].0, self.width())
             },
             PixelsSource::Callback(cb) => {
                 cb(temp_row, row);
@@ -146,7 +147,7 @@ impl<'pixels, 'rows> DynamicRows<'pixels, 'rows> {
 
     #[must_use]
     fn should_use_low_memory(&self) -> bool {
-        self.width() * self.height() > LIQ_HIGH_MEMORY_LIMIT / std::mem::size_of::<f_pixel>()
+        self.width() * self.height() > LIQ_HIGH_MEMORY_LIMIT / size_of::<f_pixel>()
     }
 
     #[inline]
@@ -216,7 +217,7 @@ impl<'pixels, 'rows> DynamicRows<'pixels, 'rows> {
 
     /// Not recommended
     #[cfg(feature = "_internal_c_ffi")]
-    pub(crate) unsafe fn set_memory_ownership(&mut self, own_rows: bool, own_pixels: bool, free_fn: unsafe extern "C" fn(*mut std::os::raw::c_void)) -> Result<(), Error> {
+    pub(crate) unsafe fn set_memory_ownership(&mut self, own_rows: bool, own_pixels: bool, free_fn: unsafe extern "C" fn(*mut core::ffi::c_void)) -> Result<(), Error> {
         if own_rows {
             match &mut self.pixels {
                 PixelsSource::Pixels { rows, .. } => rows.make_owned(free_fn),
@@ -280,7 +281,7 @@ fn send() {
 
 #[inline(always)]
 unsafe fn box_assume_init<T>(s: Box<[MaybeUninit<T>]>) -> Box<[T]> {
-    std::mem::transmute(s)
+    core::mem::transmute(s)
 }
 
 #[inline(always)]

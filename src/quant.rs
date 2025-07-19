@@ -1,6 +1,6 @@
 use crate::attr::{Attributes, ControlFlow};
 use crate::error::*;
-use crate::hist::{HistogramInternal, Histogram};
+use crate::hist::{Histogram, HistogramInternal};
 use crate::image::Image;
 use crate::kmeans::Kmeans;
 use crate::mediancut::mediancut;
@@ -10,9 +10,9 @@ use crate::remap::{remap_to_palette, remap_to_palette_floyd, DitherMapMode, Rema
 use crate::seacow::RowBitmapMut;
 use crate::OrdFloat;
 use arrayvec::ArrayVec;
-use std::cmp::Reverse;
-use std::fmt;
-use std::mem::MaybeUninit;
+use core::cmp::Reverse;
+use core::fmt;
+use core::mem::MaybeUninit;
 
 /// Remapping step, computed from [`Attributes::quantize()`]
 pub struct QuantizationResult {
@@ -306,6 +306,7 @@ impl QuantizationResult {
     }
 
     /// Getter for the value set in [`set_dithering_level`]
+    #[must_use]
     pub fn dithering_level(&self) -> f32 {
         self.dither_level
     }

@@ -1,6 +1,7 @@
 #![feature(test)]
 
 extern crate test;
+use core::mem::MaybeUninit;
 use test::Bencher;
 
 use imagequant::*;
@@ -19,7 +20,7 @@ fn histogram(b: &mut Bencher) {
 #[bench]
 fn remap_ord(b: &mut Bencher) {
     let img = lodepng::decode32_file("/Users/kornel/Desktop/canvas.png").unwrap();
-    let mut buf = vec![std::mem::MaybeUninit::uninit(); img.width * img.height];
+    let mut buf = vec![MaybeUninit::uninit(); img.width * img.height];
     let mut liq = Attributes::new();
     liq.set_speed(10).unwrap();
     let mut img = liq.new_image(img.buffer, img.width, img.height, 0.).unwrap();
@@ -40,7 +41,7 @@ fn kmeans(b: &mut Bencher) {
 #[bench]
 fn remap_floyd(b: &mut Bencher) {
     let img = lodepng::decode32_file("/Users/kornel/Desktop/canvas.png").unwrap();
-    let mut buf = vec![std::mem::MaybeUninit::uninit(); img.width * img.height];
+    let mut buf = vec![MaybeUninit::uninit(); img.width * img.height];
     let mut liq = Attributes::new();
     liq.set_speed(10).unwrap();
     let mut img = liq.new_image(img.buffer, img.width, img.height, 0.).unwrap();

@@ -1,6 +1,8 @@
-use std::mem::MaybeUninit;
+use core::mem::{self, MaybeUninit};
+use core::slice;
+
 #[cfg(feature = "_internal_c_ffi")]
-use std::os::raw::c_void;
+use core::ffi::c_void;
 
 #[derive(Clone)]
 pub struct SeaCow<'a, T> {
@@ -68,7 +70,7 @@ impl<T: Clone> Clone for SeaCowInner<'_, T> {
         let slice = match self {
             Self::Borrowed(data) => return Self::Borrowed(data),
             #[cfg(feature = "_internal_c_ffi")]
-            Self::Owned { ptr, len, free_fn: _ } => unsafe { std::slice::from_raw_parts(*ptr, *len) },
+            Self::Owned { ptr, len, free_fn: _ } => unsafe { slice::from_raw_parts(*ptr, *len) },
             Self::Boxed(data) => &**data,
         };
         let mut v = Vec::new();
@@ -101,7 +103,7 @@ impl<T> SeaCow<'_, T> {
     pub fn as_slice(&self) -> &[T] {
         match &self.inner {
             #[cfg(feature = "_internal_c_ffi")]
-            SeaCowInner::Owned { ptr, len, .. } => unsafe { std::slice::from_raw_parts(*ptr, *len) },
+            SeaCowInner::Owned { ptr, len, .. } => unsafe { slice::from_raw_parts(*ptr, *len) },
             SeaCowInner::Borrowed(a) => a,
             SeaCowInner::Boxed(x) => x,
         }
@@ -126,7 +128,7 @@ impl<T> RowBitmapMut<'_, MaybeUninit<T>> {
         #[allow(clippy::transmute_ptr_to_ptr)]
         RowBitmap {
             width: self.width,
-            rows: std::mem::transmute::<&'maybeowned [PointerMut<MaybeUninit<T>>], &'maybeowned [Pointer<T>]>(self.rows.borrow_mut()),
+            rows: mem::transmute::<&'maybeowned [PointerMut<MaybeUninit<T>>], &'maybeowned [Pointer<T>]>(self.rows.borrow_mut()),
         }
     }
 }
@@ -135,7 +137,7 @@ impl<T> RowBitmap<'_, T> {
     pub fn rows(&self) -> impl Iterator<Item = &[T]> {
         let width = self.width;
         self.rows.iter().map(move |row| {
-            unsafe { std::slice::from_raw_parts(row.0, width) }
+            unsafe { slice::from_raw_parts(row.0, width) }
         })
     }
 }
@@ -180,7 +182,7 @@ impl<'a, T: Sync + Send + Copy + 'static> RowBitmapMut<'a, T> {
     pub fn rows_mut(&mut self) -> impl Iterator<Item = &mut [T]> + Send {
         let width = self.width;
         self.rows.borrow_mut().iter().map(move |row| {
-            unsafe { std::slice::from_raw_parts_mut(row.0, width) }
+            unsafe { slice::from_raw_parts_mut(row.0, width) }
         })
     }
 

@@ -7,7 +7,7 @@ use crate::rows::{DynamicRows, PixelsSource};
 use crate::seacow::{RowBitmap, SeaCow};
 use crate::{PushInCapacity, LIQ_HIGH_MEMORY_LIMIT};
 use rgb::prelude::*;
-use std::mem::MaybeUninit;
+use core::mem::{self, MaybeUninit};
 
 /// Describes image dimensions and pixels for the library
 ///
@@ -105,7 +105,7 @@ impl<'pixels> Image<'pixels> {
         };
         // if image is huge or converted pixels are not likely to be reused then don't cache converted pixels
         let low_memory_hint = !attr.use_contrast_maps && attr.use_dither_map == DitherMapMode::None;
-        let limit = if low_memory_hint { LIQ_HIGH_MEMORY_LIMIT / 8 } else { LIQ_HIGH_MEMORY_LIMIT } / std::mem::size_of::<f_pixel>();
+        let limit = if low_memory_hint { LIQ_HIGH_MEMORY_LIMIT / 8 } else { LIQ_HIGH_MEMORY_LIMIT } / mem::size_of::<f_pixel>();
         if (img.width()) * (img.height()) > limit {
             attr.verbose_print("  conserving memory"); // for simplicity of this API there's no explicit pixels argument,
         }
@@ -117,7 +117,7 @@ impl<'pixels> Image<'pixels> {
             return false;
         }
         if width.max(height) as usize > i32::MAX as usize ||
-            width as usize > isize::MAX as usize / std::mem::size_of::<f_pixel>() / height as usize {
+            width as usize > isize::MAX as usize / mem::size_of::<f_pixel>() / height as usize {
             return false;
         }
         true

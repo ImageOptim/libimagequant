@@ -7,7 +7,8 @@ use crate::pal::Palette;
 use crate::rows::RowCallback;
 use crate::seacow::{Pointer, RowBitmapMut, SeaCow};
 use crate::{Attributes, Error, Image, QuantizationResult, RGBA};
-use std::mem::MaybeUninit;
+use core::ffi::c_void;
+use core::mem::{self, MaybeUninit};
 
 pub const LIQ_VERSION: u32 = 40202;
 
@@ -28,7 +29,7 @@ pub unsafe fn liq_image_create_rgba_rows_impl<'rows>(attr: &Attributes, rows: &'
 
 #[must_use]
 pub unsafe fn liq_image_create_rgba_bitmap_impl<'rows>(attr: &Attributes, rows: Box<[*const RGBA]>, width: u32, height: u32, gamma: f64) -> Option<crate::image::Image<'rows>> {
-    let rows = SeaCow::boxed(std::mem::transmute::<Box<[*const RGBA]>, Box<[Pointer<RGBA>]>>(rows));
+    let rows = SeaCow::boxed(mem::transmute::<Box<[*const RGBA]>, Box<[Pointer<RGBA>]>>(rows));
     let rows_slice = rows.as_slice();
     if rows_slice.iter().any(|r| r.0.is_null()) {
         return None;
@@ -52,6 +53,6 @@ pub unsafe fn liq_write_remapped_image_rows_impl(result: &mut QuantizationResult
 }
 
 /// Not recommended
-pub unsafe fn liq_image_set_memory_ownership_impl(image: &mut Image<'_>, own_rows: bool, own_pixels: bool, free_fn: unsafe extern "C" fn(*mut std::os::raw::c_void)) -> Result<(), Error> {
+pub unsafe fn liq_image_set_memory_ownership_impl(image: &mut Image<'_>, own_rows: bool, own_pixels: bool, free_fn: unsafe extern "C" fn(*mut c_void)) -> Result<(), Error> {
     image.px.set_memory_ownership(own_rows, own_pixels, free_fn)
 }

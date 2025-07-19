@@ -5,8 +5,8 @@ use crate::quant::QuantizationResult;
 use crate::rows::{temp_buf, DynamicRows};
 use crate::Attributes;
 use std::collections::{HashMap, HashSet};
-use std::fmt;
-use std::hash::Hash;
+use core::{fmt, hash, mem};
+use core::hash::Hash;
 
 /// Number of pixels in a given color for [`Histogram::add_colors()`]
 ///
@@ -57,7 +57,7 @@ impl HistItem {
     // The u32 has been initialized when constructing the object, and u8/u16 is smaller than that
     #[inline(always)]
     pub fn likely_palette_index(&self) -> PalIndex {
-        assert!(std::mem::size_of::<PalIndex>() <= std::mem::size_of::<u32>());
+        assert!(mem::size_of::<PalIndex>() <= mem::size_of::<u32>());
         unsafe { self.tmp.likely_palette_index }
     }
 }
@@ -241,7 +241,7 @@ impl Histogram {
         let new_posterize_mask = self.posterize_mask();
 
         let new_size = (self.hashmap.len() / 3).max(self.hashmap.capacity() / 5);
-        let old_hashmap = std::mem::replace(&mut self.hashmap, HashMap::with_capacity_and_hasher(new_size, U32Hasher(0)));
+        let old_hashmap = mem::replace(&mut self.hashmap, HashMap::with_capacity_and_hasher(new_size, U32Hasher(0)));
         self.hashmap.extend(old_hashmap.into_iter().map(move |(k, v)| {
             (k & new_posterize_mask, v)
         }));
@@ -381,7 +381,7 @@ pub(crate) struct Cluster {
 }
 
 // Simple deterministic hasher for the color hashmap
-impl std::hash::BuildHasher for U32Hasher {
+impl hash::BuildHasher for U32Hasher {
     type Hasher = Self;
 
     #[inline(always)]
@@ -391,7 +391,7 @@ impl std::hash::BuildHasher for U32Hasher {
 }
 
 pub(crate) struct U32Hasher(pub u32);
-impl std::hash::Hasher for U32Hasher {
+impl hash::Hasher for U32Hasher {
     // magic constant from fxhash. For a single 32-bit key that's all it needs!
     #[inline(always)]
     fn finish(&self) -> u64 { u64::from(self.0).wrapping_mul(0x517cc1b727220a95) }
@@ -422,7 +422,7 @@ pub(crate) struct HashColor {
 #[allow(clippy::derived_hash_with_manual_eq)]
 impl Hash for HashColor {
     #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
         let s: &[u8] = self.rgba.as_ref();
         u32::from_ne_bytes(s.try_into().unwrap()).hash(state);
     }
