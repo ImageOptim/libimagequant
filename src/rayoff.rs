@@ -31,13 +31,18 @@ impl<T> IntoIterator for ThreadLocal<T> {
     }
 }
 
-pub(crate) trait FakeRayonIter: Sized {
-    fn par_bridge(self) -> Self;
+pub(crate) trait FakeRayonIter: Sized + Iterator {
+    fn par_bridge(self) -> Self { self }
+    fn for_each_init<I, F, T>(self, init: I, mut cb: F) where I: FnOnce() -> T, F: FnMut(&mut T, Self::Item) {
+        let mut tmp = init();
+        for item in self {
+            cb(&mut tmp, item);
+        }
+    }
 }
 
 
-impl<T> FakeRayonIter for T where Self: Sized {
-    fn par_bridge(self) -> Self { self }
+impl<T: Iterator> FakeRayonIter for T where Self: Sized {
 }
 
 pub(crate) trait FakeRayonIntoIter<T> {

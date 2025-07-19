@@ -64,15 +64,17 @@ impl Kmeans {
         let total = hist.total_perceptual_weight;
 
         // chunk size is a trade-off between parallelization and overhead
-        hist.items.par_chunks_mut(256).for_each({
-            let tls = &tls;
-            move |batch| {
-                let kmeans = tls.get_or(move || CacheLineAlign(RefCell::new(Self::new(len))));
-                if let Ok(ref mut kmeans) = *kmeans.0.borrow_mut() {
+        hist.items.par_chunks_mut(256).for_each_init(
+            || tls.get_or(move || CacheLineAlign(RefCell::new(Self::new(len)))),
+            move |kmeans, batch| {
+                let Ok(mut tls) = kmeans.0.try_borrow_mut() else {
+                    debug_assert!(false);
+                    return;
+                };
+                if let Ok(ref mut kmeans) = *tls {
                     kmeans.iterate_batch(batch, &n, colors, adjust_weight);
                 }
-            }
-        });
+            });
 
         let diff = tls.into_iter()
             .map(|c| c.0.into_inner())
