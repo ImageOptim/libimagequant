@@ -49,6 +49,12 @@ impl fmt::Display for Error {
     }
 }
 
+impl From<core::convert::Infallible> for Error {
+    fn from(e: core::convert::Infallible) -> Self {
+        match e {}
+    }
+}
+
 impl From<TryReserveError> for Error {
     #[cold]
     fn from(_: TryReserveError) -> Self {

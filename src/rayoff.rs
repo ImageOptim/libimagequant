@@ -1,5 +1,5 @@
 use core::slice::ChunksMut;
-use once_cell::unsync::OnceCell;
+use core::cell::OnceCell;
 
 pub(crate) struct ThreadLocal<T>(OnceCell<T>);
 
@@ -15,8 +15,9 @@ impl<T> ThreadLocal<T> {
     }
 
     #[inline(always)]
-    pub fn get_or_try<E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<&T, E> {
-        self.0.get_or_try_init(f)
+    pub fn get_or_try<E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<&T, core::convert::Infallible> {
+        // https://github.com/rust-lang/rust/issues/109737
+        Ok(self.0.get_or_init(move || f().ok().unwrap()))
     }
 }
 
@@ -40,19 +41,19 @@ impl<T> FakeRayonIter for T where Self: Sized {
 }
 
 pub(crate) trait FakeRayonIntoIter<T> {
-    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T>;
+    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<'_, T>;
 }
 
 impl<'a, T> FakeRayonIntoIter<T> for &'a mut [T] {
     #[inline(always)]
-    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> {
+    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<'_, T> {
         self.chunks_mut(chunk_size)
     }
 }
 
 impl<'a, T> FakeRayonIntoIter<T> for Box<[T]> {
     #[inline(always)]
-    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<T> {
+    fn par_chunks_mut(&mut self, chunk_size: usize) -> ChunksMut<'_, T> {
         self.chunks_mut(chunk_size)
     }
 }
