@@ -100,7 +100,7 @@ The `openmp` Cargo feature has been renamed to `threads`.
 
 By default, when the `threads` Cargo feature is enabled, this library uses multi-threading. Number of threads can be controlled via `RAYON_NUM_THREADS` environment variable.
 
-Threads in WASM are experimental, and require [special handling](https://github.com/GoogleChromeLabs/wasm-bindgen-rayon). If you're targeting WASM, you'll most likely want to disable threads.
+Threads in WASM are experimental, and require [special handling](https://github.com/RReverser/wasm-bindgen-rayon). If you're targeting WASM, you'll most likely want to disable threads.
 
 To disable threads when using this library as a dependency, disable default features like this in `Cargo.toml`:
 
