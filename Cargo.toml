@@ -35,6 +35,9 @@ debug = false
 strip = true
 panic = "abort"
 
+[profile.dev]
+panic = "abort"
+
 [lib]
 doctest = false
 

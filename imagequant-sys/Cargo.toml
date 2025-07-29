@@ -43,6 +43,14 @@ imagequant = { path = "..", version = "4.5.0", default-features = false, feature
 bitflags = "2.5"
 libc = "0.2.153"
 
+[profile.release]
+debug = false
+strip = true
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
+
 [package.metadata.capi.library]
 name = "imagequant"
 version = "0.4.1"
