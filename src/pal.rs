@@ -126,9 +126,9 @@ impl f_pixel {
 
         // 256, because numbers are in range 1..255.9999… rounded down
         RGBA {
-            r: (r.powf(gamma) * 256.) as u8,
-            g: (g.powf(gamma) * 256.) as u8,
-            b: (b.powf(gamma) * 256.) as u8,
+            r: (r.max(0.).powf(gamma) * 256.) as u8,
+            g: (g.max(0.).powf(gamma) * 256.) as u8,
+            b: (b.max(0.).powf(gamma) * 256.) as u8,
             a: (self.a * (256. / f64::from(LIQ_WEIGHT_A)) as f32) as u8,
         }
     }
