@@ -23,7 +23,7 @@ static: $(STATICLIB)
 java: $(JNILIB)
 
 $(STATICLIB): Cargo.toml
-	cargo build --release
+	cargo build --release --lib --target-dir=../target
 	cp ../target/release/libimagequant_sys.a $(STATICLIB)
 
 $(JNILIB): $(JAVAHEADERS) $(STATICLIB) org/pngquant/PngQuant.c
