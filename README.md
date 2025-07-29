@@ -11,12 +11,12 @@ This library can be used in C programs via [imagequant-sys](https://github.com/I
 ```bash
 rustup update
 git clone https://github.com/ImageOptim/libimagequant
-cd imagequant-sys
-cargo build --release
+cd libimagequant/imagequant-sys
+cargo build --release --target-dir=target
 # makes target/release/libimagequant_sys.a
 ```
 
-See [the C library documentation for more details](https://pngquant.org/lib/).
+See [the C library API documentation](https://pngquant.org/lib/) and [the readme](https://lib.rs/imagequant-sys) for more info.
 
 ## Getting started in Rust
 
@@ -56,6 +56,8 @@ It produces `target/release/libimagequant_sys.a` static library. The API, ABI, a
 If you're building for macOS or iOS, see included xcodeproj file (add it as a [subproject](https://gitlab.com/kornelski/cargo-xcode#usage) to yours).
 
 If you're building for Android, run `rustup target add aarch64-linux-android; cargo build --release --target aarch64-linux-android` and use `target/aarch64-linux-android/release/libimagequant_sys.a`. Same for cross-compiling to other platforms. See `rustup target list`.
+
+See [imagequant-sys readme](https://lib.rs/imagequant-sys#readme-building-for-c) for instructions how to make smaller builds.
 
 ### C dynamic library for package maintainers
 

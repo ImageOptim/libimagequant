@@ -32,6 +32,7 @@ _internal_c_ffi = []
 
 [profile.release]
 debug = false
+strip = true
 panic = "abort"
 
 [lib]

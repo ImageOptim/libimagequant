@@ -18,7 +18,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-imagequant = "4.0"
+imagequant = "4.4"
 ```
 
 [See docs.rs for the library API documentation](https://docs.rs/imagequant).
@@ -27,23 +27,47 @@ imagequant = "4.0"
 
 ### Building for C
 
-1. Get Rust 1.70 or later via [rustup](https://rustup.rs) and run `rustup update`.
+1. Get Rust 1.80 or later via [rustup](https://rustup.rs) and run `rustup update`.
 2. `cd imagequant-sys`
 
    The C API is exposed by a separate package called [`imagequant-sys`](https://github.com/ImageOptim/libimagequant/tree/main/imagequant-sys).
+
 3. Run `cargo build --release`
 
    This will build `target/release/libimagequant_sys.a` or `target\release\libimagequant_sys.lib` that you can use for static linking.
-   Please don't worry about the size of the `.a` file. It includes a few unused objects. It only adds 500KB when linked. Use Link-Time-Optimization (LTO) option in your compiler, and/or add `-Wl,--as-needed` to linker flags if necessary. You can make the binary a bit smaller by building with `cargo +nightly build --target $TARGET_ARCH --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort`.
 
 The repository includes an Xcode project file that can be used on iOS and macOS.
 
-If you want to build a C dynamic library (DLL, so, dylib), then:
+#### Smaller static library
+
+Please don't worry about the size of the `.a` file. It includes a few unused objects, but it should add only ~500KB when linked, and less if you use other Rust libraries, because it reuses some common standard library code.
+
+Add `-Wl,--as-needed` and `-Wl,--gc-sections` to the linker flags (`LDFLAGS`) to ensure unused code is removed.
+
+If you use `clang`, then enable Link-Time-Optimization (`-flto`) option in your compiler and linker, and set `CARGO_PROFILE_RELEASE_LTO=true` env var when running `cargo build`.
+
+You can make the binary a bit smaller by building with a trimmed version of the standard library:
+
+```bash
+rustup default nightly
+rustup update
+cargo clean
+cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort
+```
+
+It's also possible to remove Rust's standard library entirely by building with `--no-default-features --features no_std`, but , at the performance cost of losing multi-threading support. Add  to `cargo build` invocations.
+
+#### Dynamic library
+
+If you want to build a C dynamic library (DLL, so, dylib), then the best is to use a helper tool:
 
 1. `cargo install cargo-c`
 2. `cd imagequant-sys`
 3. `cargo cinstall --destdir=.`
-   This will build `./usr/local/lib/libimagequant.0.0.0.{so,dylib,dll}`
+
+   This will build `./usr/local/lib/libimagequant.0.4.{so,dylib,dll}`
+
+You can also use regular `cargo build --release` if you know how to set `rpath`. Set `CARGO_PROFILE_RELEASE_LTO=true` env var for a smaller binary.
 
 ### C API usage
 
@@ -638,6 +662,6 @@ For animated GIFs see `liq_image_set_background()` which remaps images for GIF's
 
 You can compile the library for other platforms via `cargo build --target=…`. See `rustup target list` for the list of platforms.
 
-When compiling for WASM, you need to disable default features of this library (compile with `--no-default-features` flag). Otherwise it will use mult-threading, which requires [special handling in WASM](https://github.com/GoogleChromeLabs/wasm-bindgen-rayon).
+When compiling for WASM, you need to disable default features of this library (compile with `--no-default-features` flag). Otherwise it will use mult-threading, which requires [special handling in WASM](https://github.com/RReverser/wasm-bindgen-rayon).
 
 If you're cross-compiling a dynamic library (so/dylib/DLL), you may need to [configure a linker](https://doc.rust-lang.org/cargo/reference/config.html#target) for Cargo. For building for Android see [this tutorial](https://mozilla.github.io/firefox-browser-architecture/experiments/2017-09-21-rust-on-android.html) and [cargo-ndk](https://lib.rs/crates/cargo-ndk).

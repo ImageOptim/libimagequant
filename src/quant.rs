@@ -308,7 +308,7 @@ impl QuantizationResult {
         hist.quantize(attr)
     }
 
-    /// Getter for the value set in [`set_dithering_level`]
+    /// Getter for the value set in [`Self::set_dithering_level`]
     #[must_use]
     pub fn dithering_level(&self) -> f32 {
         self.dither_level
