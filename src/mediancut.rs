@@ -5,6 +5,9 @@ use crate::{Error, OrdFloat, PushInCapacity};
 use core::cmp::Reverse;
 use rgb::prelude::*;
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use crate::no_std_compat::*;
+
 struct MedianCutter<'hist> {
     boxes: Vec<MBox<'hist>>,
     hist_total_perceptual_weight: f64,

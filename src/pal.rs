@@ -4,6 +4,9 @@ use core::iter;
 use core::ops::{Deref, DerefMut};
 use rgb::prelude::*;
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use crate::no_std_compat::*;
+
 /// 8-bit RGBA in sRGB. This is the only color format *publicly* used by the library.
 pub type RGBA = rgb::Rgba<u8>;
 

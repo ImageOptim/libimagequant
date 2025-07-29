@@ -3,6 +3,9 @@
 #![allow(missing_docs)]
 #![allow(clippy::missing_safety_doc)]
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use crate::no_std_compat::*;
+
 use crate::pal::Palette;
 use crate::rows::RowCallback;
 use crate::seacow::{Pointer, RowBitmapMut, SeaCow};

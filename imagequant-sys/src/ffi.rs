@@ -1,12 +1,17 @@
 //! Exports API for C programs and C-FFI-compatible languages. See `libimagequant.h` or <https://pngquant.org/lib/> for C docs.
 //!
 //! This crate is not supposed to be used in Rust directly. For Rust, see the parent [imagequant](https://lib.rs/imagequant) crate.
+#![cfg_attr(all(not(feature = "std"), feature = "no_std"), no_std)]
+
 #![allow(non_camel_case_types)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::wildcard_imports)]
 #![allow(clippy::items_after_statements)]
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_possible_wrap)]
+
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+extern crate alloc as std;
 
 use core::ffi::{c_char, c_int, c_uint, c_void};
 use core::mem::{ManuallyDrop, MaybeUninit};
@@ -15,6 +20,7 @@ use imagequant::capi::*;
 use imagequant::Error::LIQ_OK;
 use imagequant::*;
 use std::ffi::CString;
+use std::boxed::Box;
 
 pub use imagequant::Error as liq_error;
 
@@ -437,6 +443,7 @@ pub extern "C" fn liq_attr_create_with_allocator(_unused: *mut c_void, free: uns
 #[no_mangle]
 #[inline(never)]
 #[allow(deprecated)]
+#[cfg_attr(all(feature = "std", feature = "no_std"), deprecated(note = "Cargo features configuration issue: both std and no_std features are enabled in imagequant-sys\nYou must disable default features to use no_std."))]
 pub extern "C" fn liq_attr_create() -> Option<Box<liq_attr>> {
     liq_attr_create_with_allocator(ptr::null_mut(), libc::free)
 }
@@ -779,4 +786,34 @@ fn c_callback_test_c() {
 #[test]
 fn ownership_bitflags() {
     assert_eq!(4 + 16, (liq_ownership::LIQ_OWN_ROWS | liq_ownership::LIQ_COPY_PIXELS).bits());
+}
+
+#[cfg(all(feature = "no_std_global_handlers", not(feature = "std"), feature = "no_std"))]
+#[cfg(not(test))]
+mod no_std_global_handlers {
+    use std::alloc::{GlobalAlloc, Layout};
+
+    #[cfg(panic = "unwind")]
+    compile_error!("no_std imagequant-sys must be compiled with panic=abort\n\nset env var CARGO_PROFILE_DEV_PANIC=abort and CARGO_PROFILE_RELEASE_PANIC=abort\nor modify your Cargo.toml to add `panic=\"abort\"` to `[profile.release]` and `[profile.dev]`");
+
+    #[panic_handler]
+    fn panic(_info: &core::panic::PanicInfo) -> ! {
+        unsafe { libc::abort(); }
+    }
+
+    #[global_allocator]
+    static GLOBAL_ALLOCATOR: Mallocator = Mallocator;
+
+    #[derive(Default)]
+    pub struct Mallocator;
+
+    unsafe impl GlobalAlloc for Mallocator {
+         unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+             libc::malloc(layout.size() as _).cast()
+         }
+
+         unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+             libc::free(ptr.cast());
+         }
+    }
 }

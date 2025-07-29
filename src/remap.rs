@@ -11,6 +11,9 @@ use crate::CacheLineAlign;
 use core::cell::RefCell;
 use core::mem::MaybeUninit;
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use crate::no_std_compat::*;
+
 #[repr(u8)]
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum DitherMapMode {

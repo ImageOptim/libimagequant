@@ -6,8 +6,12 @@ use crate::quant::{mse_to_quality, quality_to_mse, QuantizationResult};
 use crate::remap::DitherMapMode;
 use std::sync::Arc;
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use crate::no_std_compat::*;
+
 /// Starting point and settings for the quantization process
 #[derive(Clone)]
+#[cfg_attr(all(feature = "std", feature = "no_std"), deprecated(note = "Cargo features configuration issue: both std and no_std features are enabled in imagequant\nYou must disable default features to use no_std."))]
 pub struct Attributes {
     pub(crate) max_colors: PalLen,
     target_mse: f64,

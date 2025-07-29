@@ -14,6 +14,9 @@ use core::cmp::Reverse;
 use core::fmt;
 use core::mem::MaybeUninit;
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use crate::no_std_compat::*;
+
 /// Remapping step, computed from [`Attributes::quantize()`]
 pub struct QuantizationResult {
     remapped: Option<Box<Remapped>>,

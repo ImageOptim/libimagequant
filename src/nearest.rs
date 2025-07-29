@@ -1,6 +1,9 @@
 use crate::pal::{f_pixel, PalF, PalIndex, MAX_COLORS};
 use crate::{Error, OrdFloat};
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use crate::no_std_compat::*;
+
 impl<'pal> Nearest<'pal> {
     #[inline(never)]
     pub fn new(palette: &'pal PalF) -> Result<Self, Error> {

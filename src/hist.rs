@@ -4,9 +4,18 @@ use crate::pal::{f_pixel, gamma_lut, PalIndex, ARGBF, MAX_COLORS, RGBA};
 use crate::quant::QuantizationResult;
 use crate::rows::{temp_buf, DynamicRows};
 use crate::Attributes;
-use std::collections::{HashMap, HashSet};
 use core::{fmt, hash, mem};
 use core::hash::Hash;
+
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use std::{format, boxed::Box, vec::Vec};
+
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use hashbrown::{HashMap, HashSet};
+
+#[cfg(not(all(not(feature = "std"), feature = "no_std")))]
+use std::collections::{HashMap, HashSet};
+
 
 /// Number of pixels in a given color for [`Histogram::add_colors()`]
 ///

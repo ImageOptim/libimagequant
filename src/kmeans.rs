@@ -7,6 +7,9 @@ use core::cell::RefCell;
 use rgb::prelude::*;
 use rgb::Argb;
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use crate::no_std_compat::*;
+
 /// K-Means iteration: new palette color is computed from weighted average of colors that map best to that palette entry.
 // avoid false sharing
 pub(crate) struct Kmeans {

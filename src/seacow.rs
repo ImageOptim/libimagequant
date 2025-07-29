@@ -1,6 +1,9 @@
 use core::mem::{self, MaybeUninit};
 use core::slice;
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use std::{boxed::Box, vec::Vec};
+
 #[cfg(feature = "_internal_c_ffi")]
 use core::ffi::c_void;
 

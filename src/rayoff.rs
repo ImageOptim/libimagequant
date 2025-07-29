@@ -1,6 +1,9 @@
 use core::slice::ChunksMut;
 use core::cell::OnceCell;
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use std::boxed::Box;
+
 pub(crate) struct ThreadLocal<T>(OnceCell<T>);
 
 impl<T> ThreadLocal<T> {

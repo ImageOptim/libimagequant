@@ -15,10 +15,17 @@ edition = "2021"
 rust-version = "1.65"
 
 [features]
-default = ["threads"]
-threads = ["dep:rayon", "dep:thread_local"]
+default = ["threads", "std"]
+
+# libimagequant makes good use of multi-threading, so disabling threads has a significant performance peanalty
+threads = ["dep:rayon", "dep:thread_local", "std"]
+
 # supports up to 2048 colors for palettes, but NOT FOR REMAPPING
 large_palettes = []
+
+# To opt-in you must disable the default features to disable `std` and `threads`, and also enable `no_std`
+std = []
+no_std = ["dep:hashbrown"]
 
 # this is private and unstable for imagequant-sys only, do not use
 _internal_c_ffi = []
@@ -35,6 +42,8 @@ arrayvec = { version = "0.7.4", default-features = false }
 rgb = { version = "0.8.47", default-features = false, features = ["bytemuck"] }
 rayon = { version = "1.10.0", optional = true }
 thread_local = { version = "1.1.8", optional = true }
+# Used only in no_std
+hashbrown = { version = "0.15.4", optional = true, default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 lodepng = "3.10"

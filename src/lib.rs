@@ -3,6 +3,8 @@
 //! Converts RGBA images to 8-bit with alpha channel.
 //!
 //! See `examples/` directory for example code.
+#![cfg_attr(all(not(feature = "std"), feature = "no_std"), no_std)]
+
 #![doc(html_logo_url = "https://pngquant.org/pngquant-logo.png")]
 #![deny(missing_docs)]
 #![allow(clippy::bool_to_int_with_if)]
@@ -18,6 +20,12 @@
 #![allow(clippy::unreadable_literal)]
 #![allow(clippy::wildcard_imports)]
 #![deny(clippy::semicolon_if_nothing_returned)]
+
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+extern crate alloc as std;
+
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use std::vec::Vec;
 
 mod attr;
 mod blur;
@@ -138,8 +146,8 @@ fn poke_it() {
     assert_eq!(1, liq.min_posterization());
     liq.set_min_posterization(0).unwrap();
 
-    use std::sync::atomic::AtomicBool;
-    use std::sync::atomic::Ordering::SeqCst;
+    use core::sync::atomic::AtomicBool;
+    use core::sync::atomic::Ordering::SeqCst;
     use std::sync::Arc;
 
     let log_called = Arc::new(AtomicBool::new(false));
@@ -204,8 +212,8 @@ fn thread() {
 #[test]
 fn r_callback_test() {
     use core::mem::MaybeUninit;
-    use std::sync::atomic::AtomicU16;
-    use std::sync::atomic::Ordering::SeqCst;
+    use core::sync::atomic::AtomicU16;
+    use core::sync::atomic::Ordering::SeqCst;
     use std::sync::Arc;
 
     let called = Arc::new(AtomicU16::new(0));
@@ -347,5 +355,58 @@ fn test_fixed_colors() {
 
     for c in 0..128 {
         assert!(pal[55..].iter().any(|&p| p == RGBA::new(c, c, c, 255)));
+    }
+}
+
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+pub(crate) mod no_std_compat {
+    pub use std::boxed::Box;
+    pub use std::vec::Vec;
+    pub use std::format;
+
+    extern "C" {
+        fn pow(_: f64, _: f64) -> f64;
+        fn powf(_: f32, _: f32) -> f32;
+        fn sqrt(_: f64) -> f64;
+        fn sqrtf(_: f32) -> f32;
+    }
+
+    pub(crate) trait NoMath: Sized {
+        fn mul_add(self, mul: Self, add: Self) -> Self;
+        fn powi(self, n: u32) -> Self;
+        fn powf(self, e: Self) -> Self;
+        fn sqrt(self) -> Self;
+    }
+
+    impl NoMath for f32 {
+        fn mul_add(self, mul: Self, add: Self) -> Self {
+            self * mul + add
+        }
+        fn powi(self, n: u32) -> Self {
+            assert_eq!(n, 2);
+            self * self
+        }
+        fn powf(self, e: Self) -> Self {
+            unsafe { powf(self, e) }
+        }
+        fn sqrt(self) -> Self {
+            unsafe { sqrtf(self) }
+        }
+    }
+
+    impl NoMath for f64 {
+        fn mul_add(self, mul: Self, add: Self) -> Self {
+            self * mul + add
+        }
+        fn powi(self, n: u32) -> Self {
+            assert_eq!(n, 2);
+            self * self
+        }
+        fn powf(self, e: Self) -> Self {
+            unsafe { pow(self, e) }
+        }
+        fn sqrt(self) -> Self {
+            unsafe { sqrt(self) }
+        }
     }
 }

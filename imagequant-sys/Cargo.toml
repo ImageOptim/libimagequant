@@ -22,6 +22,12 @@ default = ["imagequant/default"]
 # libimagequant makes good use of multi-threading, so disabling threads has a significant performance peanalty
 threads = ["imagequant/threads"]
 
+# To opt-in you must disable the default features to disable `std` and `threads`, and also enable `no_std`
+std = ["imagequant/std"]
+no_std = ["imagequant/no_std"]
+
+# Enable if you get errors like "no global memory allocator found" or "`#[panic_handler]` function required, but not found"
+no_std_global_handlers = ["no_std"]
 
 # internal for cargo-c only <http://lib.rs/cargo-c>
 capi = []

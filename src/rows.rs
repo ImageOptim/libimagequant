@@ -5,6 +5,9 @@ use crate::LIQ_HIGH_MEMORY_LIMIT;
 use core::mem::{size_of, MaybeUninit};
 use core::slice;
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use std::{boxed::Box, vec::Vec};
+
 pub(crate) type RowCallback<'a> = dyn Fn(&mut [MaybeUninit<RGBA>], usize) + Send + Sync + 'a;
 
 pub(crate) enum PixelsSource<'pixels, 'rows> {

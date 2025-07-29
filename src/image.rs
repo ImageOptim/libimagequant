@@ -9,6 +9,9 @@ use crate::{PushInCapacity, LIQ_HIGH_MEMORY_LIMIT};
 use rgb::prelude::*;
 use core::mem::{self, MaybeUninit};
 
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
+use crate::no_std_compat::*;
+
 /// Describes image dimensions and pixels for the library
 ///
 /// Create one using [`Attributes::new_image()`].
