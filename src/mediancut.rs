@@ -42,6 +42,7 @@ impl<'hist> MBox<'hist> {
 
     fn new_inner(hist: &'hist mut [HistItem], adjusted_weight_sum: f64, avg_color: f_pixel) -> Self {
         let (variance, max_error) = Self::box_stats(hist, avg_color);
+        debug_assert!(adjusted_weight_sum.is_finite());
         Self {
             variance,
             max_error,
@@ -311,6 +312,7 @@ fn weighed_average_color(hist: &[HistItem]) -> f_pixel {
         sum += c.adjusted_weight;
         t.0 += c.color.0 * c.adjusted_weight;
     }
+    debug_assert!(sum.is_finite());
     if sum != 0. {
         t.0 /= sum;
     }

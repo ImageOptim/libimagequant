@@ -94,6 +94,7 @@ impl Kmeans {
             if adjust_weight {
                 let remapped = colors[matched as usize];
                 let (_, new_diff) = n.search(&f_pixel(px.0 + px.0 - remapped.0), matched);
+                debug_assert!(new_diff.is_finite());
                 diff = new_diff;
                 item.adjusted_weight = 2.0f32.mul_add(item.adjusted_weight, item.perceptual_weight) * (0.5 + diff);
             }

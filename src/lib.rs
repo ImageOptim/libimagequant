@@ -311,6 +311,7 @@ impl Ord for OrdFloat<f64> {
 }
 
 impl OrdFloat<f32> {
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn new(v: f32) -> Self {
         debug_assert!(v.is_finite());
         Self(v)
@@ -318,6 +319,7 @@ impl OrdFloat<f32> {
 }
 
 impl OrdFloat<f64> {
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn new64(v: f64) -> Self {
         debug_assert!(v.is_finite());
         Self(v)
