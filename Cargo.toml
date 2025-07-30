@@ -47,7 +47,7 @@ rgb = { version = "0.8.47", default-features = false, features = ["bytemuck"] }
 rayon = { version = "1.10.0", optional = true }
 thread_local = { version = "1.1.8", optional = true }
 # Used only in no_std
-hashbrown = { version = "0.15.4", optional = true, default-features = false, features = ["alloc"] }
+hashbrown = { version = "0.15.4", optional = true, default-features = false }
 
 [dev-dependencies]
 lodepng = "3.10"
