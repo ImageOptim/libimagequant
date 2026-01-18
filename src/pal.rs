@@ -3,6 +3,7 @@ use arrayvec::ArrayVec;
 use core::iter;
 use core::ops::{Deref, DerefMut};
 use rgb::prelude::*;
+use wide::f32x4;
 
 #[cfg(all(not(feature = "std"), feature = "no_std"))]
 use crate::no_std_compat::*;
@@ -24,20 +25,37 @@ const LIQ_WEIGHT_MSE: f64 = 0.45;
 
 /// 4xf32 color using internal gamma.
 ///
-/// ARGB layout is important for x86 SIMD.
-/// I've created the newtype wrapper to try a 16-byte alignment, but it didn't improve perf :(
-#[cfg_attr(
-    any(target_arch = "x86_64", all(target_feature = "neon", target_arch = "aarch64")),
-    repr(C, align(16))
-)]
+/// ARGB layout: [a, r, g, b] as f32x4
+#[repr(C, align(16))]
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
 #[allow(non_camel_case_types)]
 pub struct f_pixel(pub ARGBF);
 
 impl f_pixel {
-    #[cfg(not(any(target_arch = "x86_64", all(target_feature = "neon", target_arch = "aarch64"))))]
+    /// Compute perceptual color difference using portable SIMD.
+    ///
+    /// Computes max(onblack², onwhite²) for RGB channels and sums them,
+    /// where onblack = self - other, onwhite = onblack + alpha_diff.
     #[inline(always)]
     pub fn diff(&self, other: &f_pixel) -> f32 {
+        // ARGBF and f32x4 are both Pod and same size/alignment
+        let px: f32x4 = rgb::bytemuck::cast(self.0);
+        let py: f32x4 = rgb::bytemuck::cast(other.0);
+
+        // alpha is at index 0 in ARGBF layout
+        let alpha_diff = f32x4::splat(other.0.a - self.0.a);
+        let onblack = px - py;
+        let onwhite = onblack + alpha_diff;
+        let max_sq = (onblack * onblack).max(onwhite * onwhite);
+
+        // Sum RGB channels (indices 1, 2, 3), skip alpha (index 0)
+        let arr: [f32; 4] = max_sq.into();
+        arr[1] + arr[2] + arr[3]
+    }
+
+    /// Scalar reference implementation for verification
+    #[cfg(test)]
+    fn diff_scalar(&self, other: &f_pixel) -> f32 {
         let alphas = other.0.a - self.0.a;
         let black = self.0 - other.0;
         let white = ARGBF {
@@ -49,69 +67,6 @@ impl f_pixel {
         (black.r * black.r).max(white.r * white.r) +
         (black.g * black.g).max(white.g * white.g) +
         (black.b * black.b).max(white.b * white.b)
-    }
-
-    #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
-    #[inline(always)]
-    pub fn diff(&self, other: &Self) -> f32 {
-        unsafe {
-            use core::arch::aarch64::*;
-
-            let px = vld1q_f32((self as *const Self).cast::<f32>());
-            let py = vld1q_f32((other as *const Self).cast::<f32>());
-
-            // y.a - x.a
-            let mut alphas = vsubq_f32(py, px);
-            alphas = vdupq_laneq_f32(alphas, 0); // copy first to all four
-
-            let mut onblack = vsubq_f32(px, py); // x - y
-            let mut onwhite = vaddq_f32(onblack, alphas); // x - y + (y.a - x.a)
-
-            onblack = vmulq_f32(onblack, onblack);
-            onwhite = vmulq_f32(onwhite, onwhite);
-
-            let max = vmaxq_f32(onwhite, onblack);
-
-            let mut max_r = [0.; 4];
-            vst1q_f32(max_r.as_mut_ptr(), max);
-
-            let mut max_gb = [0.; 4];
-            vst1q_f32(max_gb.as_mut_ptr(), vpaddq_f32(max, max));
-
-            // add rgb, not a
-
-            max_r[1] + max_gb[1]
-        }
-    }
-
-    #[cfg(target_arch = "x86_64")]
-    #[inline(always)]
-    pub fn diff(&self, other: &f_pixel) -> f32 {
-        unsafe {
-            use core::arch::x86_64::*;
-
-            let px = _mm_loadu_ps(self as *const f_pixel as *const f32);
-            let py = _mm_loadu_ps(other as *const f_pixel as *const f32);
-
-            // y.a - x.a
-            let mut alphas = _mm_sub_ss(py, px);
-            alphas = _mm_shuffle_ps(alphas, alphas, 0); // copy first to all four
-
-            let mut onblack = _mm_sub_ps(px, py); // x - y
-            let mut onwhite = _mm_add_ps(onblack, alphas); // x - y + (y.a - x.a)
-
-            onblack = _mm_mul_ps(onblack, onblack);
-            onwhite = _mm_mul_ps(onwhite, onwhite);
-            let max = _mm_max_ps(onwhite, onblack);
-
-            // the compiler is better at horizontal add than I am
-            let mut tmp = [0.; 4];
-            _mm_storeu_ps(tmp.as_mut_ptr(), max);
-
-            // add rgb, not a
-            let res = tmp[1] + tmp[2] + tmp[3];
-            res
-        }
     }
 
     #[inline]
@@ -432,6 +387,39 @@ fn diff_test() {
     let d = f_pixel(ARGBF {a: 0., g: 1., b: 0.3, r: 0.5});
     assert!(a.diff(&b) < b.diff(&c));
     assert!(c.diff(&b) < c.diff(&d));
+}
+
+/// Verify SIMD diff matches scalar reference implementation across edge cases
+#[test]
+fn diff_simd_matches_scalar() {
+    // Test values: boundaries and slight overflow (common in dithering)
+    let values: &[f32] = &[0.0, 0.5, 1.0, -0.01, 1.01];
+    for &a1 in values {
+        for &r1 in values {
+            for &g1 in values {
+                for &b1 in values {
+                    let px1 = f_pixel(ARGBF { a: a1, r: r1, g: g1, b: b1 });
+                    for &a2 in values {
+                        for &r2 in values {
+                            for &g2 in values {
+                                for &b2 in values {
+                                    let px2 = f_pixel(ARGBF { a: a2, r: r2, g: g2, b: b2 });
+                                    let simd = px1.diff(&px2);
+                                    let scalar = px1.diff_scalar(&px2);
+                                    let diff = (simd - scalar).abs();
+                                    assert!(
+                                        diff < 1e-5 || diff < scalar.abs() * 1e-5,
+                                        "SIMD {simd} != scalar {scalar} (diff {diff}) for {:?} vs {:?}",
+                                        px1.0, px2.0
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[test]
