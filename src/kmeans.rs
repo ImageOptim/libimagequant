@@ -93,7 +93,7 @@ impl Kmeans {
         self.weighed_diff_sum += batch.iter_mut().map(|item| {
             let px = item.color;
             let (matched, mut diff) = n.search(&px, item.likely_palette_index());
-            item.tmp.likely_palette_index = matched;
+            item.tmp = matched as u32;
             if adjust_weight {
                 let remapped = colors[matched as usize];
                 let (_, new_diff) = n.search(&f_pixel(px.0 + px.0 - remapped.0), matched);
