@@ -27,7 +27,7 @@ const LIQ_WEIGHT_MSE: f64 = 0.45;
 /// ARGB layout is important for x86 SIMD.
 /// I've created the newtype wrapper to try a 16-byte alignment, but it didn't improve perf :(
 #[cfg_attr(
-    any(target_arch = "x86_64", all(target_feature = "neon", target_arch = "aarch64")),
+    any(target_arch = "x86_64", all(target_feature = "neon", target_arch = "aarch64"), all(target_arch = "wasm32", target_feature = "simd128")),
     repr(C, align(16))
 )]
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
@@ -35,7 +35,7 @@ const LIQ_WEIGHT_MSE: f64 = 0.45;
 pub struct f_pixel(pub ARGBF);
 
 impl f_pixel {
-    #[cfg(not(any(target_arch = "x86_64", all(target_feature = "neon", target_arch = "aarch64"))))]
+    #[cfg(not(any(target_arch = "x86_64", all(target_feature = "neon", target_arch = "aarch64"), all(target_arch = "wasm32", target_feature = "simd128"))))]
     #[inline(always)]
     pub fn diff(&self, other: &f_pixel) -> f32 {
         let alphas = other.0.a - self.0.a;
@@ -49,6 +49,31 @@ impl f_pixel {
         (black.r * black.r).max(white.r * white.r) +
         (black.g * black.g).max(white.g * white.g) +
         (black.b * black.b).max(white.b * white.b)
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    #[inline(always)]
+    pub fn diff(&self, other: &f_pixel) -> f32 {
+        use core::arch::wasm32::*;
+
+        let px = f32x4(self.0.a, self.0.r, self.0.g, self.0.b);
+        let py = f32x4(other.0.a, other.0.r, other.0.g, other.0.b);
+
+        // y.a - x.a, then broadcast lane 0 to all four
+        let alpha_diff = f32x4_sub(py, px);
+        let alphas = f32x4_splat(f32x4_extract_lane::<0>(alpha_diff));
+
+        let mut onblack = f32x4_sub(px, py); // x - y
+        let mut onwhite = f32x4_add(onblack, alphas); // x - y + (y.a - x.a)
+
+        onblack = f32x4_mul(onblack, onblack);
+        onwhite = f32x4_mul(onwhite, onwhite);
+        let max = f32x4_max(onwhite, onblack);
+
+        // add rgb (lanes 1,2,3), not a (lane 0)
+        f32x4_extract_lane::<1>(max)
+            + f32x4_extract_lane::<2>(max)
+            + f32x4_extract_lane::<3>(max)
     }
 
     #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
