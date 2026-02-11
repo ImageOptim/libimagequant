@@ -134,40 +134,52 @@ impl<'hist> MBox<'hist> {
     }
 }
 
-#[inline]
-fn qsort_pivot(base: &[HistItem]) -> usize {
-    let len = base.len();
-    if len < 32 {
-        return len / 2;
-    }
-    let mut pivots = [8, len / 2, len - 1];
-    // LLVM can't see it's in bounds :(
-    pivots.sort_unstable_by_key(move |&idx| unsafe {
-        debug_assert!(base.get(idx).is_some());
-        base.get_unchecked(idx)
-    }.mc_sort_value());
-    pivots[1]
+
+/// LLVM 21 can't reliably optimize out bounds checks - it keeps forgetting the known range
+/// of values at any non-trivial if/else.
+/// When LLVM fails to optimize out checks, it's way better to have a fallback value than a panic.
+/// The fallback doesn't have side effects and allows code reordering.
+#[inline(always)]
+fn mc_sort_value(base: &[HistItem], idx: usize) -> Option<u32> {
+    debug_assert!(base.get(idx).is_some());
+    base.get(idx).map(|item| item.mc_sort_value())
 }
 
-fn qsort_partition(base: &mut [HistItem]) -> usize {
+#[inline]
+fn qsort_pivot(base: &[HistItem]) -> Option<usize> {
+    let len = base.len();
+    if len < 32 {
+        return Some(len / 2);
+    }
+    let mut pivots = [8, len / 2, len - 1];
+    pivots.sort_unstable_by_key(move |&idx| mc_sort_value(base, idx).unwrap_or_default());
+    // this is redundant, but tracking `!base.is_empty()` through `qsort_pivot()` is too much for LLVM
+    debug_assert!(pivots[1] < base.len());
+    (pivots[1] < base.len()).then_some(pivots[1])
+}
+
+fn qsort_partition(base: &mut [HistItem]) -> Option<usize> {
     let mut r = base.len();
-    base.swap(qsort_pivot(base), 0);
-    let pivot_value = base[0].mc_sort_value();
+    base.swap(qsort_pivot(base)?, 0);
+    let pivot_value = mc_sort_value(base, 0)?;
     let mut l = 1;
     while l < r {
-        if base[l].mc_sort_value() >= pivot_value {
+        if mc_sort_value(base, l)? >= pivot_value {
             l += 1;
         } else {
             r -= 1;
-            while l < r && base[r].mc_sort_value() <= pivot_value {
+            while l < r && mc_sort_value(base, r)? <= pivot_value {
                 r -= 1;
             }
+            debug_assert!(l < base.len() && r < base.len());
+            if r >= base.len() { return None; } // always false, but LLVM needs this ;(
             base.swap(l, r);
         }
     }
     l -= 1;
+    if l >= base.len() { return None; } // always false, but LLVM needs this ;(
     base.swap(l, 0);
-    l
+    Some(l)
 }
 
 /// sorts the slice to make the sum of weights lower than `weight_half_sum` one side,
@@ -179,11 +191,11 @@ fn hist_item_sort_half(mut base: &mut [HistItem], mut weight_half_sum: f64) -> u
         return 0;
     }
     loop {
-        let partition = qsort_partition(base);
-        let (left, right) = base.split_at_mut(partition + 1); // +1, because pivot stays on the left side
+        let Some(partition) = qsort_partition(base) else { return base_index; };
+        let Some((left, right)) = base.split_at_mut_checked(partition + 1) else { return base_index; }; // +1, because pivot stays on the left side
         let left_sum = left.iter().map(|c| f64::from(c.mc_color_weight)).sum::<f64>();
         if left_sum >= weight_half_sum {
-            match left.get_mut(..partition) { // trim pivot point, avoid panick branch in []
+            match left.get_mut(..partition) { // trim pivot point, avoid panic branch in [..]
                 Some(left) if !left.is_empty() => { base = left; continue; },
                 _ => return base_index,
             }
