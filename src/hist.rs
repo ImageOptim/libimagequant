@@ -53,18 +53,22 @@ pub(crate) struct HistItem {
     pub perceptual_weight: f32,
     pub mc_color_weight: f32,
     /// Reused: mc_sort_value during median cut, then likely_palette_index after
-    pub tmp: u32,
+    pub sort_val_pal_index_union: u32,
 }
 
 impl HistItem {
     #[inline(always)]
     pub fn mc_sort_value(&self) -> u32 {
-        self.tmp
+        self.sort_val_pal_index_union
     }
 
     #[inline(always)]
     pub fn likely_palette_index(&self) -> PalIndex {
-        self.tmp as PalIndex
+        self.sort_val_pal_index_union as PalIndex
+    }
+
+    pub(crate) fn set_likely_palette_index(&mut self, index: PalIndex) {
+        self.sort_val_pal_index_union = index as u32;
     }
 }
 
@@ -313,7 +317,7 @@ impl Histogram {
             adjusted_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },
             perceptual_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },
             mc_color_weight: if cfg!(debug_assertions) { f32::NAN } else { 0. },
-            tmp: if cfg!(debug_assertions) { !0 } else { 0 },
+            sort_val_pal_index_union: if cfg!(debug_assertions) { !0 } else { 0 },
         });
         let mut items = items.into_boxed_slice();
 
