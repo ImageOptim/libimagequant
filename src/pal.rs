@@ -100,12 +100,10 @@ impl f_pixel {
             let mut max_r = [0.; 4];
             vst1q_f32(max_r.as_mut_ptr(), max);
 
-            let mut max_gb = [0.; 4];
-            vst1q_f32(max_gb.as_mut_ptr(), vpaddq_f32(max, max));
-
-            // add rgb, not a
-
-            max_r[1] + max_gb[1]
+            // add rgb, not a. Same association as the other paths, (r + g) + b:
+            // a pairwise add gives r + (g + b), and float addition is not associative,
+            // so the distance metric (and with it the palette) differed by architecture.
+            max_r[1] + max_r[2] + max_r[3]
         }
     }
 
