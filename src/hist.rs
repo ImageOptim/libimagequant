@@ -245,7 +245,13 @@ impl Histogram {
 
         let new_size = (self.hashmap.len() / 3).max(self.hashmap.capacity() / 5);
         let old_hashmap = mem::replace(&mut self.hashmap, HashMap::with_capacity_and_hasher(new_size, U32Hasher(0)));
-        self.hashmap.extend(old_hashmap.into_iter().map(move |(k, v)| {
+        // Re-insert in key order. Several old keys can collapse to one posterized
+        // key and the last one inserted wins, so the result must not depend on the
+        // old map's iteration order, which varies with the hash table's bucket
+        // layout (hashbrown's probe-group width differs between x86_64 and aarch64).
+        let mut entries: Vec<(u32, (u32, RGBA))> = old_hashmap.into_iter().collect();
+        entries.sort_unstable_by_key(|&(k, _)| k);
+        self.hashmap.extend(entries.into_iter().map(move |(k, v)| {
             (k & new_posterize_mask, v)
         }));
     }
@@ -301,6 +307,11 @@ impl Histogram {
             let weight = boost as f32;
             TempHistItem { color, weight, cluster_index }
         }));
+        // Everything after this point is order-sensitive (cluster bucketing by
+        // position, the f64 weight sum, median cut's tie-breaking, k-means' chunks),
+        // and a HashMap's iteration order depends on the hash table's bucket layout,
+        // which differs between architectures. Fix the order so the result does not.
+        temp.sort_unstable_by_key(|t| (t.color.r, t.color.g, t.color.b, t.color.a, t.cluster_index));
 
         let mut clusters = [Cluster { begin: 0, end: 0 }; LIQ_MAXCLUSTER];
         let mut next_begin = 0;
