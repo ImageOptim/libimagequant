@@ -13,7 +13,7 @@ use crate::{Attributes, Error, Image, QuantizationResult, RGBA};
 use core::ffi::c_void;
 use core::mem::{self, MaybeUninit};
 
-pub const LIQ_VERSION: u32 = 40202;
+pub const LIQ_VERSION: u32 = 40401;
 
 #[must_use]
 pub fn liq_get_palette_impl(r: &mut QuantizationResult) -> &Palette {
